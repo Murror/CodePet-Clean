@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Codepet Kingdom Scenes – Pixel Art Preview</title>
+<style>
+  body {
+    background: #1a1a2e;
+    font-family: -apple-system, sans-serif;
+    color: #e0e0e0;
+    padding: 40px;
+    margin: 0;
+  }
+  h1 { text-align: center; color: #A89BF2; font-size: 24px; margin-bottom: 8px; }
+  p.sub { text-align: center; color: #888; font-size: 13px; margin-bottom: 40px; }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  .card {
+    background: #252540;
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  }
+  .card img {
+    width: 100%;
+    height: auto;
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+  }
+  .card .label {
+    padding: 12px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card .name {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .card .tier {
+    font-size: 11px;
+    color: #888;
+    font-family: monospace;
+  }
+  .molten .name { color: #FF6830; }
+  .frozen .name { color: #78C0E8; }
+  .garden .name { color: #E090B8; }
+  .storm .name { color: #8BC070; }
+
+  .sizes { text-align: center; margin-top: 40px; color: #666; font-size: 12px; }
+  .sizes span { display: inline-block; margin: 0 16px; }
+
+  .fullsize {
+    max-width: 900px;
+    margin: 40px auto 0;
+  }
+  .fullsize h2 { color: #A89BF2; font-size: 16px; margin-bottom: 16px; }
+  .fullsize .scene {
+    margin-bottom: 24px;
+    background: #252540;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .fullsize .scene img {
+    width: 100%;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    display: block;
+  }
+  .fullsize .scene .flabel {
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #888;
+  }
+</style>
+</head>
+<body>
+
+<h1>Codepet – Kingdom Scene Preview</h1>
+<p class="sub">80×50 pixel grid · 4px/cell · Pixel art style</p>
+
+<div class="grid">
+  <div class="card molten">
+    <img src="kingdom-molten-forge-v2.svg" alt="Molten Forge">
+    <div class="label">
+      <span class="name">Molten Forge</span>
+      <span class="tier">Tier 1 · Foundations</span>
+    </div>
+  </div>
+  <div class="card frozen">
+    <img src="kingdom-frozen-spire-v2.svg" alt="Frozen Spire">
+    <div class="label">
+      <span class="name">Frozen Spire</span>
+      <span class="tier">Tier 2 · Building</span>
+    </div>
+  </div>
+  <div class="card garden">
+    <img src="kingdom-eternal-garden-v2.svg" alt="Eternal Garden">
+    <div class="label">
+      <span class="name">Eternal Garden</span>
+      <span class="tier">Tier 3 · Creating</span>
+    </div>
+  </div>
+  <div class="card storm">
+    <img src="kingdom-storm-summit-v2.svg" alt="Storm Summit">
+    <div class="label">
+      <span class="name">Storm Summit</span>
+      <span class="tier">Tier 4 · Mastery</span>
+    </div>
+  </div>
+</div>
+
+<div class="sizes">
+  <span>Card size (as in app)</span>
+  <span>↑ Above</span>
+</div>
+
+<div class="fullsize">
+  <h2>Full-size preview (2x)</h2>
+  <div class="scene">
+    <img src="kingdom-molten-forge-v2.svg" alt="Molten Forge full">
+    <div class="flabel">Molten Forge – volcano, lava streams, forge anvil, floating embers</div>
+  </div>
+  <div class="scene">
+    <img src="kingdom-frozen-spire-v2.svg" alt="Frozen Spire full">
+    <div class="flabel">Frozen Spire – aurora borealis, ice crystal spires, frozen pond, snowfall</div>
+  </div>
+  <div class="scene">
+    <img src="kingdom-eternal-garden-v2.svg" alt="Eternal Garden full">
+    <div class="flabel">Eternal Garden – magic cherry blossom tree, flowers, mushrooms, fireflies, pond</div>
+  </div>
+  <div class="scene">
+    <img src="kingdom-storm-summit-v2.svg" alt="Storm Summit full">
+    <div class="flabel">Storm Summit – mountain fortress, pine trees, lightning bolt, rain</div>
+  </div>
+</div>
+
+</body>
+</html>
