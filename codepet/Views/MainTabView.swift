@@ -30,7 +30,7 @@ struct MainTabView: View {
             ZStack {
                 VStack(spacing: 0) {
                     // Game HUD (hearts, coins, streak)
-                    if appState.selectedTab == .home || appState.selectedTab == .skills {
+                    if appState.selectedTab == .home || appState.selectedTab == .skills || appState.selectedTab == .sessions {
                         GameHUDBar()
                         Rectangle()
                             .fill(Color(hex: "#EBE8DF"))
@@ -112,6 +112,7 @@ struct MainTabView: View {
 // MARK: - Custom Sidebar Navigation
 
 struct SidebarNav: View {
+    @EnvironmentObject var appState: AppState
     @Binding var selectedTab: AppState.Tab
     @Binding var showChat: Bool
     @Binding var soundEnabled: Bool
@@ -190,8 +191,7 @@ struct SidebarNav: View {
 
             // Sound toggle
             Button(action: {
-                soundEnabled.toggle()
-                SoundManager.shared.isEnabled = soundEnabled
+                appState.toggleSound()
             }) {
                 VStack(spacing: 4) {
                     Image(systemName: soundEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")

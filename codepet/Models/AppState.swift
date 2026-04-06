@@ -161,6 +161,13 @@ class AppState: ObservableObject {
     func toggleSound() {
         soundEnabled.toggle()
         SoundManager.shared.isEnabled = soundEnabled
+        if soundEnabled {
+            // Re-initialize engine when turning sound back on
+            SoundManager.shared.initialize()
+            SoundManager.shared.playTap()
+        } else {
+            SoundManager.shared.stopMusic()
+        }
     }
 
     /// Complete daily challenge

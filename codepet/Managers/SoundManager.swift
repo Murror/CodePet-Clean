@@ -33,10 +33,24 @@ final class ChiptuneEngine {
     func start() {
         guard !isRunning else { return }
         do {
+            engine.prepare()
             try engine.start()
             isRunning = true
+            print("[ChiptuneEngine] Started successfully")
         } catch {
-            print("ChiptuneEngine start failed: \(error)")
+            print("[ChiptuneEngine] Start failed: \(error)")
+            // Retry once after a short delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                guard let self = self, !self.isRunning else { return }
+                do {
+                    self.engine.prepare()
+                    try self.engine.start()
+                    self.isRunning = true
+                    print("[ChiptuneEngine] Retry succeeded")
+                } catch {
+                    print("[ChiptuneEngine] Retry also failed: \(error)")
+                }
+            }
         }
     }
 
@@ -119,31 +133,46 @@ final class ChiptuneEngine {
     // MARK: - Play Note
 
     func playNote(frequency: Double, duration: Double, wave: WaveType = .square, volume: Float = 0.3, delay: Double = 0, toMixer: AVAudioMixerNode? = nil) {
-        guard isRunning else { return }
+        if !isRunning {
+            // Try to restart engine if it stopped unexpectedly
+            start()
+            guard isRunning else { return }
+        }
         guard let buffer = generateBuffer(frequency: frequency, duration: duration, waveType: wave, volume: volume) else { return }
         let format = buffer.format
         let target = toMixer ?? sfxMixer
 
-        let playerNode = AVAudioPlayerNode()
-        engine.attach(playerNode)
-        engine.connect(playerNode, to: target, format: format)
-
         if delay > 0 {
-            let sampleTime = AVAudioFramePosition(delay * sampleRate)
-            let hostTime = AVAudioTime(sampleTime: sampleTime, atRate: sampleRate)
-            playerNode.scheduleBuffer(buffer, at: hostTime) {
-                DispatchQueue.main.async { [weak self] in
-                    self?.engine.detach(playerNode)
+            // Use DispatchQueue delay instead of AVAudioTime for reliable scheduling
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self = self, self.isRunning else { return }
+                let playerNode = AVAudioPlayerNode()
+                self.engine.attach(playerNode)
+                self.engine.connect(playerNode, to: target, format: format)
+                playerNode.scheduleBuffer(buffer) {
+                    DispatchQueue.main.async { [weak self] in
+                        self?.cleanupNode(playerNode)
+                    }
                 }
+                playerNode.play()
             }
         } else {
+            let playerNode = AVAudioPlayerNode()
+            engine.attach(playerNode)
+            engine.connect(playerNode, to: target, format: format)
             playerNode.scheduleBuffer(buffer) {
                 DispatchQueue.main.async { [weak self] in
-                    self?.engine.detach(playerNode)
+                    self?.cleanupNode(playerNode)
                 }
             }
+            playerNode.play()
         }
-        playerNode.play()
+    }
+
+    private func cleanupNode(_ node: AVAudioPlayerNode) {
+        node.stop()
+        engine.disconnectNodeOutput(node)
+        engine.detach(node)
     }
 
     /// Convenience: play a named note like "C5"

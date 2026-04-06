@@ -67,9 +67,9 @@ struct KingdomInteriorView: View {
                         }
                     }
                     // Detect lesson completion → celebrate then walk to next node
-                    .onChange(of: completedCount) { newCount in
-                        if newCount > previousCompletedCount {
-                            previousCompletedCount = newCount
+                    .onChange(of: completedCount) {
+                        if completedCount > previousCompletedCount {
+                            previousCompletedCount = completedCount
 
                             // 1. Celebrate at current position
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.5)) {
@@ -447,8 +447,8 @@ struct KingdomCharacterView: View {
                 bouncePhase = true
             }
         }
-        .onChange(of: isCelebrating) { celebrating in
-            if celebrating {
+        .onChange(of: isCelebrating) {
+            if isCelebrating {
                 // Sparkle burst animation
                 withAnimation(.easeOut(duration: 0.8)) {
                     sparkleVisible = true
