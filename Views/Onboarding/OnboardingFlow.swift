@@ -221,7 +221,7 @@ struct SplashBubble: View {
             .offset(x: xOffset, y: floating ? -4 : 4)
             .opacity(visible ? 1 : 0)
             .scaleEffect(visible ? 1 : 0.8)
-            .onChange(of: show) { _, newValue in
+            .onChange(of: show) { newValue in
                 if newValue {
                     withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(showDelay)) {
                         visible = true
