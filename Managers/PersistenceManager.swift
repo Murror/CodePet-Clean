@@ -40,6 +40,7 @@ class PersistenceManager {
         static let hasSavedBefore = "cp_hasSavedBefore"
         static let lessonReviewDates = "cp_lessonReviewDates"
         static let lessonReviewCounts = "cp_lessonReviewCounts"
+        static let dailySnapshots = "cp_dailySnapshots"
     }
 
     // MARK: - Save
@@ -103,6 +104,11 @@ class PersistenceManager {
         }
         if let data = try? JSONEncoder().encode(state.lessonReviewCounts) {
             defaults.set(data, forKey: Key.lessonReviewCounts)
+        }
+
+        // Daily Snapshots
+        if let data = try? JSONEncoder().encode(state.dailySnapshots) {
+            defaults.set(data, forKey: Key.dailySnapshots)
         }
 
         // Theme & Sound
@@ -199,6 +205,12 @@ class PersistenceManager {
         if let data = defaults.data(forKey: Key.lessonReviewCounts),
            let decoded = try? JSONDecoder().decode([String: Int].self, from: data) {
             state.lessonReviewCounts = decoded
+        }
+
+        // Daily Snapshots
+        if let data = defaults.data(forKey: Key.dailySnapshots),
+           let snapshots = try? JSONDecoder().decode([DailySnapshot].self, from: data) {
+            state.dailySnapshots = snapshots
         }
 
         // Streak check — if more than 1 day since last visit, reset streak
