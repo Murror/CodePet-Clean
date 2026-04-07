@@ -38,6 +38,13 @@
 		D55CE6666D3FEA99B2ABF93C /* SkillData.swift in Sources */ = {isa = PBXBuildFile; fileRef = D72B77F0FD1C2E56791448E5 /* SkillData.swift */; };
 		D8C1715B3EA7D30D278F4F58 /* CompanionPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2596E29DDF54E69F63CB9C03 /* CompanionPanelView.swift */; };
 		E8120E455805AF9A715EFE7C /* CharacterImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = C94BAB1D809C53AB5808929A /* CharacterImage.swift */; };
+		AA11111111111111AAAAAAAA /* InsightCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB11111111111111BBBBBBBB /* InsightCardView.swift */; };
+		AA22222222222222AAAAAAAA /* XPProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB22222222222222BBBBBBBB /* XPProgressCard.swift */; };
+		AA33333333333333AAAAAAAA /* StreakCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB33333333333333BBBBBBBB /* StreakCard.swift */; };
+		AA44444444444444AAAAAAAA /* SkillsMasteredCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB44444444444444BBBBBBBB /* SkillsMasteredCard.swift */; };
+		AA55555555555555AAAAAAAA /* WeeklyActivityCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB55555555555555BBBBBBBB /* WeeklyActivityCard.swift */; };
+		AA66666666666666AAAAAAAA /* TierProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB66666666666666BBBBBBBB /* TierProgressCard.swift */; };
+		AA77777777777777AAAAAAAA /* RecentPerformanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB77777777777777BBBBBBBB /* RecentPerformanceCard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -72,6 +79,13 @@
 		D985F34C39B46FCDDDE5E7D5 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		F7CA9161231C6C266AF82FC3 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
 		F91460EB81EEA09779CA80B5 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		BB11111111111111BBBBBBBB /* InsightCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightCardView.swift; sourceTree = "<group>"; };
+		BB22222222222222BBBBBBBB /* XPProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = XPProgressCard.swift; sourceTree = "<group>"; };
+		BB33333333333333BBBBBBBB /* StreakCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreakCard.swift; sourceTree = "<group>"; };
+		BB44444444444444BBBBBBBB /* SkillsMasteredCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkillsMasteredCard.swift; sourceTree = "<group>"; };
+		BB55555555555555BBBBBBBB /* WeeklyActivityCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyActivityCard.swift; sourceTree = "<group>"; };
+		BB66666666666666BBBBBBBB /* TierProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TierProgressCard.swift; sourceTree = "<group>"; };
+		BB77777777777777BBBBBBBB /* RecentPerformanceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentPerformanceCard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +113,13 @@
 			isa = PBXGroup;
 			children = (
 				567030BA18C8C28A4C086E7C /* InsightsView.swift */,
+				BB11111111111111BBBBBBBB /* InsightCardView.swift */,
+				BB22222222222222BBBBBBBB /* XPProgressCard.swift */,
+				BB33333333333333BBBBBBBB /* StreakCard.swift */,
+				BB44444444444444BBBBBBBB /* SkillsMasteredCard.swift */,
+				BB55555555555555BBBBBBBB /* WeeklyActivityCard.swift */,
+				BB66666666666666BBBBBBBB /* TierProgressCard.swift */,
+				BB77777777777777BBBBBBBB /* RecentPerformanceCard.swift */,
 			);
 			path = Insights;
 			sourceTree = "<group>";
@@ -328,6 +349,13 @@
 				36D594516C7141C956356016 /* SplashView.swift in Sources */,
 				B504F9FC71B6E1A5B754F7D6 /* ThemeManager.swift in Sources */,
 				A22AFA406D401CA3F98B01F7 /* WorldMapView.swift in Sources */,
+				AA11111111111111AAAAAAAA /* InsightCardView.swift in Sources */,
+				AA22222222222222AAAAAAAA /* XPProgressCard.swift in Sources */,
+				AA33333333333333AAAAAAAA /* StreakCard.swift in Sources */,
+				AA44444444444444AAAAAAAA /* SkillsMasteredCard.swift in Sources */,
+				AA55555555555555AAAAAAAA /* WeeklyActivityCard.swift in Sources */,
+				AA66666666666666AAAAAAAA /* TierProgressCard.swift in Sources */,
+				AA77777777777777AAAAAAAA /* RecentPerformanceCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
