@@ -123,6 +123,9 @@ class AppState: ObservableObject {
 
         // Energy boost from activity
         petEnergy = min(100, petEnergy + 5)
+
+        // Keep today's snapshot current
+        checkAndUpdateSnapshot()
     }
 
     /// Silently sync currentTier to match completed lessons (called on init)
@@ -216,6 +219,7 @@ class AppState: ObservableObject {
     }
 
     func incrementTodayReviews() {
+        checkAndUpdateSnapshot()
         let calendar = Calendar.current
         if let idx = dailySnapshots.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: Date()) }) {
             dailySnapshots[idx].reviewsDone += 1
