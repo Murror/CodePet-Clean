@@ -35,6 +35,10 @@ class AppState: ObservableObject {
     @Published var difficultyLevel: String = "medium"
     @Published var performanceHistory: [PerformanceEntry] = []
 
+    // Review / Spaced Repetition
+    @Published var lessonReviewDates: [String: Date] = [:]  // skillId -> last review date
+    @Published var lessonReviewCounts: [String: Int] = [:]  // skillId -> review count
+
     // Daily Challenge
     @Published var dailyChallengeCompleted: Bool = false
 
@@ -147,6 +151,33 @@ class AppState: ObservableObject {
             showTierUnlock = true
             SoundManager.shared.playLevelUp()
         }
+    }
+
+    // MARK: - Spaced Repetition
+
+    /// Lessons ready for review (spaced repetition: 1d, 3d, 7d, 14d intervals)
+    var lessonsReadyForReview: [String] {
+        completedLessons.filter { skillId in
+            guard let lastReview = lessonReviewDates[skillId] else {
+                // Never reviewed — ready if completed more than 1 day ago
+                return true
+            }
+            let reviewCount = lessonReviewCounts[skillId] ?? 0
+            let interval: TimeInterval
+            switch reviewCount {
+            case 0: interval = 86400       // 1 day
+            case 1: interval = 86400 * 3   // 3 days
+            case 2: interval = 86400 * 7   // 7 days
+            default: interval = 86400 * 14 // 14 days
+            }
+            return Date().timeIntervalSince(lastReview) >= interval
+        }
+    }
+
+    /// Mark a lesson as reviewed
+    func markReviewed(_ skillId: String) {
+        lessonReviewDates[skillId] = Date()
+        lessonReviewCounts[skillId] = (lessonReviewCounts[skillId] ?? 0) + 1
     }
 
     /// Toggle dark mode with sound

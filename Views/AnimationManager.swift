@@ -600,6 +600,11 @@ struct LevelUpOverlay: View {
                 .ignoresSafeArea()
                 .onTapGesture { dismiss() }
 
+            // Confetti burst
+            if showStars {
+                ConfettiBurstView(count: 40, colors: [characterColor, .yellow, .orange, .green, .purple])
+            }
+
             VStack(spacing: 16) {
                 // Stars
                 if showStars {
@@ -624,6 +629,7 @@ struct LevelUpOverlay: View {
                             .foregroundColor(.white)
                     )
                     .shadow(color: characterColor.opacity(0.5), radius: 20)
+                    .modifier(PulseGlowModifier(color: characterColor))
 
                 Text("LEVEL UP!")
                     .font(.system(size: 24, weight: .black, design: .monospaced))
@@ -699,6 +705,13 @@ struct TierUnlockOverlay: View {
             Color.black.opacity(showContent ? 0.6 : 0)
                 .ignoresSafeArea()
                 .onTapGesture { dismiss() }
+
+            // Confetti burst
+            if showEvo {
+                ConfettiBurstView(count: 50, colors: [
+                    charData?.color ?? .blue, .yellow, .orange, .green, .purple, .pink
+                ])
+            }
 
             VStack(spacing: 20) {
                 Text("🎊")

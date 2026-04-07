@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		85EC724C40CF4067A3C618EB /* PromptPlaygroundView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34FCCA0FEFC849549C60110C /* PromptPlaygroundView.swift */; };
+		949EA4748C98465C8810E040 /* PromptPlayground.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2DC14FB68643BDB72FB3C7 /* PromptPlayground.swift */; };
 		1370FFAD049121F66D64DEA8 /* LessonContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 695120C1E7B15DF0BCDEDECB /* LessonContent.swift */; };
 		1624F6A1085282153034E3BC /* CloudSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A57D402D86991D22D3AABF8 /* CloudSyncService.swift */; };
 		1DF8500EFA7F853250E1A2D5 /* SoundManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = B94658DC0FBA3D366E948701 /* SoundManager.swift */; };
@@ -39,6 +41,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		34FCCA0FEFC849549C60110C /* PromptPlaygroundView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptPlaygroundView.swift; sourceTree = "<group>"; };
+		CC2DC14FB68643BDB72FB3C7 /* PromptPlayground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PromptPlayground.swift; sourceTree = "<group>"; };
 		05DE4787479D981DA9B257E3 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		2596E29DDF54E69F63CB9C03 /* CompanionPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CompanionPanelView.swift; sourceTree = "<group>"; };
 		2908350F6E99EC0148E4219A /* CodePet.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CodePet.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -134,6 +138,7 @@
 		4980E6A74034910D82E43ABA /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				CC2DC14FB68643BDB72FB3C7 /* PromptPlayground.swift */,
 				F91460EB81EEA09779CA80B5 /* AppState.swift */,
 				7B7C6FADEC4935619F6DDACD /* Character.swift */,
 				695120C1E7B15DF0BCDEDECB /* LessonContent.swift */,
@@ -206,6 +211,7 @@
 		CAE34222FED2F9FE245B1155 /* Skills */ = {
 			isa = PBXGroup;
 			children = (
+				34FCCA0FEFC849549C60110C /* PromptPlaygroundView.swift */,
 				2596E29DDF54E69F63CB9C03 /* CompanionPanelView.swift */,
 				D86361C194CDFF068F37C3D4 /* LessonModalView.swift */,
 				302206ED1F1B87599833FAD6 /* SkillsView.swift */,
@@ -294,6 +300,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				85EC724C40CF4067A3C618EB /* PromptPlaygroundView.swift in Sources */,
+				949EA4748C98465C8810E040 /* PromptPlayground.swift in Sources */,
 				CD73F846927C074213D82437 /* AnimationManager.swift in Sources */,
 				20FCEE2588A718ECE510B1A8 /* AppState.swift in Sources */,
 				C4BC7629CD3650C86CB6B0A1 /* AuthManager.swift in Sources */,

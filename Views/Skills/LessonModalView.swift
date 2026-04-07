@@ -670,46 +670,73 @@ struct SummaryContent: View {
     let badge: String?
     let teacherColor: Color
 
+    @State private var showCelebration = false
+    @State private var xpScale: CGFloat = 0.3
+
     var body: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 4) {
-                Text("+\(xpReward) XP")
-                    .font(.system(size: 28, weight: .black, design: .monospaced))
-                    .foregroundColor(Color(hex: "#D4960A"))
-                if let badge = badge {
-                    Text("🏅 \(badge)")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(teacherColor)
-                }
-            }
+        ZStack {
+            VStack(spacing: 20) {
+                ZStack {
+                    // Confetti behind XP
+                    if showCelebration {
+                        ConfettiBurstView(count: 25, colors: [
+                            Color(hex: "#D4960A"), Color(hex: "#6BCB77"), teacherColor, .orange, .purple
+                        ])
+                    }
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("WHAT YOU LEARNED")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
-
-                ForEach(Array(recap.enumerated()), id: \.offset) { i, item in
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "#6BCB77"))
-                        Text(item)
-                            .font(.system(size: 13))
-                            .foregroundColor(Color(hex: "#2D2B26"))
+                    VStack(spacing: 4) {
+                        Text("+\(xpReward) XP")
+                            .font(.system(size: 28, weight: .black, design: .monospaced))
+                            .foregroundColor(Color(hex: "#D4960A"))
+                            .scaleEffect(xpScale)
+                        if let badge = badge {
+                            Text("🏅 \(badge)")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(teacherColor)
+                        }
                     }
                 }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("WHAT YOU LEARNED")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
+
+                    ForEach(Array(recap.enumerated()), id: \.offset) { i, item in
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(hex: "#6BCB77"))
+                            Text(item)
+                                .font(.system(size: 13))
+                                .foregroundColor(Color(hex: "#2D2B26"))
+                        }
+                        .opacity(showCelebration ? 1 : 0)
+                        .offset(y: showCelebration ? 0 : 10)
+                        .animation(.easeOut(duration: 0.4).delay(0.3 + Double(i) * 0.1), value: showCelebration)
+                    }
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(hex: "#F0FFF4"))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(hex: "#6BCB77").opacity(0.3), lineWidth: 1)
+                        )
+                )
             }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(hex: "#F0FFF4"))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color(hex: "#6BCB77").opacity(0.3), lineWidth: 1)
-                    )
-            )
+            .frame(maxWidth: 480)
         }
-        .frame(maxWidth: 480)
+        .onAppear {
+            SoundManager.shared.playSuccess()
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+                xpScale = 1.0
+            }
+            withAnimation(.easeOut(duration: 0.3).delay(0.2)) {
+                showCelebration = true
+            }
+        }
     }
 }
 

@@ -9,7 +9,7 @@ struct SkillTier: Identifiable {
     var skills: [Skill]
 }
 
-struct Skill: Identifiable {
+struct Skill: Identifiable, Equatable {
     let id: String
     let name: String
     let icon: String
