@@ -45,6 +45,10 @@
 		AA55555555555555AAAAAAAA /* WeeklyActivityCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB55555555555555BBBBBBBB /* WeeklyActivityCard.swift */; };
 		AA66666666666666AAAAAAAA /* TierProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB66666666666666BBBBBBBB /* TierProgressCard.swift */; };
 		AA77777777777777AAAAAAAA /* RecentPerformanceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB77777777777777BBBBBBBB /* RecentPerformanceCard.swift */; };
+		CC88888888888888AAAAAAAA /* AppState+SystemsThinking.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC88888888888888BBBBBBBB /* AppState+SystemsThinking.swift */; };
+		CC99999999999999AAAAAAAA /* FeedbackLoopCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC99999999999999BBBBBBBB /* FeedbackLoopCard.swift */; };
+		CCAAAAAAAAAAAAAAAAAAAAA1 /* ResilienceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCAAAAAAAAAAAAAAABBBBBB1 /* ResilienceCard.swift */; };
+		CCBBBBBBBBBBBBBBAAAAAAAA /* ActiveTrapsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCBBBBBBBBBBBBBBBBBBBBBB /* ActiveTrapsCard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -86,6 +90,10 @@
 		BB55555555555555BBBBBBBB /* WeeklyActivityCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyActivityCard.swift; sourceTree = "<group>"; };
 		BB66666666666666BBBBBBBB /* TierProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TierProgressCard.swift; sourceTree = "<group>"; };
 		BB77777777777777BBBBBBBB /* RecentPerformanceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentPerformanceCard.swift; sourceTree = "<group>"; };
+		CC88888888888888BBBBBBBB /* AppState+SystemsThinking.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppState+SystemsThinking.swift"; sourceTree = "<group>"; };
+		CC99999999999999BBBBBBBB /* FeedbackLoopCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedbackLoopCard.swift; sourceTree = "<group>"; };
+		CCAAAAAAAAAAAAAAABBBBBB1 /* ResilienceCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResilienceCard.swift; sourceTree = "<group>"; };
+		CCBBBBBBBBBBBBBBBBBBBBBB /* ActiveTrapsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveTrapsCard.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -120,6 +128,9 @@
 				BB55555555555555BBBBBBBB /* WeeklyActivityCard.swift */,
 				BB66666666666666BBBBBBBB /* TierProgressCard.swift */,
 				BB77777777777777BBBBBBBB /* RecentPerformanceCard.swift */,
+				CC99999999999999BBBBBBBB /* FeedbackLoopCard.swift */,
+				CCAAAAAAAAAAAAAAABBBBBB1 /* ResilienceCard.swift */,
+				CCBBBBBBBBBBBBBBBBBBBBBB /* ActiveTrapsCard.swift */,
 			);
 			path = Insights;
 			sourceTree = "<group>";
@@ -164,6 +175,7 @@
 				7B7C6FADEC4935619F6DDACD /* Character.swift */,
 				695120C1E7B15DF0BCDEDECB /* LessonContent.swift */,
 				D72B77F0FD1C2E56791448E5 /* SkillData.swift */,
+				CC88888888888888BBBBBBBB /* AppState+SystemsThinking.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -356,6 +368,10 @@
 				AA55555555555555AAAAAAAA /* WeeklyActivityCard.swift in Sources */,
 				AA66666666666666AAAAAAAA /* TierProgressCard.swift in Sources */,
 				AA77777777777777AAAAAAAA /* RecentPerformanceCard.swift in Sources */,
+				CC88888888888888AAAAAAAA /* AppState+SystemsThinking.swift in Sources */,
+				CC99999999999999AAAAAAAA /* FeedbackLoopCard.swift in Sources */,
+				CCAAAAAAAAAAAAAAAAAAAAA1 /* ResilienceCard.swift in Sources */,
+				CCBBBBBBBBBBBBBBAAAAAAAA /* ActiveTrapsCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
