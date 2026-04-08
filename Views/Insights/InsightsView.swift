@@ -61,6 +61,12 @@ struct InsightsView: View {
                         .modifier(FadeUpModifier())
                     RecentPerformanceCard(showDetail: showDetail)
                         .modifier(FadeUpModifier())
+                    FeedbackLoopCard(showDetail: showDetail)
+                        .modifier(FadeUpModifier())
+                    ResilienceCard(showDetail: showDetail)
+                        .modifier(FadeUpModifier())
+                    ActiveTrapsCard(showDetail: showDetail)
+                        .modifier(FadeUpModifier())
                 }
             }
             .padding(20)
