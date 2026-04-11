@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Codepet Sessions — Platformer v2</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Press Start 2P',monospace;background:#1a1028;overflow:hidden;height:100vh;user-select:none;color:#fff}
+
+/* HUD */
+.hud{position:fixed;top:0;left:0;right:0;height:54px;background:rgba(20,12,36,0.95);border-bottom:3px solid #534AB7;display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:100}
+.hud-group{display:flex;align-items:center;gap:16px}
+.hud-pill{display:flex;align-items:center;gap:8px;background:rgba(83,74,183,0.15);border:1px solid rgba(83,74,183,0.4);border-radius:20px;padding:6px 14px}
+.hud-pill .icon{font-size:16px}
+.hud-pill .val{font-size:10px;color:#FFD700;text-shadow:0 0 6px rgba(255,215,0,0.4)}
+.hud-pill .lbl{font-size:7px;color:#A89BF2;margin-right:4px}
+
+/* Viewport */
+.viewport{position:fixed;top:54px;left:0;right:0;bottom:0;overflow:hidden}
+.slider{display:flex;height:100%;transition:transform 0.5s cubic-bezier(0.4,0,0.2,1)}
+.kingdom{width:100vw;height:100%;flex-shrink:0;position:relative;overflow:hidden}
+
+/* Kingdom backgrounds */
+.kingdom svg.bg{position:absolute;inset:0;width:100%;height:100%;z-index:0}
+
+/* Ground strip */
+.ground{position:absolute;bottom:0;left:0;right:0;z-index:2}
+
+/* Content layer */
+.content{position:absolute;inset:0;z-index:5;display:flex;flex-direction:column;justify-content:flex-end;padding:0 40px 90px}
+
+/* Kingdom title */
+.k-title{position:absolute;top:20px;left:50%;transform:translateX(-50%);text-align:center;z-index:10}
+.k-title h2{font-size:14px;color:#fff;text-shadow:0 0 20px rgba(139,123,232,0.6);letter-spacing:3px}
+.k-title .tier{font-size:7px;color:#A89BF2;margin-top:4px;letter-spacing:2px}
+
+/* Node row */
+.node-row{display:flex;align-items:flex-end;justify-content:space-around;width:100%;gap:20px}
+
+/* Challenge node */
+.node{display:flex;flex-direction:column;align-items:center;cursor:pointer;transition:transform 0.2s}
+.node:hover{transform:translateY(-6px)}
+.node.locked{opacity:0.4;cursor:default;filter:grayscale(0.5)}
+.node.locked:hover{transform:none}
+.node-box{width:72px;height:72px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:3px solid;position:relative;box-shadow:inset 0 -4px 0 rgba(0,0,0,0.25)}
+.node-box .badge{position:absolute;top:-10px;right:-10px;font-size:5px;padding:2px 5px;border-radius:6px;color:#fff;letter-spacing:0.5px;border:1px solid rgba(255,255,255,0.3)}
+.badge-lesson{background:#534AB7}
+.badge-challenge{background:#D4960A}
+.badge-boss{background:#C03020}
+.node-box .icon{font-size:28px}
+.node-label{font-size:7px;color:#E0D0FF;margin-top:8px;text-align:center;text-shadow:0 1px 4px rgba(0,0,0,0.8);max-width:100px;line-height:1.4}
+.node-reward{font-size:6px;color:#FFD700;margin-top:4px;text-shadow:0 0 4px rgba(255,215,0,0.3)}
+
+/* Node states */
+.node.completed .node-box{background:rgba(76,200,100,0.7);border-color:#6BCB77}
+.node.active .node-box{border-color:#8B7BE8;animation:pulse 2s ease-in-out infinite}
+.node.locked .node-box{background:rgba(60,50,80,0.5);border-color:rgba(100,90,130,0.4)}
+.node.boss .node-box{width:84px;height:84px}
+
+@keyframes pulse{
+  0%,100%{box-shadow:0 0 8px rgba(139,123,232,0.4),inset 0 -4px 0 rgba(0,0,0,0.25)}
+  50%{box-shadow:0 0 24px rgba(139,123,232,0.8),0 0 48px rgba(139,123,232,0.2),inset 0 -4px 0 rgba(0,0,0,0.25)}
+}
+
+/* Characters */
+.char-container{position:absolute;z-index:10}
+.char-container svg{image-rendering:pixelated;image-rendering:crisp-edges}
+.char-container.player{animation:bob 2s ease-in-out infinite}
+.char-anchor svg{animation:bob 2s ease-in-out infinite}
+.char-container.npc{opacity:0.9}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+.speech{position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:rgba(20,12,36,0.9);border:2px solid;border-radius:8px;padding:5px 10px;font-size:7px;white-space:nowrap;text-align:center;line-height:1.3;animation:bubble 2.5s ease-in-out infinite}
+.speech::after{content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid rgba(20,12,36,0.9)}
+@keyframes bubble{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(-4px)}}
+
+/* Arrows */
+.arrow{position:fixed;top:50%;transform:translateY(-50%);width:52px;height:52px;background:rgba(20,12,36,0.85);border:2px solid #534AB7;border-radius:12px;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:90;font-size:18px;color:#A89BF2;transition:all 0.2s}
+.arrow:hover{background:rgba(83,74,183,0.5);color:#fff;box-shadow:0 0 20px rgba(139,123,232,0.5)}
+.arrow.left{left:14px}
+.arrow.right{right:14px}
+.arrow.hidden{opacity:0.2;pointer-events:none}
+
+/* Progress dots */
+.progress{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:90;background:rgba(20,12,36,0.85);padding:8px 16px;border-radius:20px;border:2px solid rgba(83,74,183,0.3);align-items:center}
+.dot{width:14px;height:14px;border-radius:50%;border:2px solid;cursor:pointer;transition:all 0.2s;position:relative}
+.dot:hover{transform:scale(1.2)}
+.dot.active{box-shadow:0 0 10px}
+.dot-line{width:20px;height:2px;opacity:0.3}
+.dot-name{position:absolute;bottom:-14px;left:50%;transform:translateX(-50%);font-size:4px;white-space:nowrap;color:#A89BF2}
+
+/* Floating coins */
+.fcoin{position:absolute;z-index:4;animation:coinbob 2s ease-in-out infinite}
+@keyframes coinbob{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.fcoin svg{width:28px;height:28px;image-rendering:pixelated}
+
+/* Popup */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:200}
+.overlay.show{display:block}
+.popup{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:380px;background:linear-gradient(180deg,#1E1440,#140C24);border:3px solid #534AB7;border-radius:16px;z-index:201;overflow:hidden;box-shadow:0 0 60px rgba(83,74,183,0.4)}
+.popup.show{display:block;animation:popIn 0.25s ease-out}
+@keyframes popIn{from{opacity:0;transform:translate(-50%,-50%) scale(0.85)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.popup-head{padding:16px;border-bottom:2px solid rgba(139,123,232,0.2);display:flex;align-items:center;gap:12px}
+.popup-icon{width:48px;height:48px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid rgba(255,255,255,0.15)}
+.popup-info{flex:1}
+.popup-type{font-size:6px;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px}
+.popup-name{font-size:11px;line-height:1.3}
+.popup-close{width:28px;height:28px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#A89BF2;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit}
+.popup-close:hover{background:rgba(255,255,255,0.2);color:#fff}
+.popup-body{padding:16px}
+.popup-desc{font-size:7px;color:#C0B0E0;line-height:1.7;margin-bottom:14px}
+.popup-meta{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.popup-chip{display:flex;align-items:center;gap:4px;padding:4px 8px;background:rgba(255,255,255,0.06);border-radius:6px;border:1px solid rgba(255,255,255,0.1);font-size:7px}
+.popup-chip .cv{color:#FFD700}
+.popup-chip .cl{color:#A89BF2}
+.popup-btn{width:100%;padding:14px;background:linear-gradient(180deg,#8B7BE8,#534AB7);border:none;border-radius:10px;color:#fff;font-family:'Press Start 2P',monospace;font-size:10px;cursor:pointer;letter-spacing:1px;box-shadow:0 4px 0 #3A2E8A;transition:all 0.15s}
+.popup-btn:hover{transform:translateY(-2px);box-shadow:0 6px 0 #3A2E8A}
+.popup-btn:active{transform:translateY(2px);box-shadow:0 2px 0 #3A2E8A}
+
+/* Byte character animations from original design */
+@keyframes byte-storm-body {
+  0%,78%,100%{transform:translate(0,0)}
+  80%{transform:translate(-5px,0)}
+  81%{transform:translate(4px,1px)}
+  82%{transform:translate(-3px,-1px)}
+  83%{transform:translate(5px,0)}
+  84%{transform:translate(0,2px)}
+  85%{transform:translate(-4px,0)}
+  86%{transform:translate(3px,-1px)}
+  87%{transform:translate(0,0)}
+}
+@keyframes byte-tear-1 {
+  0%,78%,100%{transform:translateX(0);opacity:0}
+  80%,86%{opacity:1}
+  80%{transform:translateX(-8px)}
+  82%{transform:translateX(6px)}
+  84%{transform:translateX(-4px)}
+  86%{transform:translateX(2px)}
+  87%{transform:translateX(0);opacity:0}
+}
+@keyframes byte-tear-2 {
+  0%,78%,100%{transform:translateX(0);opacity:0}
+  80%,86%{opacity:0.85}
+  80%{transform:translateX(7px)}
+  82%{transform:translateX(-5px)}
+  84%{transform:translateX(3px)}
+  86%{transform:translateX(-2px)}
+  87%{transform:translateX(0);opacity:0}
+}
+@keyframes byte-rgb-r {
+  0%,78%,100%{transform:translateX(0);opacity:0}
+  80%,87%{opacity:0.5}
+  80%{transform:translateX(6px)}
+  83%{transform:translateX(-4px)}
+  87%{transform:translateX(0);opacity:0}
+}
+@keyframes byte-rgb-b {
+  0%,78%,100%{transform:translateX(0);opacity:0}
+  80%,87%{opacity:0.5}
+  80%{transform:translateX(-6px)}
+  83%{transform:translateX(4px)}
+  87%{transform:translateX(0);opacity:0}
+}
+@keyframes byte-px-scatter {
+  0%,75%,100%{transform:translate(0,0) scale(1);opacity:0}
+  77%{opacity:1;transform:translate(0,0) scale(1)}
+  80%{transform:translate(-12px,-8px) scale(0.5);opacity:0.8}
+  83%{transform:translate(10px,-14px) scale(0.3);opacity:0.5}
+  86%{transform:translate(-6px,-18px) scale(0.1);opacity:0}
+}
+@keyframes byte-px-scatter2 {
+  0%,77%,100%{transform:translate(0,0) scale(1);opacity:0}
+  79%{opacity:1;transform:translate(0,0) scale(1)}
+  82%{transform:translate(14px,-6px) scale(0.4);opacity:0.9}
+  85%{transform:translate(18px,-12px) scale(0.2);opacity:0.4}
+  88%{transform:translate(20px,-16px) scale(0);opacity:0}
+}
+@keyframes byte-px-scatter3 {
+  0%,76%,100%{transform:translate(0,0) scale(1);opacity:0}
+  78%{opacity:0.9;transform:translate(0,0) scale(1)}
+  81%{transform:translate(-16px,4px) scale(0.6);opacity:0.7}
+  84%{transform:translate(-20px,8px) scale(0.2);opacity:0.3}
+  87%{transform:translate(-22px,12px) scale(0);opacity:0}
+}
+@keyframes tip-strobe {
+  0%,70%,100%{opacity:1;transform:scale(1)}
+  71%{opacity:0.1;transform:scale(0.7)}
+  72%{opacity:1;transform:scale(1.4)}
+  73%{opacity:0.2;transform:scale(0.8)}
+  74%{opacity:1;transform:scale(1.2)}
+  75%{opacity:0.05;transform:scale(0.6)}
+  76%{opacity:1;transform:scale(1.5)}
+  77%{opacity:0.3;transform:scale(0.9)}
+  78%{opacity:1;transform:scale(1)}
+  79%{opacity:0.15;transform:scale(0.7)}
+  80%{opacity:1;transform:scale(1)}
+}
+@keyframes byte-eye-flash {
+  0%,78%,100%{fill:#26215C}
+  80%{fill:#E24B4A}
+  81%{fill:#FCDE5A}
+  82%{fill:#E24B4A}
+  84%{fill:#26215C}
+  85%{fill:#9FE1CB}
+  87%{fill:#26215C}
+}
+
+/* Character positioned at node */
+.node-row{position:relative}
+.node{position:relative}
+.char-anchor{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);width:70px;height:120px;z-index:20;pointer-events:none;transition:left 0.6s cubic-bezier(0.4,0,0.2,1)}
+.char-anchor svg{width:70px;height:120px}
+.char-anchor .speech{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:rgba(20,12,36,0.9);border:2px solid #8B7BE8;border-radius:8px;padding:4px 8px;font-size:6px;white-space:nowrap;text-align:center;line-height:1.3;color:#A89BF2;animation:bubble 2.5s ease-in-out infinite;z-index:25}
+.char-anchor .speech::after{content:'';position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid rgba(20,12,36,0.9)}
+
+/* Jump animation */
+@keyframes charJump{
+  0%{transform:translateX(-50%) translateY(0)}
+  20%{transform:translateX(-50%) translateY(-80px)}
+  40%{transform:translateX(-50%) translateY(-100px)}
+  60%{transform:translateX(-50%) translateY(-80px)}
+  80%{transform:translateX(-50%) translateY(-20px)}
+  90%{transform:translateX(-50%) translateY(-5px)}
+  100%{transform:translateX(-50%) translateY(0)}
+}
+.char-anchor.jumping{animation:charJump 0.6s cubic-bezier(0.4,0,0.2,1)}
+
+/* Sparkle burst on completion */
+@keyframes sparkle{
+  0%{transform:scale(0);opacity:1}
+  50%{transform:scale(1.5);opacity:0.8}
+  100%{transform:scale(2);opacity:0}
+}
+.sparkle-burst{position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:40px;height:40px;pointer-events:none}
+.sparkle-burst::before,.sparkle-burst::after{content:'✨';position:absolute;font-size:16px;animation:sparkle 0.6s ease-out forwards;opacity:0}
+.sparkle-burst.go::before{top:-10px;left:0;opacity:1}
+.sparkle-burst.go::after{top:5px;left:20px;animation-delay:0.1s;opacity:1}
+
+/* XP float */
+@keyframes xpFloat{
+  0%{transform:translateY(0);opacity:1}
+  100%{transform:translateY(-50px);opacity:0}
+}
+.xp-float{position:absolute;top:-60px;left:50%;transform:translateX(-50%);font-size:9px;color:#FFD700;font-family:'Press Start 2P',monospace;pointer-events:none;text-shadow:0 0 8px rgba(255,215,0,0.5);opacity:0}
+.xp-float.go{animation:xpFloat 1.2s ease-out forwards}
+
+/* Path lines between nodes */
+.node-path{position:absolute;top:36px;height:3px;background:linear-gradient(90deg,rgba(139,123,232,0.3),rgba(139,123,232,0.15));z-index:0;border-radius:2px}
+.node-path.completed-path{background:linear-gradient(90deg,rgba(107,203,119,0.5),rgba(107,203,119,0.25))}
+
+/* Demo complete button */
+.demo-btn{position:fixed;bottom:60px;right:20px;z-index:100;padding:8px 14px;background:linear-gradient(180deg,#6BCB77,#4A9A55);border:2px solid #8BEB97;border-radius:10px;color:#fff;font-family:'Press Start 2P',monospace;font-size:7px;cursor:pointer;box-shadow:0 3px 0 #3A7A40;letter-spacing:0.5px}
+.demo-btn:hover{transform:translateY(-2px);box-shadow:0 5px 0 #3A7A40}
+.demo-btn:active{transform:translateY(1px);box-shadow:0 1px 0 #3A7A40}
+</style>
+</head>
+<body>
+
+<!-- HUD -->
+<div class="hud">
+  <div class="hud-group">
+    <div class="hud-pill"><span class="icon">❤️</span><span class="val">5/5</span></div>
+    <div class="hud-pill"><span class="icon">🔥</span><span class="lbl">STREAK</span><span class="val">3 Day</span></div>
+  </div>
+  <div class="hud-group">
+    <div class="hud-pill"><span class="icon">🪙</span><span class="val">145</span></div>
+    <div class="hud-pill"><span class="icon">⭐</span><span class="val">420 XP</span></div>
+  </div>
+</div>
+
+<!-- Arrows -->
+<div class="arrow left hidden" id="arrowL" onclick="go(-1)">◀</div>
+<div class="arrow right" id="arrowR" onclick="go(1)">▶</div>
+
+<!-- Viewport -->
+<div class="viewport">
+<div class="slider" id="slider">
+
+<!-- ====== KINGDOM 1: MOLTEN FORGE ====== -->
+<div class="kingdom">
+  <svg class="bg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="s1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#0D0518"/><stop offset="25%" stop-color="#1a0a2e"/><stop offset="50%" stop-color="#3A1530"/><stop offset="75%" stop-color="#6A2020"/><stop offset="100%" stop-color="#FF4500"/></linearGradient>
+      <radialGradient id="lavaGlow1" cx="50%" cy="100%" r="60%"><stop offset="0%" stop-color="#FF6030" stop-opacity="0.4"/><stop offset="100%" stop-color="transparent"/></radialGradient>
+      <radialGradient id="volcGlow" cx="50%" cy="0%" r="50%"><stop offset="0%" stop-color="#FF4500" stop-opacity="0.6"/><stop offset="100%" stop-color="transparent"/></radialGradient>
+      <filter id="glow1"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <rect width="800" height="500" fill="url(#s1)"/>
+    <!-- Lava glow from bottom -->
+    <rect width="800" height="250" y="250" fill="url(#lavaGlow1)"/>
+    <!-- Stars -->
+    <circle cx="60" cy="30" r="1.5" fill="#FFE858" opacity="0.7"/><circle cx="150" cy="55" r="1" fill="#FFE858" opacity="0.4"/><circle cx="280" cy="20" r="1.5" fill="#FFE858" opacity="0.6"/><circle cx="400" cy="45" r="1" fill="#FFE858" opacity="0.5"/><circle cx="520" cy="25" r="1.5" fill="#FFE858" opacity="0.8"/><circle cx="650" cy="50" r="1" fill="#FFE858" opacity="0.4"/><circle cx="740" cy="35" r="1.5" fill="#FFE858" opacity="0.6"/>
+    <circle cx="100" cy="70" r="0.8" fill="#FFA858" opacity="0.3"/><circle cx="350" cy="60" r="0.8" fill="#FFA858" opacity="0.3"/><circle cx="600" cy="40" r="0.8" fill="#FFA858" opacity="0.3"/>
+    <!-- Far volcano left -->
+    <polygon points="50,310 100,180 120,185 160,310" fill="#2A1018" opacity="0.6"/>
+    <polygon points="70,310 100,200 115,205 140,310" fill="#3A1520" opacity="0.5"/>
+    <ellipse cx="108" cy="180" rx="18" ry="6" fill="#FF4500" opacity="0.3"><animate attributeName="opacity" values="0.2;0.5;0.2" dur="3s" repeatCount="indefinite"/></ellipse>
+    <!-- Smoke plume left volcano -->
+    <circle cx="105" cy="165" r="12" fill="#444" opacity="0.15"><animate attributeName="cy" values="165;140;120" dur="6s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.15;0.08;0" dur="6s" repeatCount="indefinite"/><animate attributeName="r" values="12;18;25" dur="6s" repeatCount="indefinite"/></circle>
+    <circle cx="112" cy="158" r="10" fill="#555" opacity="0.12"><animate attributeName="cy" values="158;130;105" dur="7s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.12;0.06;0" dur="7s" repeatCount="indefinite"/><animate attributeName="r" values="10;16;22" dur="7s" repeatCount="indefinite"/></circle>
+    <!-- Main volcano right -->
+    <polygon points="520,300 610,130 640,120 660,125 740,300" fill="#2A1018"/>
+    <polygon points="540,300 615,150 640,140 655,145 720,300" fill="#3A1520" opacity="0.8"/>
+    <!-- Volcano crater glow -->
+    <ellipse cx="638" cy="128" rx="22" ry="8" fill="url(#volcGlow)"><animate attributeName="opacity" values="0.5;0.9;0.5" dur="2s" repeatCount="indefinite"/></ellipse>
+    <rect x="625" y="125" width="25" height="6" fill="#FF4500" rx="3" opacity="0.5" filter="url(#glow1)"><animate attributeName="opacity" values="0.3;0.7;0.3" dur="1.5s" repeatCount="indefinite"/></rect>
+    <!-- Lava flow down right volcano -->
+    <path d="M636,135 Q640,180 635,230 Q632,270 640,300" stroke="#FF4500" stroke-width="4" fill="none" opacity="0.5"><animate attributeName="opacity" values="0.3;0.6;0.3" dur="2s" repeatCount="indefinite"/></path>
+    <path d="M642,140 Q648,190 650,250 Q652,280 648,300" stroke="#FF6030" stroke-width="3" fill="none" opacity="0.4"><animate attributeName="opacity" values="0.2;0.5;0.2" dur="2.5s" repeatCount="indefinite"/></path>
+    <!-- Smoke plume right volcano -->
+    <circle cx="635" cy="115" r="15" fill="#444" opacity="0.12"><animate attributeName="cy" values="115;85;50" dur="8s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.12;0.06;0" dur="8s" repeatCount="indefinite"/><animate attributeName="r" values="15;25;40" dur="8s" repeatCount="indefinite"/></circle>
+    <circle cx="645" cy="108" r="12" fill="#555" opacity="0.10"><animate attributeName="cy" values="108;75;35" dur="9s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.10;0.05;0" dur="9s" repeatCount="indefinite"/><animate attributeName="r" values="12;20;32" dur="9s" repeatCount="indefinite"/></circle>
+    <!-- Rising ember particles -->
+    <circle cx="200" cy="400" r="2" fill="#FF6030" opacity="0.8"><animate attributeName="cy" values="400;250;80" dur="4s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.8;0.4;0" dur="4s" repeatCount="indefinite"/><animate attributeName="cx" values="200;190;185" dur="4s" repeatCount="indefinite"/></circle>
+    <circle cx="400" cy="420" r="1.5" fill="#FFD700" opacity="0.7"><animate attributeName="cy" values="420;280;100" dur="5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.7;0.3;0" dur="5s" repeatCount="indefinite"/><animate attributeName="cx" values="400;410;405" dur="5s" repeatCount="indefinite"/></circle>
+    <circle cx="550" cy="390" r="2" fill="#FF4500" opacity="0.6"><animate attributeName="cy" values="390;240;60" dur="4.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;0.3;0" dur="4.5s" repeatCount="indefinite"/></circle>
+    <circle cx="300" cy="410" r="1" fill="#FFA500" opacity="0.7"><animate attributeName="cy" values="410;270;90" dur="6s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.7;0.3;0" dur="6s" repeatCount="indefinite"/></circle>
+    <circle cx="680" cy="380" r="1.5" fill="#FFD700" opacity="0.5"><animate attributeName="cy" values="380;220;50" dur="5.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.5;0.2;0" dur="5.5s" repeatCount="indefinite"/></circle>
+    <circle cx="100" cy="405" r="1.5" fill="#FF6030" opacity="0.6"><animate attributeName="cy" values="405;260;70" dur="7s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;0.2;0" dur="7s" repeatCount="indefinite"/></circle>
+    <circle cx="750" cy="395" r="1" fill="#FFA500" opacity="0.5"><animate attributeName="cy" values="395;230;50" dur="6.5s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.5;0.2;0" dur="6.5s" repeatCount="indefinite"/></circle>
+    <!-- Rocky terrain layers -->
+    <polygon points="0,330 40,305 90,320 150,295 230,310 320,285 410,300 500,280 580,295 660,275 740,290 800,270 800,500 0,500" fill="#3A1818"/>
+    <polygon points="0,350 50,330 120,345 200,320 290,335 380,315 470,330 560,310 650,325 740,305 800,315 800,500 0,500" fill="#4A2020"/>
+    <polygon points="0,370 70,355 160,365 260,345 360,358 460,340 560,352 660,335 760,345 800,340 800,500 0,500" fill="#5A2828"/>
+    <!-- Stalactites from top -->
+    <polygon points="180,0 185,35 190,0" fill="#2A1018" opacity="0.4"/>
+    <polygon points="320,0 326,45 332,0" fill="#2A1018" opacity="0.3"/>
+    <polygon points="480,0 487,30 494,0" fill="#2A1018" opacity="0.35"/>
+    <polygon points="710,0 715,40 720,0" fill="#2A1018" opacity="0.3"/>
+    <!-- Lava ground -->
+    <rect x="0" y="418" width="800" height="4" fill="#FF4500" opacity="0.3" filter="url(#glow1)"><animate attributeName="opacity" values="0.2;0.4;0.2" dur="2s" repeatCount="indefinite"/></rect>
+    <rect x="0" y="422" width="800" height="6" fill="#8B4513"/>
+    <rect x="0" y="428" width="800" height="80" fill="#5C2D0A"/>
+    <!-- Lava pools on ground -->
+    <ellipse cx="150" cy="435" rx="35" ry="4" fill="#FF4500" opacity="0.5"><animate attributeName="opacity" values="0.3;0.6;0.3" dur="2s" repeatCount="indefinite"/></ellipse>
+    <ellipse cx="350" cy="432" rx="25" ry="3" fill="#FF6030" opacity="0.4"><animate attributeName="opacity" values="0.25;0.5;0.25" dur="2.5s" repeatCount="indefinite"/></ellipse>
+    <ellipse cx="580" cy="434" rx="30" ry="3.5" fill="#FF4500" opacity="0.45"><animate attributeName="opacity" values="0.3;0.55;0.3" dur="1.8s" repeatCount="indefinite"/></ellipse>
+    <ellipse cx="720" cy="433" rx="20" ry="3" fill="#FF6030" opacity="0.35"><animate attributeName="opacity" values="0.2;0.45;0.2" dur="3s" repeatCount="indefinite"/></ellipse>
+    <!-- Cracks in ground -->
+    <path d="M50,440 L80,438 L110,442 L140,437 L170,441" stroke="#FF4500" stroke-width="1.5" fill="none" opacity="0.3"><animate attributeName="opacity" values="0.2;0.4;0.2" dur="3s" repeatCount="indefinite"/></path>
+    <path d="M400,445 L430,442 L460,446 L490,441" stroke="#FF4500" stroke-width="1" fill="none" opacity="0.25"><animate attributeName="opacity" values="0.15;0.35;0.15" dur="3.5s" repeatCount="indefinite"/></path>
+    <path d="M620,442 L650,439 L690,443 L730,438" stroke="#FF6030" stroke-width="1.5" fill="none" opacity="0.3"><animate attributeName="opacity" values="0.2;0.4;0.2" dur="2.8s" repeatCount="indefinite"/></path>
+    <!-- Distant lava waterfall -->
+    <rect x="335" y="295" width="6" height="125" fill="#FF4500" opacity="0.25" rx="3"><animate attributeName="opacity" values="0.15;0.35;0.15" dur="2s" repeatCount="indefinite"/></rect>
+    <rect x="337" y="295" width="3" height="125" fill="#FFD700" opacity="0.15"><animate attributeName="opacity" values="0.1;0.25;0.1" dur="1.5s" repeatCount="indefinite"/></rect>
+    <!-- Mid rocks/boulders -->
+    <ellipse cx="250" cy="405" rx="20" ry="12" fill="#4A2020" opacity="0.6"/>
+    <ellipse cx="480" cy="408" rx="15" ry="10" fill="#3A1818" opacity="0.5"/>
+  </svg>
+
+  <div class="k-title"><h2>THE MOLTEN FORGE</h2><div class="tier">TIER 1 — FOUNDATIONS</div></div>
+
+
+  <!-- Nodes -->
+  <div class="content">
+    <div class="node-row">
+      <div class="node completed" onclick="openPopup('Prompt Clarity','LESSON','Completed! Master the art of clear prompts.','10','0','★☆☆')">
+        <div class="node-box" style="background:rgba(76,200,100,0.6);border-color:#6BCB77"><span class="badge badge-lesson">LESSON</span><span class="icon">✓</span></div>
+        <div class="node-label">Prompt Clarity</div>
+        <div class="node-reward">✓ 10 XP earned</div>
+      </div>
+      <div class="node completed" onclick="openPopup('Error Reading','LESSON','Completed! Read errors like a pro.','10','0','★☆☆')">
+        <div class="node-box" style="background:rgba(76,200,100,0.6);border-color:#6BCB77"><span class="badge badge-lesson">LESSON</span><span class="icon">✓</span></div>
+        <div class="node-label">Error Reading</div>
+        <div class="node-reward">✓ 10 XP earned</div>
+      </div>
+      <div class="node active" id="k1-node2" onclick="openPopup('Tool Basics','CHALLENGE','Pick the right AI tool for a real-world task. Evaluate options by speed, accuracy, and creativity.','25','10','★★☆')">
+        <div class="char-anchor" id="k1-char">
+          <div class="speech">Let's go!</div>
+          <svg viewBox="0 0 130 240" style="width:70px;height:120px;overflow:visible" xmlns="http://www.w3.org/2000/svg"><ellipse cx="62" cy="228" rx="38" ry="7" fill="#26215C" opacity="0.10"/><rect x="36" y="168" width="20" height="36" rx="3" fill="#3C3489"/><rect x="62" y="168" width="20" height="36" rx="3" fill="#3C3489"/><rect x="28" y="195" width="30" height="14" rx="4" fill="#26215C"/><rect x="58" y="195" width="30" height="14" rx="4" fill="#26215C"/><rect x="33" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="43" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="63" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="73" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><g style="animation:byte-storm-body 3.4s steps(1) 0s infinite;transform-origin:center"><rect x="22" y="95" width="80" height="80" rx="6" fill="#7F77DD"/><rect x="22" y="105" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="113" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="121" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="129" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="137" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="38" y="138" width="48" height="28" rx="4" fill="#3C3489" opacity="0.5"/><rect x="46" y="143" width="14" height="3" rx="1" fill="#AFA9EC" opacity="0.7"/><rect x="46" y="149" width="10" height="3" rx="1" fill="#AFA9EC" opacity="0.5"/><rect x="2" y="105" width="22" height="16" rx="5" fill="#7F77DD"/><rect x="0" y="116" width="16" height="14" rx="4" fill="#534AB7"/><rect x="100" y="105" width="22" height="16" rx="5" fill="#7F77DD"/><rect x="108" y="116" width="16" height="14" rx="4" fill="#534AB7"/><rect x="40" y="28" width="5" height="20" rx="2" fill="#534AB7"/><rect x="79" y="28" width="5" height="20" rx="2" fill="#534AB7"/><rect x="38" y="20" width="9" height="9" rx="2" fill="#FCDE5A" style="animation:tip-strobe 3.4s steps(1) 0s infinite;transform-origin:42px 24px"/><rect x="77" y="20" width="9" height="9" rx="2" fill="#FCDE5A" style="animation:tip-strobe 3.4s steps(1) 0.15s infinite;transform-origin:81px 24px"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#7F77DD"/><rect x="18" y="40" width="3" height="62" fill="#AFA9EC" opacity="0.3"/><rect x="28" y="52" width="24" height="18" rx="3" fill="white" opacity="0.95"/><rect x="72" y="52" width="24" height="18" rx="3" fill="white" opacity="0.95"/><rect x="29" y="52" width="22" height="8" rx="2" fill="#26215C" style="animation:byte-eye-flash 3.4s steps(1) 0s infinite"/><rect x="73" y="52" width="22" height="8" rx="2" fill="#26215C" style="animation:byte-eye-flash 3.4s steps(1) 0.05s infinite"/><rect x="32" y="54" width="14" height="12" fill="#26215C"/><rect x="76" y="54" width="14" height="12" fill="#26215C"/><rect x="34" y="56" width="5" height="4" rx="1" fill="white" opacity="0.9"/><rect x="78" y="56" width="5" height="4" rx="1" fill="white" opacity="0.9"/><rect x="44" y="82" width="36" height="6" rx="3" fill="#3C3489" opacity="0.6"/><rect x="54" y="78" width="6" height="4" rx="1" fill="#3C3489" opacity="0.4"/><rect x="18" y="50" width="88" height="18" fill="#7F77DD" style="animation:byte-tear-1 3.4s steps(1) 0s infinite;transform-origin:62px 59px"/><rect x="18" y="52" width="88" height="14" fill="#7F77DD" opacity="0.9" style="animation:byte-tear-1 3.4s steps(1) 0.04s infinite;transform-origin:62px 59px"/><rect x="22" y="105" width="80" height="16" fill="#7F77DD" style="animation:byte-tear-2 3.4s steps(1) 0.02s infinite;transform-origin:62px 113px"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#E24B4A" opacity="0.35" style="animation:byte-rgb-r 3.4s steps(1) 0.01s infinite;transform-origin:center"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#378ADD" opacity="0.35" style="animation:byte-rgb-b 3.4s steps(1) 0.03s infinite;transform-origin:center"/><rect x="40" y="65" width="8" height="5" rx="1" fill="#FCDE5A" style="animation:byte-px-scatter 3.4s ease-out 0s infinite;transform-origin:44px 67px"/><rect x="70" y="58" width="6" height="4" rx="1" fill="#9FE1CB" style="animation:byte-px-scatter2 3.4s ease-out 0.06s infinite;transform-origin:73px 60px"/><rect x="30" y="108" width="5" height="5" rx="1" fill="#F09595" style="animation:byte-px-scatter3 3.4s ease-out 0.02s infinite;transform-origin:32px 110px"/><rect x="85" y="118" width="7" height="4" rx="1" fill="#FCDE5A" style="animation:byte-px-scatter 3.4s ease-out 0.08s infinite;transform-origin:88px 120px"/><rect x="55" y="88" width="10" height="4" rx="1" fill="#AFA9EC" style="animation:byte-px-scatter2 3.4s ease-out 0.04s infinite;transform-origin:60px 90px"/></g></svg>
+          <div class="sparkle-burst" id="k1-sparkle"></div>
+          <div class="xp-float" id="k1-xp">+25 XP</div>
+        </div>
+        <div class="node-box" style="background:rgba(212,150,10,0.4);border-color:#D4960A"><span class="badge badge-challenge">CHALLENGE</span><span class="icon">▶</span></div>
+        <div class="node-label">Tool Basics</div>
+        <div class="node-reward">25 XP + 10 🪙</div>
+      </div>
+      <div class="node locked boss">
+        <div class="node-box" style="background:rgba(192,48,32,0.3);border-color:rgba(192,48,32,0.4)"><span class="badge badge-boss">BOSS</span><span class="icon">🔒</span></div>
+        <div class="node-label">Code Judgment</div>
+        <div class="node-reward">🔒 50 XP + 25 🪙</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== KINGDOM 2: FROZEN SPIRE ====== -->
+<div class="kingdom">
+  <svg class="bg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="s2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#040810"/><stop offset="20%" stop-color="#0a1628"/><stop offset="45%" stop-color="#1a3050"/><stop offset="70%" stop-color="#3A6898"/><stop offset="100%" stop-color="#88D0F0"/></linearGradient>
+      <linearGradient id="aurora1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#40E0D0" stop-opacity="0"/><stop offset="30%" stop-color="#40E0D0" stop-opacity="0.15"/><stop offset="50%" stop-color="#80FFB0" stop-opacity="0.2"/><stop offset="70%" stop-color="#60D0F0" stop-opacity="0.15"/><stop offset="100%" stop-color="#40E0D0" stop-opacity="0"/></linearGradient>
+      <filter id="glow2"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <rect width="800" height="500" fill="url(#s2)"/>
+    <!-- Aurora borealis -->
+    <path d="M0,80 Q100,60 200,90 Q350,50 500,75 Q600,45 700,70 Q750,60 800,80 L800,160 Q700,140 500,150 Q350,130 200,155 Q100,140 0,160 Z" fill="url(#aurora1)"><animate attributeName="d" values="M0,80 Q100,60 200,90 Q350,50 500,75 Q600,45 700,70 Q750,60 800,80 L800,160 Q700,140 500,150 Q350,130 200,155 Q100,140 0,160 Z;M0,85 Q100,70 200,80 Q350,55 500,85 Q600,55 700,75 Q750,65 800,85 L800,155 Q700,135 500,155 Q350,140 200,150 Q100,135 0,155 Z;M0,80 Q100,60 200,90 Q350,50 500,75 Q600,45 700,70 Q750,60 800,80 L800,160 Q700,140 500,150 Q350,130 200,155 Q100,140 0,160 Z" dur="8s" repeatCount="indefinite"/></path>
+    <path d="M100,70 Q250,40 400,65 Q550,35 700,60 L700,130 Q550,100 400,120 Q250,95 100,125 Z" fill="#80FFB0" opacity="0.08"><animate attributeName="opacity" values="0.05;0.12;0.05" dur="5s" repeatCount="indefinite"/></path>
+    <!-- Stars -->
+    <circle cx="60" cy="25" r="1.5" fill="#fff" opacity="0.8"/><circle cx="150" cy="45" r="1" fill="#fff" opacity="0.6"/><circle cx="300" cy="20" r="1.5" fill="#fff" opacity="0.7"/><circle cx="450" cy="38" r="1" fill="#fff" opacity="0.5"/><circle cx="550" cy="15" r="1.5" fill="#fff" opacity="0.8"/><circle cx="680" cy="30" r="1" fill="#fff" opacity="0.6"/><circle cx="760" cy="48" r="1.5" fill="#fff" opacity="0.7"/>
+    <circle cx="220" cy="55" r="0.8" fill="#C8E8FF" opacity="0.4"/><circle cx="380" cy="32" r="0.8" fill="#C8E8FF" opacity="0.4"/><circle cx="620" cy="22" r="0.8" fill="#C8E8FF" opacity="0.4"/>
+    <!-- Twinkling stars -->
+    <circle cx="180" cy="35" r="1" fill="#fff" opacity="0.5"><animate attributeName="opacity" values="0.2;0.9;0.2" dur="3s" repeatCount="indefinite"/></circle>
+    <circle cx="500" cy="28" r="1" fill="#fff" opacity="0.4"><animate attributeName="opacity" values="0.1;0.8;0.1" dur="4s" repeatCount="indefinite"/></circle>
+    <!-- Snowfall (many particles) -->
+    <circle cx="50" cy="80" r="2" fill="#fff" opacity="0.5"><animate attributeName="cy" values="80;500" dur="8s" repeatCount="indefinite"/><animate attributeName="cx" values="50;60;50" dur="4s" repeatCount="indefinite"/></circle>
+    <circle cx="130" cy="40" r="1.5" fill="#fff" opacity="0.4"><animate attributeName="cy" values="40;500" dur="10s" repeatCount="indefinite"/><animate attributeName="cx" values="130;120;130" dur="5s" repeatCount="indefinite"/></circle>
+    <circle cx="220" cy="100" r="2" fill="#fff" opacity="0.5"><animate attributeName="cy" values="100;500" dur="7s" repeatCount="indefinite"/><animate attributeName="cx" values="220;230;220" dur="3s" repeatCount="indefinite"/></circle>
+    <circle cx="340" cy="60" r="1.5" fill="#fff" opacity="0.3"><animate attributeName="cy" values="60;500" dur="9s" repeatCount="indefinite"/><animate attributeName="cx" values="340;330;340" dur="4s" repeatCount="indefinite"/></circle>
+    <circle cx="450" cy="90" r="2" fill="#fff" opacity="0.45"><animate attributeName="cy" values="90;500" dur="7.5s" repeatCount="indefinite"/><animate attributeName="cx" values="450;460;450" dur="3.5s" repeatCount="indefinite"/></circle>
+    <circle cx="560" cy="50" r="1.5" fill="#fff" opacity="0.4"><animate attributeName="cy" values="50;500" dur="11s" repeatCount="indefinite"/><animate attributeName="cx" values="560;550;560" dur="5s" repeatCount="indefinite"/></circle>
+    <circle cx="670" cy="70" r="2" fill="#fff" opacity="0.5"><animate attributeName="cy" values="70;500" dur="8.5s" repeatCount="indefinite"/><animate attributeName="cx" values="670;680;670" dur="4s" repeatCount="indefinite"/></circle>
+    <circle cx="750" cy="30" r="1.5" fill="#fff" opacity="0.35"><animate attributeName="cy" values="30;500" dur="10.5s" repeatCount="indefinite"/><animate attributeName="cx" values="750;740;750" dur="5s" repeatCount="indefinite"/></circle>
+    <!-- Ice spire left -->
+    <polygon points="140,320 175,100 190,95 210,105 230,320" fill="#6AAAC8" opacity="0.5"/>
+    <polygon points="155,320 178,120 192,115 205,120 220,320" fill="#88C8E8" opacity="0.4"/>
+    <polygon points="172,120 180,95 188,100" fill="#B0E8FF" opacity="0.5"/>
+    <!-- Ice spire right -->
+    <polygon points="540,300 575,110 590,100 605,108 630,300" fill="#5898B8" opacity="0.45"/>
+    <polygon points="555,300 578,130 592,120 600,128 618,300" fill="#78B8D8" opacity="0.35"/>
+    <polygon points="580,115 588,95 596,105" fill="#A0D8F0" opacity="0.5"/>
+    <!-- Small crystal cluster mid -->
+    <polygon points="380,350 386,310 392,350" fill="#90D0F0" opacity="0.4"/>
+    <polygon points="370,350 375,320 380,350" fill="#78B8D8" opacity="0.35"/>
+    <polygon points="392,350 398,325 404,350" fill="#A0E0FF" opacity="0.35"/>
+    <!-- Snow-covered pine trees -->
+    <polygon points="60,395 80,330 100,395" fill="#2A5060" opacity="0.4"/>
+    <polygon points="65,370 80,340 95,370" fill="#3A6878" opacity="0.35"/>
+    <polygon points="70,350 80,330 90,350" fill="#B0D8E8" opacity="0.3"/>
+    <rect x="77" y="395" width="6" height="20" fill="#4A3020" opacity="0.3"/>
+    <polygon points="700,390 720,320 740,390" fill="#2A5060" opacity="0.35"/>
+    <polygon points="705,365 720,330 735,365" fill="#3A6878" opacity="0.3"/>
+    <polygon points="710,345 720,320 730,345" fill="#B0D8E8" opacity="0.25"/>
+    <rect x="717" y="390" width="6" height="20" fill="#4A3020" opacity="0.25"/>
+    <!-- Snowy terrain layers -->
+    <polygon points="0,325 50,300 130,315 230,290 340,305 440,280 540,298 640,275 740,290 800,278 800,500 0,500" fill="#D0E8F8"/>
+    <polygon points="0,345 70,325 170,338 280,315 400,330 510,308 620,322 730,300 800,310 800,500 0,500" fill="#C0D8EE"/>
+    <polygon points="0,365 80,350 180,360 290,340 400,355 520,338 640,350 760,335 800,342 800,500 0,500" fill="#B0CDE5"/>
+    <!-- Ice ground -->
+    <rect x="0" y="418" width="800" height="4" fill="#A0D0F0" opacity="0.4"/>
+    <rect x="0" y="422" width="800" height="6" fill="#88C0E0"/>
+    <rect x="0" y="428" width="800" height="80" fill="#78B0D0"/>
+    <!-- Ice crystals on ground -->
+    <polygon points="160,415 166,390 172,415" fill="#B0E8FF" opacity="0.5"/>
+    <polygon points="155,415 160,398 165,415" fill="#C8F0FF" opacity="0.4"/>
+    <polygon points="350,412 356,385 362,412" fill="#A0D8F0" opacity="0.6"/>
+    <polygon points="345,412 350,395 355,412" fill="#C0ECFF" opacity="0.4"/>
+    <polygon points="550,414 555,392 560,414" fill="#B0E0F8" opacity="0.5"/>
+    <polygon points="620,413 627,380 634,413" fill="#90C8E8" opacity="0.5"/>
+    <polygon points="730,415 735,395 740,415" fill="#A0D8F0" opacity="0.4"/>
+    <!-- Frozen waterfall (far back) -->
+    <rect x="275" y="295" width="5" height="120" fill="#A0E8FF" opacity="0.2" rx="2"/>
+    <rect x="277" y="295" width="2" height="120" fill="#C8F0FF" opacity="0.15"/>
+    <!-- Ice shimmer sparkles -->
+    <circle cx="200" cy="370" r="2" fill="#fff" opacity="0.3"><animate attributeName="opacity" values="0.1;0.6;0.1" dur="2s" repeatCount="indefinite"/></circle>
+    <circle cx="450" cy="355" r="2" fill="#fff" opacity="0.25"><animate attributeName="opacity" values="0.1;0.5;0.1" dur="3s" repeatCount="indefinite"/></circle>
+    <circle cx="650" cy="365" r="2" fill="#C8F0FF" opacity="0.3"><animate attributeName="opacity" values="0.1;0.5;0.1" dur="2.5s" repeatCount="indefinite"/></circle>
+  </svg>
+  <div class="k-title"><h2>THE FROZEN SPIRE</h2><div class="tier">TIER 2 — STRUCTURE</div></div>
+
+
+  <div class="content">
+    <div class="node-row">
+      <div class="node locked" id="k2-node0"><div class="char-anchor" id="k2-char"><div class="speech">So much to learn...</div><svg viewBox="0 0 130 240" style="width:70px;height:120px;overflow:visible" xmlns="http://www.w3.org/2000/svg"><ellipse cx="62" cy="228" rx="38" ry="7" fill="#26215C" opacity="0.10"/><rect x="36" y="168" width="20" height="36" rx="3" fill="#3C3489"/><rect x="62" y="168" width="20" height="36" rx="3" fill="#3C3489"/><rect x="28" y="195" width="30" height="14" rx="4" fill="#26215C"/><rect x="58" y="195" width="30" height="14" rx="4" fill="#26215C"/><rect x="33" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="43" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="63" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="73" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><g style="animation:byte-storm-body 3.4s steps(1) 0s infinite;transform-origin:center"><rect x="22" y="95" width="80" height="80" rx="6" fill="#7F77DD"/><rect x="22" y="105" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="113" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="121" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="129" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="137" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="38" y="138" width="48" height="28" rx="4" fill="#3C3489" opacity="0.5"/><rect x="46" y="143" width="14" height="3" rx="1" fill="#AFA9EC" opacity="0.7"/><rect x="46" y="149" width="10" height="3" rx="1" fill="#AFA9EC" opacity="0.5"/><rect x="2" y="105" width="22" height="16" rx="5" fill="#7F77DD"/><rect x="0" y="116" width="16" height="14" rx="4" fill="#534AB7"/><rect x="100" y="105" width="22" height="16" rx="5" fill="#7F77DD"/><rect x="108" y="116" width="16" height="14" rx="4" fill="#534AB7"/><rect x="40" y="28" width="5" height="20" rx="2" fill="#534AB7"/><rect x="79" y="28" width="5" height="20" rx="2" fill="#534AB7"/><rect x="38" y="20" width="9" height="9" rx="2" fill="#FCDE5A" style="animation:tip-strobe 3.4s steps(1) 0s infinite;transform-origin:42px 24px"/><rect x="77" y="20" width="9" height="9" rx="2" fill="#FCDE5A" style="animation:tip-strobe 3.4s steps(1) 0.15s infinite;transform-origin:81px 24px"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#7F77DD"/><rect x="18" y="40" width="3" height="62" fill="#AFA9EC" opacity="0.3"/><rect x="28" y="52" width="24" height="18" rx="3" fill="white" opacity="0.95"/><rect x="72" y="52" width="24" height="18" rx="3" fill="white" opacity="0.95"/><rect x="29" y="52" width="22" height="8" rx="2" fill="#26215C" style="animation:byte-eye-flash 3.4s steps(1) 0s infinite"/><rect x="73" y="52" width="22" height="8" rx="2" fill="#26215C" style="animation:byte-eye-flash 3.4s steps(1) 0.05s infinite"/><rect x="32" y="54" width="14" height="12" fill="#26215C"/><rect x="76" y="54" width="14" height="12" fill="#26215C"/><rect x="34" y="56" width="5" height="4" rx="1" fill="white" opacity="0.9"/><rect x="78" y="56" width="5" height="4" rx="1" fill="white" opacity="0.9"/><rect x="44" y="82" width="36" height="6" rx="3" fill="#3C3489" opacity="0.6"/><rect x="54" y="78" width="6" height="4" rx="1" fill="#3C3489" opacity="0.4"/><rect x="18" y="50" width="88" height="18" fill="#7F77DD" style="animation:byte-tear-1 3.4s steps(1) 0s infinite;transform-origin:62px 59px"/><rect x="18" y="52" width="88" height="14" fill="#7F77DD" opacity="0.9" style="animation:byte-tear-1 3.4s steps(1) 0.04s infinite;transform-origin:62px 59px"/><rect x="22" y="105" width="80" height="16" fill="#7F77DD" style="animation:byte-tear-2 3.4s steps(1) 0.02s infinite;transform-origin:62px 113px"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#E24B4A" opacity="0.35" style="animation:byte-rgb-r 3.4s steps(1) 0.01s infinite;transform-origin:center"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#378ADD" opacity="0.35" style="animation:byte-rgb-b 3.4s steps(1) 0.03s infinite;transform-origin:center"/><rect x="40" y="65" width="8" height="5" rx="1" fill="#FCDE5A" style="animation:byte-px-scatter 3.4s ease-out 0s infinite;transform-origin:44px 67px"/><rect x="70" y="58" width="6" height="4" rx="1" fill="#9FE1CB" style="animation:byte-px-scatter2 3.4s ease-out 0.06s infinite;transform-origin:73px 60px"/><rect x="30" y="108" width="5" height="5" rx="1" fill="#F09595" style="animation:byte-px-scatter3 3.4s ease-out 0.02s infinite;transform-origin:32px 110px"/><rect x="85" y="118" width="7" height="4" rx="1" fill="#FCDE5A" style="animation:byte-px-scatter 3.4s ease-out 0.08s infinite;transform-origin:88px 120px"/><rect x="55" y="88" width="10" height="4" rx="1" fill="#AFA9EC" style="animation:byte-px-scatter2 3.4s ease-out 0.04s infinite;transform-origin:60px 90px"/></g></svg></div><div class="node-box" style="background:rgba(80,120,160,0.3);border-color:rgba(136,208,240,0.3)"><span class="badge badge-lesson">LESSON</span><span class="icon">🔒</span></div><div class="node-label">Context Setting</div><div class="node-reward">🔒 10 XP</div></div>
+      <div class="node locked"><div class="node-box" style="background:rgba(80,120,160,0.3);border-color:rgba(136,208,240,0.3)"><span class="badge badge-lesson">LESSON</span><span class="icon">🔒</span></div><div class="node-label">AI Rules Files</div><div class="node-reward">🔒 10 XP</div></div>
+      <div class="node locked"><div class="node-box" style="background:rgba(80,120,160,0.3);border-color:rgba(136,208,240,0.3)"><span class="badge badge-challenge">CHALLENGE</span><span class="icon">🔒</span></div><div class="node-label">Documentation</div><div class="node-reward">🔒 25 XP + 10 🪙</div></div>
+      <div class="node locked boss"><div class="node-box" style="background:rgba(60,90,130,0.3);border-color:rgba(100,160,200,0.3)"><span class="badge badge-boss">BOSS</span><span class="icon">🔒</span></div><div class="node-label">Project Structure</div><div class="node-reward">🔒 50 XP + 25 🪙</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== KINGDOM 3: ETERNAL GARDEN ====== -->
+<div class="kingdom">
+  <svg class="bg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="s3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1a0a2e"/><stop offset="20%" stop-color="#2D1848"/><stop offset="45%" stop-color="#6A3060"/><stop offset="70%" stop-color="#C07098"/><stop offset="100%" stop-color="#F0A8D0"/></linearGradient>
+      <radialGradient id="sunGlow3" cx="75%" cy="15%" r="30%"><stop offset="0%" stop-color="#FFD0E8" stop-opacity="0.3"/><stop offset="100%" stop-color="transparent"/></radialGradient>
+      <filter id="glow3"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <rect width="800" height="500" fill="url(#s3)"/>
+    <rect width="800" height="500" fill="url(#sunGlow3)"/>
+    <!-- Light rays -->
+    <polygon points="600,0 560,200 640,200" fill="#FFD0E8" opacity="0.06"/>
+    <polygon points="650,0 620,180 680,180" fill="#FFD0E8" opacity="0.05"/>
+    <polygon points="700,0 680,160 720,160" fill="#FFD0E8" opacity="0.04"/>
+    <!-- Floating cherry blossom petals -->
+    <ellipse cx="80" cy="120" rx="4" ry="2" fill="#F0A8D0" opacity="0.6" transform="rotate(30,80,120)"><animate attributeName="cx" values="80;140;200" dur="8s" repeatCount="indefinite"/><animate attributeName="cy" values="120;150;180" dur="8s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.6;0.4;0.1" dur="8s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="rotate" values="30;180;330" dur="8s" repeatCount="indefinite"/></ellipse>
+    <ellipse cx="250" cy="80" rx="3" ry="1.5" fill="#E890C0" opacity="0.5" transform="rotate(60,250,80)"><animate attributeName="cx" values="250;300;360" dur="10s" repeatCount="indefinite"/><animate attributeName="cy" values="80;130;200" dur="10s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.5;0.3;0.1" dur="10s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="rotate" values="60;210;360" dur="10s" repeatCount="indefinite"/></ellipse>
+    <ellipse cx="500" cy="100" rx="4" ry="2" fill="#F0C8E0" opacity="0.5" transform="rotate(10,500,100)"><animate attributeName="cx" values="500;540;580" dur="7s" repeatCount="indefinite"/><animate attributeName="cy" values="100;160;230" dur="7s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.5;0.3;0" dur="7s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="rotate" values="10;160;310" dur="7s" repeatCount="indefinite"/></ellipse>
+    <ellipse cx="680" cy="60" rx="3" ry="1.5" fill="#F0A8D0" opacity="0.4" transform="rotate(45,680,60)"><animate attributeName="cx" values="680;720;760" dur="9s" repeatCount="indefinite"/><animate attributeName="cy" values="60;120;200" dur="9s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.4;0.2;0" dur="9s" repeatCount="indefinite"/><animateTransform attributeName="transform" type="rotate" values="45;195;345" dur="9s" repeatCount="indefinite"/></ellipse>
+    <ellipse cx="350" cy="140" rx="3.5" ry="1.8" fill="#E8A0C0" opacity="0.5"><animate attributeName="cx" values="350;400;460" dur="11s" repeatCount="indefinite"/><animate attributeName="cy" values="140;190;260" dur="11s" repeatCount="indefinite"/><animate attributeName="opacity" values="0.5;0.3;0" dur="11s" repeatCount="indefinite"/></ellipse>
+    <!-- Cherry blossom tree left -->
+    <rect x="90" y="240" width="12" height="180" fill="#6A3828" opacity="0.5" rx="3"/>
+    <path d="M96,260 Q70,250 55,270" stroke="#6A3828" stroke-width="4" fill="none" opacity="0.4"/>
+    <path d="M96,240 Q120,220 140,230" stroke="#6A3828" stroke-width="3" fill="none" opacity="0.4"/>
+    <ellipse cx="96" cy="230" rx="65" ry="45" fill="#C06888" opacity="0.3"/>
+    <ellipse cx="80" cy="225" rx="35" ry="28" fill="#E090B0" opacity="0.25"/>
+    <ellipse cx="115" cy="220" rx="30" ry="25" fill="#D88098" opacity="0.25"/>
+    <circle cx="65" cy="235" r="4" fill="#F0A8D0" opacity="0.5"/><circle cx="85" cy="210" r="3" fill="#F0C8E0" opacity="0.4"/><circle cx="110" cy="215" r="4" fill="#E890C0" opacity="0.5"/><circle cx="130" cy="230" r="3" fill="#F0A8D0" opacity="0.4"/>
+    <!-- Cherry blossom tree right -->
+    <rect x="650" y="220" width="14" height="200" fill="#6A3828" opacity="0.45" rx="3"/>
+    <path d="M657,240 Q630,225 615,240" stroke="#6A3828" stroke-width="4" fill="none" opacity="0.35"/>
+    <path d="M657,225 Q685,210 700,220" stroke="#6A3828" stroke-width="3" fill="none" opacity="0.35"/>
+    <ellipse cx="657" cy="210" rx="60" ry="42" fill="#C06888" opacity="0.25"/>
+    <ellipse cx="640" cy="205" rx="32" ry="26" fill="#E090B0" opacity="0.2"/>
+    <ellipse cx="675" cy="200" rx="28" ry="24" fill="#D88098" opacity="0.2"/>
+    <circle cx="625" cy="215" r="3" fill="#F0A8D0" opacity="0.4"/><circle cx="660" cy="195" r="4" fill="#F0C8E0" opacity="0.4"/><circle cx="690" cy="210" r="3" fill="#E890C0" opacity="0.4"/>
+    <!-- Rolling green hills -->
+    <polygon points="0,310 60,285 140,300 240,275 350,290 460,268 570,285 670,260 780,280 800,270 800,500 0,500" fill="#5A9060"/>
+    <polygon points="0,330 70,310 170,325 280,300 400,318 510,295 620,312 740,290 800,300 800,500 0,500" fill="#4A8050"/>
+    <polygon points="0,350 80,335 190,345 310,322 430,338 550,318 660,332 780,312 800,322 800,500 0,500" fill="#3A6840"/>
+    <!-- Ground flowers -->
+    <circle cx="80" cy="340" r="4" fill="#F0A8D0" opacity="0.6"/><circle cx="80" cy="340" r="2" fill="#FFD0E8" opacity="0.5"/>
+    <circle cx="200" cy="325" r="3.5" fill="#E890C0" opacity="0.5"/><circle cx="200" cy="325" r="1.5" fill="#FFD0E8" opacity="0.4"/>
+    <circle cx="330" cy="315" r="4" fill="#F0C8E0" opacity="0.6"/><circle cx="330" cy="315" r="2" fill="#fff" opacity="0.4"/>
+    <circle cx="450" cy="322" r="3" fill="#F0A8D0" opacity="0.5"/><circle cx="450" cy="322" r="1.5" fill="#FFD0E8" opacity="0.4"/>
+    <circle cx="560" cy="318" r="4" fill="#E890C0" opacity="0.6"/><circle cx="560" cy="318" r="2" fill="#FFD0E8" opacity="0.5"/>
+    <circle cx="710" cy="300" r="3.5" fill="#F0C8E0" opacity="0.5"/><circle cx="710" cy="300" r="1.5" fill="#fff" opacity="0.4"/>
+    <!-- Small yellow flowers -->
+    <circle cx="150" cy="335" r="2.5" fill="#FFD700" opacity="0.4"/><circle cx="380" cy="310" r="2" fill="#FFD700" opacity="0.35"/><circle cx="620" cy="305" r="2.5" fill="#FFD700" opacity="0.4"/>
+    <!-- Butterflies -->
+    <g opacity="0.6"><animate attributeName="opacity" values="0.4;0.7;0.4" dur="4s" repeatCount="indefinite"/><path d="M280,200 Q275,190 285,188 Q295,190 290,200 Z" fill="#E890C0"><animate attributeName="d" values="M280,200 Q275,190 285,188 Q295,190 290,200 Z;M283,200 Q280,195 285,194 Q290,195 287,200 Z;M280,200 Q275,190 285,188 Q295,190 290,200 Z" dur="0.5s" repeatCount="indefinite"/></path><animateMotion path="M0,0 Q40,-20 80,0 Q120,20 160,0" dur="6s" repeatCount="indefinite"/></g>
+    <g opacity="0.5"><path d="M550,160 Q545,150 555,148 Q565,150 560,160 Z" fill="#F0C8E0"><animate attributeName="d" values="M550,160 Q545,150 555,148 Q565,150 560,160 Z;M553,160 Q550,155 555,154 Q560,155 557,160 Z;M550,160 Q545,150 555,148 Q565,150 560,160 Z" dur="0.4s" repeatCount="indefinite"/></path><animateMotion path="M0,0 Q-30,-15 -60,0 Q-90,15 -120,0" dur="7s" repeatCount="indefinite"/></g>
+    <!-- Grass ground -->
+    <rect x="0" y="418" width="800" height="4" fill="#6BCB77"/>
+    <rect x="0" y="422" width="800" height="6" fill="#5AB868"/>
+    <rect x="0" y="428" width="800" height="80" fill="#3A6840"/>
+    <!-- Grass tufts -->
+    <path d="M40,420 L44,408 L48,420" stroke="#7ADD88" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <path d="M180,418 L184,406 L188,418" stroke="#7ADD88" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <path d="M320,420 L324,407 L328,420" stroke="#8AED98" stroke-width="1.5" fill="none" opacity="0.4"/>
+    <path d="M500,419 L504,406 L508,419" stroke="#7ADD88" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <path d="M660,420 L664,408 L668,420" stroke="#8AED98" stroke-width="1.5" fill="none" opacity="0.4"/>
+    <path d="M770,418 L774,406 L778,418" stroke="#7ADD88" stroke-width="1.5" fill="none" opacity="0.5"/>
+    <!-- Vine tendrils -->
+    <path d="M0,320 Q20,310 30,325 Q40,340 25,350" stroke="#2A5830" stroke-width="2" fill="none" opacity="0.3"/>
+    <path d="M800,290 Q780,280 770,295 Q760,310 775,318" stroke="#2A5830" stroke-width="2" fill="none" opacity="0.3"/>
+  </svg>
+  <div class="k-title"><h2>THE ETERNAL GARDEN</h2><div class="tier">TIER 3 — INTEGRATION</div></div>
+
+
+  <div class="content">
+    <div class="node-row">
+      <div class="node locked" id="k3-node0"><div class="char-anchor" id="k3-char"><div class="speech">Almost there!</div><svg viewBox="0 0 130 240" style="width:70px;height:120px;overflow:visible" xmlns="http://www.w3.org/2000/svg"><ellipse cx="62" cy="228" rx="38" ry="7" fill="#26215C" opacity="0.10"/><rect x="36" y="168" width="20" height="36" rx="3" fill="#3C3489"/><rect x="62" y="168" width="20" height="36" rx="3" fill="#3C3489"/><rect x="28" y="195" width="30" height="14" rx="4" fill="#26215C"/><rect x="58" y="195" width="30" height="14" rx="4" fill="#26215C"/><rect x="33" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="43" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="63" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="73" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><g style="animation:byte-storm-body 3.4s steps(1) 0s infinite;transform-origin:center"><rect x="22" y="95" width="80" height="80" rx="6" fill="#7F77DD"/><rect x="22" y="105" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="113" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="121" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="129" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="137" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="38" y="138" width="48" height="28" rx="4" fill="#3C3489" opacity="0.5"/><rect x="46" y="143" width="14" height="3" rx="1" fill="#AFA9EC" opacity="0.7"/><rect x="46" y="149" width="10" height="3" rx="1" fill="#AFA9EC" opacity="0.5"/><rect x="2" y="105" width="22" height="16" rx="5" fill="#7F77DD"/><rect x="0" y="116" width="16" height="14" rx="4" fill="#534AB7"/><rect x="100" y="105" width="22" height="16" rx="5" fill="#7F77DD"/><rect x="108" y="116" width="16" height="14" rx="4" fill="#534AB7"/><rect x="40" y="28" width="5" height="20" rx="2" fill="#534AB7"/><rect x="79" y="28" width="5" height="20" rx="2" fill="#534AB7"/><rect x="38" y="20" width="9" height="9" rx="2" fill="#FCDE5A" style="animation:tip-strobe 3.4s steps(1) 0s infinite;transform-origin:42px 24px"/><rect x="77" y="20" width="9" height="9" rx="2" fill="#FCDE5A" style="animation:tip-strobe 3.4s steps(1) 0.15s infinite;transform-origin:81px 24px"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#7F77DD"/><rect x="18" y="40" width="3" height="62" fill="#AFA9EC" opacity="0.3"/><rect x="28" y="52" width="24" height="18" rx="3" fill="white" opacity="0.95"/><rect x="72" y="52" width="24" height="18" rx="3" fill="white" opacity="0.95"/><rect x="29" y="52" width="22" height="8" rx="2" fill="#26215C" style="animation:byte-eye-flash 3.4s steps(1) 0s infinite"/><rect x="73" y="52" width="22" height="8" rx="2" fill="#26215C" style="animation:byte-eye-flash 3.4s steps(1) 0.05s infinite"/><rect x="32" y="54" width="14" height="12" fill="#26215C"/><rect x="76" y="54" width="14" height="12" fill="#26215C"/><rect x="34" y="56" width="5" height="4" rx="1" fill="white" opacity="0.9"/><rect x="78" y="56" width="5" height="4" rx="1" fill="white" opacity="0.9"/><rect x="44" y="82" width="36" height="6" rx="3" fill="#3C3489" opacity="0.6"/><rect x="54" y="78" width="6" height="4" rx="1" fill="#3C3489" opacity="0.4"/><rect x="18" y="50" width="88" height="18" fill="#7F77DD" style="animation:byte-tear-1 3.4s steps(1) 0s infinite;transform-origin:62px 59px"/><rect x="18" y="52" width="88" height="14" fill="#7F77DD" opacity="0.9" style="animation:byte-tear-1 3.4s steps(1) 0.04s infinite;transform-origin:62px 59px"/><rect x="22" y="105" width="80" height="16" fill="#7F77DD" style="animation:byte-tear-2 3.4s steps(1) 0.02s infinite;transform-origin:62px 113px"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#E24B4A" opacity="0.35" style="animation:byte-rgb-r 3.4s steps(1) 0.01s infinite;transform-origin:center"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#378ADD" opacity="0.35" style="animation:byte-rgb-b 3.4s steps(1) 0.03s infinite;transform-origin:center"/><rect x="40" y="65" width="8" height="5" rx="1" fill="#FCDE5A" style="animation:byte-px-scatter 3.4s ease-out 0s infinite;transform-origin:44px 67px"/><rect x="70" y="58" width="6" height="4" rx="1" fill="#9FE1CB" style="animation:byte-px-scatter2 3.4s ease-out 0.06s infinite;transform-origin:73px 60px"/><rect x="30" y="108" width="5" height="5" rx="1" fill="#F09595" style="animation:byte-px-scatter3 3.4s ease-out 0.02s infinite;transform-origin:32px 110px"/><rect x="85" y="118" width="7" height="4" rx="1" fill="#FCDE5A" style="animation:byte-px-scatter 3.4s ease-out 0.08s infinite;transform-origin:88px 120px"/><rect x="55" y="88" width="10" height="4" rx="1" fill="#AFA9EC" style="animation:byte-px-scatter2 3.4s ease-out 0.04s infinite;transform-origin:60px 90px"/></g></svg></div><div class="node-box" style="background:rgba(200,100,160,0.2);border-color:rgba(240,168,208,0.3)"><span class="badge badge-lesson">LESSON</span><span class="icon">🔒</span></div><div class="node-label">Tool Switching</div><div class="node-reward">🔒 10 XP</div></div>
+      <div class="node locked"><div class="node-box" style="background:rgba(200,100,160,0.2);border-color:rgba(240,168,208,0.3)"><span class="badge badge-challenge">CHALLENGE</span><span class="icon">🔒</span></div><div class="node-label">Scope Management</div><div class="node-reward">🔒 25 XP + 10 🪙</div></div>
+      <div class="node locked"><div class="node-box" style="background:rgba(200,100,160,0.2);border-color:rgba(240,168,208,0.3)"><span class="badge badge-lesson">LESSON</span><span class="icon">🔒</span></div><div class="node-label">Design System</div><div class="node-reward">🔒 10 XP</div></div>
+      <div class="node locked boss"><div class="node-box" style="background:rgba(160,60,100,0.2);border-color:rgba(200,100,160,0.3)"><span class="badge badge-boss">BOSS</span><span class="icon">🔒</span></div><div class="node-label">Prompt Iteration</div><div class="node-reward">🔒 50 XP + 25 🪙</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ====== KINGDOM 4: MYSTIC GROVE ====== -->
+<div class="kingdom">
+  <svg class="bg" viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice">
+    <defs>
+      <linearGradient id="s4" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#050E08"/><stop offset="20%" stop-color="#0a1e10"/><stop offset="45%" stop-color="#1a3820"/><stop offset="70%" stop-color="#2A5830"/><stop offset="100%" stop-color="#60B050"/></linearGradient>
+      <radialGradient id="mushGlow" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#C8FF40" stop-opacity="0.4"/><stop offset="100%" stop-color="transparent"/></radialGradient>
+      <filter id="glow4"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <rect width="800" height="500" fill="url(#s4)"/>
+    <!-- Mist layer -->
+    <ellipse cx="200" cy="320" rx="200" ry="40" fill="#90D870" opacity="0.06"><animate attributeName="cx" values="200;250;200" dur="12s" repeatCount="indefinite"/></ellipse>
+    <ellipse cx="600" cy="300" rx="180" ry="35" fill="#60B050" opacity="0.05"><animate attributeName="cx" values="600;550;600" dur="10s" repeatCount="indefinite"/></ellipse>
+    <ellipse cx="400" cy="340" rx="250" ry="30" fill="#80C860" opacity="0.04"><animate attributeName="cx" values="400;430;400" dur="14s" repeatCount="indefinite"/></ellipse>
+    <!-- Massive tree trunks -->
+    <rect x="55" y="120" width="50" height="300" fill="#4A2E18" opacity="0.5" rx="5"/>
+    <rect x="60" y="120" width="8" height="300" fill="#5C3A20" opacity="0.3"/>
+    <path d="M80,180 Q110,160 130,180 Q150,200 140,230" stroke="#4A2E18" stroke-width="12" fill="none" opacity="0.4" stroke-linecap="round"/>
+    <path d="M75,220 Q40,200 25,225" stroke="#4A2E18" stroke-width="10" fill="none" opacity="0.35" stroke-linecap="round"/>
+    <rect x="400" y="100" width="60" height="320" fill="#3A2410" opacity="0.45" rx="5"/>
+    <rect x="406" y="100" width="10" height="320" fill="#4A2E18" opacity="0.25"/>
+    <path d="M430,150 Q470,125 490,155 Q510,180 500,210" stroke="#3A2410" stroke-width="14" fill="none" opacity="0.35" stroke-linecap="round"/>
+    <path d="M425,200 Q390,175 370,200" stroke="#3A2410" stroke-width="10" fill="none" opacity="0.3" stroke-linecap="round"/>
+    <rect x="680" y="140" width="40" height="280" fill="#4A2E18" opacity="0.4" rx="4"/>
+    <path d="M700,180 Q730,160 745,185" stroke="#4A2E18" stroke-width="10" fill="none" opacity="0.3" stroke-linecap="round"/>
+    <!-- Dense canopy -->
+    <ellipse cx="80" cy="130" rx="90" ry="55" fill="#1A4020" opacity="0.5"/>
+    <ellipse cx="80" cy="120" rx="70" ry="40" fill="#2A5830" opacity="0.4"/>
+    <ellipse cx="430" cy="110" rx="100" ry="60" fill="#1A4020" opacity="0.45"/>
+    <ellipse cx="430" cy="100" rx="80" ry="45" fill="#2A5830" opacity="0.35"/>
+    <ellipse cx="700" cy="145" rx="75" ry="50" fill="#1A4020" opacity="0.4"/>
+    <ellipse cx="700" cy="135" rx="55" ry="35" fill="#2A5830" opacity="0.3"/>
+    <!-- Hanging vines from canopy -->
+    <path d="M40,165 Q38,200 42,240 Q40,260 44,280" stroke="#2A5830" stroke-width="2" fill="none" opacity="0.4"/>
+    <path d="M120,155 Q118,190 122,230 Q120,250 124,270" stroke="#2A5830" stroke-width="1.5" fill="none" opacity="0.35"/>
+    <path d="M370,155 Q368,190 372,220" stroke="#2A5830" stroke-width="2" fill="none" opacity="0.35"/>
+    <path d="M490,145 Q488,180 492,220 Q490,240 494,260" stroke="#2A5830" stroke-width="1.5" fill="none" opacity="0.3"/>
+    <path d="M660,175 Q658,210 662,250" stroke="#2A5830" stroke-width="2" fill="none" opacity="0.35"/>
+    <path d="M740,160 Q738,200 742,240" stroke="#2A5830" stroke-width="1.5" fill="none" opacity="0.3"/>
+    <!-- Hanging vine leaves -->
+    <circle cx="44" cy="280" r="3" fill="#4A9050" opacity="0.4"/><circle cx="124" cy="270" r="2.5" fill="#4A9050" opacity="0.35"/>
+    <circle cx="492" cy="260" r="3" fill="#4A9050" opacity="0.35"/><circle cx="742" cy="240" r="2.5" fill="#4A9050" opacity="0.3"/>
+    <!-- Fireflies (will-o-wisps) -->
+    <circle cx="150" cy="200" r="3" fill="#C8FF40" opacity="0.6" filter="url(#glow4)"><animate attributeName="opacity" values="0.2;0.8;0.2" dur="3s" repeatCount="indefinite"/><animate attributeName="cx" values="150;165;150" dur="4s" repeatCount="indefinite"/><animate attributeName="cy" values="200;190;200" dur="3s" repeatCount="indefinite"/></circle>
+    <circle cx="280" cy="240" r="2.5" fill="#A0E840" opacity="0.5" filter="url(#glow4)"><animate attributeName="opacity" values="0.1;0.7;0.1" dur="4s" repeatCount="indefinite"/><animate attributeName="cx" values="280;270;280" dur="5s" repeatCount="indefinite"/><animate attributeName="cy" values="240;225;240" dur="4s" repeatCount="indefinite"/></circle>
+    <circle cx="530" cy="180" r="3" fill="#C8FF40" opacity="0.5" filter="url(#glow4)"><animate attributeName="opacity" values="0.3;0.9;0.3" dur="2.5s" repeatCount="indefinite"/><animate attributeName="cx" values="530;545;530" dur="3.5s" repeatCount="indefinite"/><animate attributeName="cy" values="180;168;180" dur="3s" repeatCount="indefinite"/></circle>
+    <circle cx="620" cy="230" r="2" fill="#A0E840" opacity="0.4" filter="url(#glow4)"><animate attributeName="opacity" values="0.2;0.6;0.2" dur="3.5s" repeatCount="indefinite"/><animate attributeName="cx" values="620;610;620" dur="5s" repeatCount="indefinite"/><animate attributeName="cy" values="230;218;230" dur="4s" repeatCount="indefinite"/></circle>
+    <circle cx="750" cy="260" r="2.5" fill="#C8FF40" opacity="0.5" filter="url(#glow4)"><animate attributeName="opacity" values="0.15;0.7;0.15" dur="4s" repeatCount="indefinite"/><animate attributeName="cx" values="750;740;750" dur="4s" repeatCount="indefinite"/><animate attributeName="cy" values="260;248;260" dur="3.5s" repeatCount="indefinite"/></circle>
+    <circle cx="320" cy="170" r="2" fill="#80FF60" opacity="0.4" filter="url(#glow4)"><animate attributeName="opacity" values="0.1;0.5;0.1" dur="5s" repeatCount="indefinite"/><animate attributeName="cx" values="320;335;320" dur="6s" repeatCount="indefinite"/></circle>
+    <!-- Terrain layers -->
+    <polygon points="0,330 70,308 160,322 260,298 360,315 470,292 570,308 670,285 770,300 800,292 800,500 0,500" fill="#2A5830"/>
+    <polygon points="0,350 80,332 180,345 300,318 420,335 530,312 640,328 760,308 800,318 800,500 0,500" fill="#1A4020"/>
+    <polygon points="0,370 90,355 200,365 320,342 440,358 560,338 670,352 780,335 800,342 800,500 0,500" fill="#143018"/>
+    <!-- Glowing mushrooms -->
+    <ellipse cx="180" cy="390" rx="12" ry="6" fill="#E04040" opacity="0.6"/><rect x="177" y="390" width="6" height="18" fill="#C0C0B8" opacity="0.4" rx="2"/><ellipse cx="180" cy="388" rx="14" ry="3" fill="#E04040" opacity="0.15" filter="url(#glow4)"><animate attributeName="opacity" values="0.1;0.25;0.1" dur="3s" repeatCount="indefinite"/></ellipse>
+    <circle cx="174" cy="388" r="1.5" fill="#fff" opacity="0.3"/><circle cx="184" cy="386" r="1" fill="#fff" opacity="0.25"/>
+    <ellipse cx="340" cy="375" rx="10" ry="5" fill="#8B7BE8" opacity="0.6"/><rect x="337" y="375" width="5" height="15" fill="#C0C0B8" opacity="0.35" rx="2"/><ellipse cx="340" cy="373" rx="12" ry="3" fill="#8B7BE8" opacity="0.15" filter="url(#glow4)"><animate attributeName="opacity" values="0.1;0.2;0.1" dur="4s" repeatCount="indefinite"/></ellipse>
+    <circle cx="335" cy="373" r="1" fill="#fff" opacity="0.25"/><circle cx="344" cy="372" r="1.5" fill="#fff" opacity="0.2"/>
+    <ellipse cx="600" cy="368" rx="11" ry="5.5" fill="#40C090" opacity="0.6"/><rect x="597" y="368" width="5" height="16" fill="#C0C0B8" opacity="0.35" rx="2"/><ellipse cx="600" cy="366" rx="13" ry="3" fill="#40C090" opacity="0.15" filter="url(#glow4)"><animate attributeName="opacity" values="0.1;0.22;0.1" dur="3.5s" repeatCount="indefinite"/></ellipse>
+    <circle cx="595" cy="366" r="1" fill="#fff" opacity="0.25"/><circle cx="605" cy="365" r="1.5" fill="#fff" opacity="0.2"/>
+    <ellipse cx="740" cy="378" rx="9" ry="4.5" fill="#E04040" opacity="0.5"/><rect x="737" y="378" width="5" height="14" fill="#C0C0B8" opacity="0.3" rx="2"/><ellipse cx="740" cy="376" rx="11" ry="2.5" fill="#E04040" opacity="0.12" filter="url(#glow4)"><animate attributeName="opacity" values="0.08;0.18;0.08" dur="4.5s" repeatCount="indefinite"/></ellipse>
+    <!-- Mossy ground -->
+    <rect x="0" y="416" width="800" height="4" fill="#4A9050" opacity="0.6"/>
+    <rect x="0" y="420" width="800" height="6" fill="#3A7840"/>
+    <rect x="0" y="426" width="800" height="80" fill="#1A4020"/>
+    <!-- Ground moss patches -->
+    <ellipse cx="100" cy="425" rx="30" ry="4" fill="#4A9050" opacity="0.3"/>
+    <ellipse cx="300" cy="424" rx="25" ry="3" fill="#3A8040" opacity="0.25"/>
+    <ellipse cx="550" cy="425" rx="35" ry="4" fill="#4A9050" opacity="0.3"/>
+    <!-- Magical rune circles (subtle) -->
+    <circle cx="250" cy="400" r="15" fill="none" stroke="#C8FF40" stroke-width="0.5" opacity="0.1"><animate attributeName="opacity" values="0.05;0.15;0.05" dur="6s" repeatCount="indefinite"/></circle>
+    <circle cx="500" cy="395" r="12" fill="none" stroke="#80FF60" stroke-width="0.5" opacity="0.08"><animate attributeName="opacity" values="0.04;0.12;0.04" dur="8s" repeatCount="indefinite"/></circle>
+    <!-- Small ferns on ground -->
+    <path d="M460,420 Q455,410 460,405 Q465,410 460,420" fill="#3A8040" opacity="0.4"/>
+    <path d="M462,420 Q468,412 464,405" stroke="#4A9050" stroke-width="1" fill="none" opacity="0.3"/>
+    <path d="M230,418 Q225,408 230,403 Q235,408 230,418" fill="#3A8040" opacity="0.35"/>
+    <path d="M670,419 Q665,409 670,404 Q675,409 670,419" fill="#3A8040" opacity="0.35"/>
+  </svg>
+  <div class="k-title"><h2>THE MYSTIC GROVE</h2><div class="tier">TIER 4 — MASTERY</div></div>
+
+
+  <div class="content">
+    <div class="node-row">
+      <div class="node locked" id="k4-node0"><div class="char-anchor" id="k4-char"><div class="speech">The final frontier!</div><svg viewBox="0 0 130 240" style="width:70px;height:120px;overflow:visible" xmlns="http://www.w3.org/2000/svg"><ellipse cx="62" cy="228" rx="38" ry="7" fill="#26215C" opacity="0.10"/><rect x="36" y="168" width="20" height="36" rx="3" fill="#3C3489"/><rect x="62" y="168" width="20" height="36" rx="3" fill="#3C3489"/><rect x="28" y="195" width="30" height="14" rx="4" fill="#26215C"/><rect x="58" y="195" width="30" height="14" rx="4" fill="#26215C"/><rect x="33" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="43" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="63" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><rect x="73" y="198" width="7" height="5" rx="1" fill="#534AB7" opacity="0.6"/><g style="animation:byte-storm-body 3.4s steps(1) 0s infinite;transform-origin:center"><rect x="22" y="95" width="80" height="80" rx="6" fill="#7F77DD"/><rect x="22" y="105" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="113" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="121" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="129" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="22" y="137" width="80" height="2" fill="#3C3489" opacity="0.35"/><rect x="38" y="138" width="48" height="28" rx="4" fill="#3C3489" opacity="0.5"/><rect x="46" y="143" width="14" height="3" rx="1" fill="#AFA9EC" opacity="0.7"/><rect x="46" y="149" width="10" height="3" rx="1" fill="#AFA9EC" opacity="0.5"/><rect x="2" y="105" width="22" height="16" rx="5" fill="#7F77DD"/><rect x="0" y="116" width="16" height="14" rx="4" fill="#534AB7"/><rect x="100" y="105" width="22" height="16" rx="5" fill="#7F77DD"/><rect x="108" y="116" width="16" height="14" rx="4" fill="#534AB7"/><rect x="40" y="28" width="5" height="20" rx="2" fill="#534AB7"/><rect x="79" y="28" width="5" height="20" rx="2" fill="#534AB7"/><rect x="38" y="20" width="9" height="9" rx="2" fill="#FCDE5A" style="animation:tip-strobe 3.4s steps(1) 0s infinite;transform-origin:42px 24px"/><rect x="77" y="20" width="9" height="9" rx="2" fill="#FCDE5A" style="animation:tip-strobe 3.4s steps(1) 0.15s infinite;transform-origin:81px 24px"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#7F77DD"/><rect x="18" y="40" width="3" height="62" fill="#AFA9EC" opacity="0.3"/><rect x="28" y="52" width="24" height="18" rx="3" fill="white" opacity="0.95"/><rect x="72" y="52" width="24" height="18" rx="3" fill="white" opacity="0.95"/><rect x="29" y="52" width="22" height="8" rx="2" fill="#26215C" style="animation:byte-eye-flash 3.4s steps(1) 0s infinite"/><rect x="73" y="52" width="22" height="8" rx="2" fill="#26215C" style="animation:byte-eye-flash 3.4s steps(1) 0.05s infinite"/><rect x="32" y="54" width="14" height="12" fill="#26215C"/><rect x="76" y="54" width="14" height="12" fill="#26215C"/><rect x="34" y="56" width="5" height="4" rx="1" fill="white" opacity="0.9"/><rect x="78" y="56" width="5" height="4" rx="1" fill="white" opacity="0.9"/><rect x="44" y="82" width="36" height="6" rx="3" fill="#3C3489" opacity="0.6"/><rect x="54" y="78" width="6" height="4" rx="1" fill="#3C3489" opacity="0.4"/><rect x="18" y="50" width="88" height="18" fill="#7F77DD" style="animation:byte-tear-1 3.4s steps(1) 0s infinite;transform-origin:62px 59px"/><rect x="18" y="52" width="88" height="14" fill="#7F77DD" opacity="0.9" style="animation:byte-tear-1 3.4s steps(1) 0.04s infinite;transform-origin:62px 59px"/><rect x="22" y="105" width="80" height="16" fill="#7F77DD" style="animation:byte-tear-2 3.4s steps(1) 0.02s infinite;transform-origin:62px 113px"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#E24B4A" opacity="0.35" style="animation:byte-rgb-r 3.4s steps(1) 0.01s infinite;transform-origin:center"/><rect x="18" y="40" width="88" height="62" rx="10" fill="#378ADD" opacity="0.35" style="animation:byte-rgb-b 3.4s steps(1) 0.03s infinite;transform-origin:center"/><rect x="40" y="65" width="8" height="5" rx="1" fill="#FCDE5A" style="animation:byte-px-scatter 3.4s ease-out 0s infinite;transform-origin:44px 67px"/><rect x="70" y="58" width="6" height="4" rx="1" fill="#9FE1CB" style="animation:byte-px-scatter2 3.4s ease-out 0.06s infinite;transform-origin:73px 60px"/><rect x="30" y="108" width="5" height="5" rx="1" fill="#F09595" style="animation:byte-px-scatter3 3.4s ease-out 0.02s infinite;transform-origin:32px 110px"/><rect x="85" y="118" width="7" height="4" rx="1" fill="#FCDE5A" style="animation:byte-px-scatter 3.4s ease-out 0.08s infinite;transform-origin:88px 120px"/><rect x="55" y="88" width="10" height="4" rx="1" fill="#AFA9EC" style="animation:byte-px-scatter2 3.4s ease-out 0.04s infinite;transform-origin:60px 90px"/></g></svg></div><div class="node-box" style="background:rgba(100,180,60,0.2);border-color:rgba(144,216,112,0.3)"><span class="badge badge-lesson">LESSON</span><span class="icon">🔒</span></div><div class="node-label">User Personas</div><div class="node-reward">🔒 10 XP</div></div>
+      <div class="node locked"><div class="node-box" style="background:rgba(100,180,60,0.2);border-color:rgba(144,216,112,0.3)"><span class="badge badge-challenge">CHALLENGE</span><span class="icon">🔒</span></div><div class="node-label">Context Windows</div><div class="node-reward">🔒 25 XP + 10 🪙</div></div>
+      <div class="node locked"><div class="node-box" style="background:rgba(100,180,60,0.2);border-color:rgba(144,216,112,0.3)"><span class="badge badge-lesson">LESSON</span><span class="icon">🔒</span></div><div class="node-label">AI Architecture</div><div class="node-reward">🔒 10 XP</div></div>
+      <div class="node locked boss"><div class="node-box" style="background:rgba(60,120,30,0.2);border-color:rgba(100,160,50,0.3)"><span class="badge badge-boss">BOSS</span><span class="icon">🔒</span></div><div class="node-label">Second Brain</div><div class="node-reward">🔒 50 XP + 25 🪙</div></div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /slider -->
+</div><!-- /viewport -->
+
+<!-- Progress dots -->
+<div class="progress">
+  <div class="dot active" style="background:#FF8040;border-color:#FF8040;box-shadow:0 0 10px #FF8040" onclick="goTo(0)"><span class="dot-name">FORGE</span></div>
+  <div class="dot-line" style="background:#534AB7"></div>
+  <div class="dot" style="border-color:#88D0F0;background:transparent" onclick="goTo(1)"><span class="dot-name">SPIRE</span></div>
+  <div class="dot-line" style="background:#534AB7"></div>
+  <div class="dot" style="border-color:#F0A8D0;background:transparent" onclick="goTo(2)"><span class="dot-name">GARDEN</span></div>
+  <div class="dot-line" style="background:#534AB7"></div>
+  <div class="dot" style="border-color:#90D870;background:transparent" onclick="goTo(3)"><span class="dot-name">GROVE</span></div>
+</div>
+
+<!-- Popup -->
+<div class="overlay" id="ov" onclick="closePopup()"></div>
+<div class="popup" id="pop">
+  <div class="popup-head">
+    <div class="popup-icon" id="popIcon" style="background:#D4960A">▶</div>
+    <div class="popup-info"><div class="popup-type" id="popType" style="color:#D4960A">CHALLENGE</div><div class="popup-name" id="popName">Tool Basics</div></div>
+    <button class="popup-close" onclick="closePopup()">✕</button>
+  </div>
+  <div class="popup-body">
+    <div class="popup-desc" id="popDesc">Pick the right AI tool for a real-world task.</div>
+    <div class="popup-meta">
+      <div class="popup-chip"><span class="cl">DIFF</span><span class="cv" id="popDiff">★★☆</span></div>
+      <div class="popup-chip"><span class="cl">XP</span><span class="cv" id="popXP">25</span></div>
+      <div class="popup-chip"><span class="cl">COINS</span><span class="cv" id="popCoins">10</span></div>
+    </div>
+    <button class="popup-btn">START CHALLENGE →</button>
+  </div>
+</div>
+
+<!-- Demo button -->
+<button class="demo-btn" onclick="demoComplete()">⚡ DEMO COMPLETE</button>
+
+<script>
+let cur=0;const total=4;
+const colors=['#FF8040','#88D0F0','#F0A8D0','#90D870'];
+
+// Track active node per kingdom (index of node where char sits)
+const kingdomState = [
+  {activeNode:2, totalNodes:4, prefix:'k1'}, // Forge: at Tool Basics (3rd node)
+  {activeNode:0, totalNodes:4, prefix:'k2'}, // Spire: at first node
+  {activeNode:0, totalNodes:4, prefix:'k3'}, // Garden: at first node
+  {activeNode:0, totalNodes:4, prefix:'k4'}  // Grove: at first node
+];
+
+function go(d){goTo(cur+d)}
+function goTo(i){
+  cur=Math.max(0,Math.min(total-1,i));
+  document.getElementById('slider').style.transform=`translateX(-${cur*100}vw)`;
+  document.getElementById('arrowL').classList.toggle('hidden',cur===0);
+  document.getElementById('arrowR').classList.toggle('hidden',cur===total-1);
+  document.querySelectorAll('.dot').forEach((d,idx)=>{
+    if(idx===cur){d.classList.add('active');d.style.background=colors[idx];d.style.boxShadow=`0 0 10px ${colors[idx]}`}
+    else{d.classList.remove('active');d.style.background='transparent';d.style.boxShadow='none'}
+  });
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='ArrowLeft')go(-1);if(e.key==='ArrowRight')go(1)});
+
+function openPopup(name,type,desc,xp,coins,diff){
+  document.getElementById('popName').textContent=name;
+  document.getElementById('popType').textContent=type;
+  document.getElementById('popDesc').textContent=desc;
+  document.getElementById('popXP').textContent=xp;
+  document.getElementById('popCoins').textContent=coins;
+  document.getElementById('popDiff').textContent=diff;
+  document.getElementById('ov').classList.add('show');
+  document.getElementById('pop').classList.add('show');
+}
+function closePopup(){
+  document.getElementById('ov').classList.remove('show');
+  document.getElementById('pop').classList.remove('show');
+}
+
+// Demo: complete current challenge and jump to next node
+function demoComplete(){
+  const state = kingdomState[cur];
+  const charEl = document.getElementById(state.prefix + '-char');
+  if(!charEl) return;
+  
+  // Get all nodes in current kingdom
+  const kingdoms = document.querySelectorAll('.kingdom');
+  const nodes = kingdoms[cur].querySelectorAll('.node');
+  const currentNode = nodes[state.activeNode];
+  const nextIdx = state.activeNode + 1;
+  
+  if(nextIdx >= state.totalNodes) return; // No more nodes
+  
+  const nextNode = nodes[nextIdx];
+  
+  // 1. Mark current node as completed
+  currentNode.classList.remove('active');
+  currentNode.classList.add('completed');
+  const nodeBox = currentNode.querySelector('.node-box');
+  nodeBox.style.background = 'rgba(76,200,100,0.6)';
+  nodeBox.style.borderColor = '#6BCB77';
+  const icon = nodeBox.querySelector('.icon');
+  icon.textContent = '✓';
+  const badge = nodeBox.querySelector('.badge');
+  if(badge) badge.className = 'badge badge-lesson';
+  const reward = currentNode.querySelector('.node-reward');
+  if(reward) reward.textContent = '✓ ' + reward.textContent.replace('🔒 ','');
+  
+  // 2. Show sparkle + XP float
+  const sparkle = document.getElementById(state.prefix + '-sparkle');
+  const xpFloat = document.getElementById(state.prefix + '-xp');
+  if(sparkle){ sparkle.classList.add('go'); setTimeout(()=>sparkle.classList.remove('go'),700); }
+  if(xpFloat){ xpFloat.classList.add('go'); setTimeout(()=>xpFloat.classList.remove('go'),1300); }
+  
+  // 3. Jump animation
+  charEl.classList.add('jumping');
+  
+  // 4. After jump, move character to next node
+  setTimeout(()=>{
+    charEl.classList.remove('jumping');
+    
+    // Move char-anchor from current node to next node
+    currentNode.removeChild(charEl);
+    nextNode.insertBefore(charEl, nextNode.firstChild);
+    
+    // Update next node state
+    nextNode.classList.remove('locked');
+    nextNode.classList.add('active');
+    const nextBox = nextNode.querySelector('.node-box');
+    nextBox.style.borderColor = '#8B7BE8';
+    nextBox.style.background = 'rgba(139,123,232,0.3)';
+    const nextIcon = nextBox.querySelector('.icon');
+    nextIcon.textContent = '▶';
+    const nextReward = nextNode.querySelector('.node-reward');
+    if(nextReward) nextReward.textContent = nextReward.textContent.replace('🔒 ','');
+    
+    // Update speech bubble
+    const speech = charEl.querySelector('.speech');
+    const speeches = ['Onward!','Level up!','Getting stronger!','Almost there!','Let\'s crush it!'];
+    speech.textContent = speeches[Math.floor(Math.random()*speeches.length)];
+    
+    state.activeNode = nextIdx;
+  }, 600);
+}
+</script>
+</body>
+</html>

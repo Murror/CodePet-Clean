@@ -1,0 +1,53 @@
+<svg width="128" height="128" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">
+  <!-- Pixel-art C logo for Codepet (16x16 grid) -->
+  <!-- Outer outline (dark purple #2D2664) -->
+  <rect x="4" y="1" width="8" height="1" fill="#2D2664"/>
+  <rect x="3" y="2" width="1" height="1" fill="#2D2664"/>
+  <rect x="12" y="2" width="1" height="1" fill="#2D2664"/>
+  <rect x="2" y="3" width="1" height="1" fill="#2D2664"/>
+  <rect x="13" y="3" width="1" height="1" fill="#2D2664"/>
+  <rect x="1" y="4" width="1" height="2" fill="#2D2664"/>
+  <rect x="1" y="6" width="1" height="4" fill="#2D2664"/>
+  <rect x="1" y="10" width="1" height="2" fill="#2D2664"/>
+  <rect x="2" y="12" width="1" height="1" fill="#2D2664"/>
+  <rect x="13" y="12" width="1" height="1" fill="#2D2664"/>
+  <rect x="3" y="13" width="1" height="1" fill="#2D2664"/>
+  <rect x="12" y="13" width="1" height="1" fill="#2D2664"/>
+  <rect x="4" y="14" width="8" height="1" fill="#2D2664"/>
+
+  <!-- Top arm of C -->
+  <rect x="12" y="3" width="1" height="1" fill="#2D2664"/>
+  <rect x="13" y="4" width="1" height="1" fill="#2D2664"/>
+  <rect x="13" y="5" width="1" height="1" fill="#2D2664"/>
+
+  <!-- Bottom arm of C -->
+  <rect x="13" y="10" width="1" height="1" fill="#2D2664"/>
+  <rect x="13" y="11" width="1" height="1" fill="#2D2664"/>
+
+  <!-- Fill (purple #8B7BE8) -->
+  <rect x="4" y="2" width="8" height="1" fill="#8B7BE8"/>
+  <rect x="3" y="3" width="9" height="1" fill="#8B7BE8"/>
+  <rect x="2" y="4" width="4" height="1" fill="#8B7BE8"/>
+  <rect x="2" y="5" width="3" height="1" fill="#8B7BE8"/>
+  <rect x="2" y="6" width="3" height="1" fill="#8B7BE8"/>
+  <rect x="2" y="7" width="3" height="1" fill="#8B7BE8"/>
+  <rect x="2" y="8" width="3" height="1" fill="#8B7BE8"/>
+  <rect x="2" y="9" width="3" height="1" fill="#8B7BE8"/>
+  <rect x="2" y="10" width="3" height="1" fill="#8B7BE8"/>
+  <rect x="2" y="11" width="4" height="1" fill="#8B7BE8"/>
+  <rect x="3" y="12" width="9" height="1" fill="#8B7BE8"/>
+  <rect x="4" y="13" width="8" height="1" fill="#8B7BE8"/>
+
+  <!-- Top arm fill -->
+  <rect x="6" y="4" width="7" height="1" fill="#8B7BE8"/>
+  <rect x="7" y="5" width="6" height="1" fill="#8B7BE8"/>
+
+  <!-- Bottom arm fill -->
+  <rect x="7" y="10" width="6" height="1" fill="#8B7BE8"/>
+  <rect x="6" y="11" width="7" height="1" fill="#8B7BE8"/>
+
+  <!-- Light highlight (light purple #A89BF2) -->
+  <rect x="3" y="4" width="3" height="1" fill="#A89BF2"/>
+  <rect x="3" y="5" width="2" height="1" fill="#A89BF2"/>
+  <rect x="3" y="6" width="2" height="1" fill="#A89BF2"/>
+</svg>
