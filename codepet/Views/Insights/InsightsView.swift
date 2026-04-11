@@ -208,6 +208,7 @@ struct InsightColors {
 
 struct InsightsView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var mcpBridge: MCPBridgeService
 
     var body: some View {
         ScrollView {
@@ -231,15 +232,425 @@ struct InsightsView: View {
                 // Streak Calendar
                 PixelStreakCalendar()
 
+                // ═══ MCP: Today's Coding Summary ═══
+                MCPCodingSummarySection()
+
                 // Statistics Grid
                 PixelStatisticsGrid()
 
-                // Activity Breakdown
+                // ═══ MCP: Skill Tree Progress ═══
+                MCPSkillTreeSection()
+
+                // Activity Breakdown (enriched with MCP data)
                 PixelActivityBreakdown()
             }
             .padding(24)
         }
         .background(Color(hex: "#F0EDF8"))
+        .onAppear {
+            mcpBridge.refresh()
+        }
+    }
+}
+
+// MARK: - MCP: Today's Coding Summary
+
+struct MCPCodingSummarySection: View {
+    @EnvironmentObject var mcpBridge: MCPBridgeService
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Section label with source badge
+            HStack(spacing: 6) {
+                Text("TODAY'S CODING")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
+
+                if mcpBridge.dataSource == "extension" {
+                    Text("CURSOR")
+                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: "#00B4D8"))
+                        .cornerRadius(3)
+                } else if mcpBridge.dataSource == "local" {
+                    Text("MCP")
+                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: "#8B7BE8"))
+                        .cornerRadius(3)
+                }
+            }
+
+            // Use real data if available, otherwise show demo
+            let displaySummary = mcpBridge.todaySummary ?? Self.demoSummary
+            let displayXP = mcpBridge.isConnected ? mcpBridge.totalSkillXP : 515
+            let isDemo = mcpBridge.dataSource == "none"
+
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    MCPStatChip(value: formatMinutes(displaySummary.totalCodingMinutes), label: "Coding Time", color: InsightColors.purple)
+                    MCPStatChip(value: "\(displaySummary.linesAdded + displaySummary.linesRemoved)", label: "Lines Changed", color: InsightColors.blue)
+                    MCPStatChip(
+                        value: "\(displaySummary.commits)",
+                        label: mcpBridge.dataSource == "extension" ? "Edits" : "Commits",
+                        color: InsightColors.green
+                    )
+                }
+
+                HStack(spacing: 10) {
+                    MCPStatChip(value: "\(displaySummary.errorsFixed)", label: "Bugs Fixed", color: InsightColors.orange)
+                    MCPStatChip(
+                        value: "\(displaySummary.aiSessions)",
+                        label: mcpBridge.dataSource == "extension" ? "Files Edited" : "AI Sessions",
+                        color: InsightColors.red
+                    )
+                    MCPStatChip(value: "+\(displayXP)", label: "Coding XP", color: InsightColors.gold)
+                }
+
+                // Language breakdown bar
+                if !displaySummary.languageBreakdown.isEmpty {
+                    MCPLanguageBar(breakdown: displaySummary.languageBreakdown)
+                }
+
+                // Pet reaction
+                if let reaction = displaySummary.petReaction {
+                    MCPPetReaction(petName: petName, reaction: reaction)
+                }
+
+                // Source indicator
+                if isDemo {
+                    Text("Preview — install the Cursor extension to see live coding data")
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundColor(Color(hex: "#8B7BE8").opacity(0.6))
+                        .padding(.top, 2)
+                } else if mcpBridge.dataSource == "extension" {
+                    Text("Live from Cursor extension")
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundColor(Color(hex: "#00B4D8").opacity(0.7))
+                        .padding(.top, 2)
+                }
+            }
+            .padding(14)
+            .pixelCard(borderColor: InsightColors.purple.opacity(0.3))
+        }
+    }
+
+    // Demo data shown when MCP server is not connected
+    static let demoSummary = MCPDailySummary(
+        date: "2026-04-08",
+        totalCodingMinutes: 185,
+        linesAdded: 1247,
+        linesRemoved: 89,
+        commits: 4,
+        aiSessions: 3,
+        errorsFixed: 5,
+        languageBreakdown: ["Swift": 65, "TypeScript": 28, "HTML": 7],
+        skillsTracked: ["Swift Basics": 180, "Functions": 120, "Data Types": 90],
+        topFiles: ["InsightsView.swift", "MCPBridgeService.swift", "extension.ts"],
+        petReaction: "You're building something amazing today!"
+    )
+
+    private var petName: String {
+        PetCharacter.all[appState.activeChar]?.name ?? "Nova"
+    }
+
+    private func formatMinutes(_ minutes: Int) -> String {
+        if minutes >= 60 {
+            let h = minutes / 60
+            let m = minutes % 60
+            return m > 0 ? "\(h)h \(m)m" : "\(h)h"
+        }
+        return "\(minutes)m"
+    }
+}
+
+// MARK: - MCP Stat Chip
+
+struct MCPStatChip: View {
+    let value: String
+    let label: String
+    let color: Color
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 16, weight: .black, design: .monospaced))
+                .foregroundColor(color)
+            Text(label)
+                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(color.opacity(0.06))
+        .cornerRadius(6)
+    }
+}
+
+// MARK: - MCP Language Breakdown Bar
+
+struct MCPLanguageBar: View {
+    let breakdown: [String: Int]
+
+    private var sortedLanguages: [(String, Int)] {
+        breakdown.sorted { $0.value > $1.value }
+    }
+
+    private var total: Int {
+        breakdown.values.reduce(0, +)
+    }
+
+    private let langColors: [String: Color] = [
+        "Swift": Color(hex: "#F05138"),
+        "TypeScript": Color(hex: "#3178C6"),
+        "JavaScript": Color(hex: "#F7DF1E"),
+        "Python": Color(hex: "#3776AB"),
+        "JSON": Color(hex: "#5BBD6B"),
+        "HTML": Color(hex: "#E34F26"),
+        "CSS": Color(hex: "#1572B6"),
+        "Shell": Color(hex: "#89E051"),
+        "Rust": Color(hex: "#DEA584"),
+        "Go": Color(hex: "#00ADD8"),
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Segmented bar
+            GeometryReader { geo in
+                HStack(spacing: 1) {
+                    ForEach(sortedLanguages, id: \.0) { lang, count in
+                        let fraction = total > 0 ? CGFloat(count) / CGFloat(total) : 0
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(langColors[lang] ?? InsightColors.purple)
+                            .frame(width: max(4, geo.size.width * fraction))
+                    }
+                }
+            }
+            .frame(height: 8)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+
+            // Legend
+            HStack(spacing: 10) {
+                ForEach(sortedLanguages.prefix(4), id: \.0) { lang, count in
+                    HStack(spacing: 3) {
+                        Circle()
+                            .fill(langColors[lang] ?? InsightColors.purple)
+                            .frame(width: 6, height: 6)
+                        Text(lang)
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundColor(Color(hex: "#2D2B3E").opacity(0.5))
+                        if total > 0 {
+                            Text("\(count * 100 / total)%")
+                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                .foregroundColor(Color(hex: "#2D2B3E").opacity(0.3))
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.top, 4)
+    }
+}
+
+// MARK: - MCP Pet Reaction
+
+struct MCPPetReaction: View {
+    let petName: String
+    let reaction: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            // Pet avatar
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(hex: "#8B7BE8"))
+                    .frame(width: 36, height: 36)
+                Text("⭐")
+                    .font(.system(size: 18))
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(petName) says:")
+                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .foregroundColor(Color(hex: "#8B7BE8"))
+                Text(reaction)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(Color(hex: "#2D2B3E").opacity(0.7))
+                    .lineLimit(3)
+            }
+        }
+        .padding(10)
+        .background(Color(hex: "#8B7BE8").opacity(0.06))
+        .cornerRadius(8)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color(hex: "#8B7BE8").opacity(0.15), lineWidth: 1)
+        )
+    }
+}
+
+// MARK: - MCP: Skill Tree Section
+
+struct MCPSkillTreeSection: View {
+    @EnvironmentObject var mcpBridge: MCPBridgeService
+
+    // Demo skills shown when MCP is not connected
+    static let demoSkills: [MCPSkillProgress] = [
+        MCPSkillProgress(id: "swift-basics", name: "Swift Basics", icon: "🔥", kingdom: "The Molten Forge", tier: 1, nodeType: "core", xp: 180, level: 3, maxLevel: 5, xpProgress: 180, xpToNextLevel: 250),
+        MCPSkillProgress(id: "functions", name: "Functions", icon: "⚡", kingdom: "The Molten Forge", tier: 1, nodeType: "core", xp: 120, level: 2, maxLevel: 5, xpProgress: 120, xpToNextLevel: 200),
+        MCPSkillProgress(id: "data-types", name: "Data Types", icon: "❄️", kingdom: "The Frozen Spire", tier: 2, nodeType: "core", xp: 90, level: 2, maxLevel: 5, xpProgress: 90, xpToNextLevel: 200),
+        MCPSkillProgress(id: "arrays", name: "Collections", icon: "❄️", kingdom: "The Frozen Spire", tier: 2, nodeType: "core", xp: 45, level: 1, maxLevel: 5, xpProgress: 45, xpToNextLevel: 150),
+        MCPSkillProgress(id: "control-flow", name: "Control Flow", icon: "🌿", kingdom: "The Eternal Garden", tier: 3, nodeType: "core", xp: 60, level: 1, maxLevel: 5, xpProgress: 60, xpToNextLevel: 150),
+        MCPSkillProgress(id: "protocols", name: "Protocols", icon: "🔮", kingdom: "The Mystic Grove", tier: 4, nodeType: "advanced", xp: 40, level: 1, maxLevel: 5, xpProgress: 40, xpToNextLevel: 150),
+    ]
+
+    private var displaySkills: [MCPSkillProgress] {
+        mcpBridge.skillProgress.isEmpty ? Self.demoSkills : mcpBridge.skillProgress
+    }
+
+    private var skillsByKingdom: [(String, [MCPSkillProgress])] {
+        var grouped: [String: [MCPSkillProgress]] = [:]
+        for skill in displaySkills {
+            grouped[skill.kingdom, default: []].append(skill)
+        }
+        // Sort kingdoms by tier
+        let order = ["The Molten Forge", "The Frozen Spire", "The Eternal Garden", "The Mystic Grove"]
+        return order.compactMap { kingdom in
+            guard let skills = grouped[kingdom] else { return nil }
+            return (kingdom, skills)
+        }
+    }
+
+    private let kingdomColors: [String: Color] = [
+        "The Molten Forge": Color(hex: "#E85D3A"),
+        "The Frozen Spire": Color(hex: "#4FA8D6"),
+        "The Eternal Garden": Color(hex: "#5BBD6B"),
+        "The Mystic Grove": Color(hex: "#9B6DD7"),
+    ]
+
+    private let kingdomIcons: [String: String] = [
+        "The Molten Forge": "🔥",
+        "The Frozen Spire": "❄️",
+        "The Eternal Garden": "🌿",
+        "The Mystic Grove": "✨",
+    ]
+
+    private let kingdomTiers: [String: String] = [
+        "The Molten Forge": "Tier 1 — Foundations",
+        "The Frozen Spire": "Tier 2 — Context",
+        "The Eternal Garden": "Tier 3 — Advanced",
+        "The Mystic Grove": "Tier 4 — Expert",
+    ]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text("SKILL TREE")
+                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
+
+                if !mcpBridge.skillProgress.isEmpty {
+                    Text(mcpBridge.dataSource == "extension" ? "CURSOR" : "MCP")
+                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(mcpBridge.dataSource == "extension" ? Color(hex: "#00B4D8") : Color(hex: "#8B7BE8"))
+                        .cornerRadius(3)
+                }
+            }
+
+            // 2x2 kingdom grid
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 10),
+                GridItem(.flexible(), spacing: 10)
+            ], spacing: 10) {
+                ForEach(skillsByKingdom, id: \.0) { kingdom, skills in
+                    MCPKingdomCard(
+                        name: kingdom,
+                        icon: kingdomIcons[kingdom] ?? "🏰",
+                        tier: kingdomTiers[kingdom] ?? "",
+                        color: kingdomColors[kingdom] ?? InsightColors.purple,
+                        skills: skills
+                    )
+                }
+            }
+        }
+    }
+}
+
+// MARK: - MCP Kingdom Card
+
+struct MCPKingdomCard: View {
+    let name: String
+    let icon: String
+    let tier: String
+    let color: Color
+    let skills: [MCPSkillProgress]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Kingdom header
+            HStack {
+                Text("\(icon) \(name)")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Color(hex: "#2D2B3E"))
+
+                Spacer()
+
+                Text(tier)
+                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .foregroundColor(color)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
+                    .background(color.opacity(0.1))
+                    .cornerRadius(3)
+            }
+
+            // Skill bars
+            ForEach(skills) { skill in
+                HStack(spacing: 8) {
+                    Text(skill.name)
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundColor(Color(hex: "#2D2B3E").opacity(0.55))
+                        .frame(width: 80, alignment: .leading)
+                        .lineLimit(1)
+
+                    // Progress bar
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(color.opacity(0.1))
+                            RoundedRectangle(cornerRadius: 3)
+                                .fill(color)
+                                .frame(width: max(0, geo.size.width * progressFraction(skill)))
+                        }
+                    }
+                    .frame(height: 6)
+
+                    Text("Lv\(skill.level)")
+                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .foregroundColor(Color(hex: "#2D2B3E").opacity(0.35))
+                        .frame(width: 24, alignment: .trailing)
+                }
+            }
+        }
+        .padding(12)
+        .pixelCard(borderColor: color.opacity(0.25))
+    }
+
+    private func progressFraction(_ skill: MCPSkillProgress) -> CGFloat {
+        guard skill.xpToNextLevel > 0 else {
+            return skill.level >= skill.maxLevel ? 1.0 : 0.0
+        }
+        let base = CGFloat(skill.level) / CGFloat(skill.maxLevel)
+        let inLevel = CGFloat(skill.xpProgress) / CGFloat(skill.xpToNextLevel) / CGFloat(skill.maxLevel)
+        return min(1.0, base + inLevel)
     }
 }
 
@@ -496,6 +907,7 @@ struct PixelStatBox<Icon: View>: View {
 
 struct PixelActivityBreakdown: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var mcpBridge: MCPBridgeService
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -531,6 +943,55 @@ struct PixelActivityBreakdown: View {
                     maxValue: 4,
                     barColor: InsightColors.teal
                 )
+
+                // ═══ MCP-enriched activity rows ═══
+                if mcpBridge.isConnected {
+                    PixelDivider()
+
+                    // Dashed separator label
+                    HStack(spacing: 4) {
+                        Rectangle()
+                            .fill(Color(hex: "#8B7BE8").opacity(0.3))
+                            .frame(height: 1)
+                        Text(mcpBridge.dataSource == "extension" ? "from Cursor" : "from real coding")
+                            .font(.system(size: 7, weight: .bold, design: .monospaced))
+                            .foregroundColor(Color(hex: "#8B7BE8").opacity(0.5))
+                        Rectangle()
+                            .fill(Color(hex: "#8B7BE8").opacity(0.3))
+                            .frame(height: 1)
+                    }
+                    .padding(.vertical, 4)
+
+                    if let summary = mcpBridge.todaySummary {
+                        PixelActivityRow(
+                            icon: { PixelBolt(color: InsightColors.purple, size: 14) },
+                            label: "Coding XP earned",
+                            value: mcpBridge.totalSkillXP,
+                            maxValue: max(mcpBridge.totalSkillXP, 100),
+                            barColor: InsightColors.purple
+                        )
+
+                        PixelDivider()
+
+                        PixelActivityRow(
+                            icon: { PixelTarget(color: InsightColors.green, size: 14) },
+                            label: "Bugs fixed today",
+                            value: summary.errorsFixed,
+                            maxValue: max(summary.errorsFixed, 1),
+                            barColor: InsightColors.green
+                        )
+                    }
+
+                    PixelDivider()
+
+                    PixelActivityRow(
+                        icon: { PixelStar(color: InsightColors.gold, size: 14) },
+                        label: "Active coding days",
+                        value: mcpBridge.activeDaysCount,
+                        maxValue: max(mcpBridge.activeDaysCount, 7),
+                        barColor: InsightColors.gold
+                    )
+                }
             }
             .padding(14)
             .pixelCard()
@@ -615,4 +1076,5 @@ struct PixelProgressBar: View {
 #Preview {
     InsightsView()
         .environmentObject(AppState())
+        .environmentObject(MCPBridgeService.shared)
 }

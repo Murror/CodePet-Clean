@@ -6,6 +6,7 @@ struct CodePetApp: App {
     @StateObject private var appState = AppState()
     @StateObject private var authManager = AuthManager()
     @StateObject private var gameState = GameState()
+    @StateObject private var mcpBridge = MCPBridgeService.shared
     private var notificationManager = NotificationManager()
 
     init() {
@@ -19,6 +20,7 @@ struct CodePetApp: App {
                 .environmentObject(appState)
                 .environmentObject(authManager)
                 .environmentObject(gameState)
+                .environmentObject(mcpBridge)
                 .frame(minWidth: 400, minHeight: 700)
                 .themed(isDark: appState.isDarkMode)
                 .onAppear {
@@ -29,6 +31,10 @@ struct CodePetApp: App {
                     // Wire GameState ↔ AppState and process return from idle
                     gameState.setAppState(appState)
                     gameState.processReturnFromIdle()
+
+                    // Sync real coding XP from MCP server
+                    mcpBridge.refresh()
+                    appState.syncFromMCP(mcpBridge)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in
                     // Save game state when app goes to background
@@ -38,6 +44,9 @@ struct CodePetApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                     // Process return from idle when app comes back
                     gameState.processReturnFromIdle()
+                    // Re-sync MCP data
+                    mcpBridge.refresh()
+                    appState.syncFromMCP(mcpBridge)
                 }
         }
         .windowStyle(.hiddenTitleBar)

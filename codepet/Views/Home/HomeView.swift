@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var mcpBridge: MCPBridgeService
     @Environment(\.theme) var theme: ThemeManager.ThemeColors
 
     // Kingdom interior navigation (matching prototype screen states)
@@ -66,25 +67,13 @@ struct HomeView: View {
                     // Pet Area with breathing + glow
                     PetAreaView5(character: character, theme: theme)
 
-                    // Energy Bar
-                    EnergyBarView5(energy: appState.petEnergy, theme: theme)
-                        .fadeUp()
-
-                    // Pet Care (Tamagotchi loop)
-                    PetCareView()
-                        .padding(.horizontal, 20)
-                        .fadeUp()
-
-                    // XP Progress
+                    // XP Progress (Level)
                     XPProgressView5(theme: theme)
                         .fadeUp()
 
-                    // Daily Challenge
-                    DailyChallengeCard5(theme: theme)
-                        .fadeUp()
-
-                    // Story Lore
-                    StoryLoreCard5(theme: theme)
+                    // ═══ MCP: Today's Coding Summary ═══
+                    MCPCodingSummarySection()
+                        .padding(.horizontal, 20)
                         .fadeUp()
 
                     // World Map

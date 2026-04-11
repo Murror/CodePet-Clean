@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 240">
+  <!-- Shadow -->
+  <ellipse cx="62" cy="225" rx="38" ry="7" fill="#4B1528" opacity="0.10"/>
+
+  <!-- Legs (dark hoodie pants) -->
+  <rect x="36" y="170" width="20" height="36" rx="3" fill="#2C2C2A"/>
+  <rect x="62" y="170" width="20" height="36" rx="3" fill="#2C2C2A"/>
+  <!-- Boots -->
+  <rect x="28" y="197" width="32" height="14" rx="4" fill="#1a1a1a"/>
+  <rect x="58" y="197" width="32" height="14" rx="4" fill="#1a1a1a"/>
+
+  <!-- Tail -->
+  <path d="M102,175 Q132,155 130,188 Q128,212 114,208" fill="none" stroke="#D4537E" stroke-width="13" stroke-linecap="round"/>
+
+  <!-- Body (dark hoodie) -->
+  <rect x="22" y="97" width="80" height="78" rx="6" fill="#2C2C2A"/>
+  <!-- Hoodie zip line -->
+  <rect x="59" y="97" width="6" height="78" fill="#1a1a1a" opacity="0.5"/>
+  <!-- Glitch pixels on body -->
+  <rect x="30" y="108" width="14" height="3" rx="1" fill="#E24B4A" opacity="0.5"/>
+  <rect x="76" y="118" width="10" height="3" rx="1" fill="#E24B4A" opacity="0.4"/>
+  <rect x="28" y="128" width="8" height="3" rx="1" fill="#F4C0D1" opacity="0.4"/>
+  <!-- Hoodie pocket -->
+  <rect x="38" y="142" width="48" height="24" rx="4" fill="#3d3d3a"/>
+  <rect x="46" y="147" width="16" height="2" rx="1" fill="#E24B4A" opacity="0.6"/>
+  <rect x="46" y="152" width="11" height="2" rx="1" fill="#E24B4A" opacity="0.4"/>
+
+  <!-- Arms -->
+  <rect x="2" y="106" width="22" height="16" rx="5" fill="#2C2C2A"/>
+  <rect x="0" y="118" width="16" height="14" rx="4" fill="#D4537E"/>
+  <rect x="100" y="106" width="22" height="16" rx="5" fill="#2C2C2A"/>
+  <rect x="108" y="118" width="16" height="14" rx="4" fill="#D4537E"/>
+
+  <!-- Cat ears (pointed) -->
+  <polygon points="28,42 14,8 46,34" fill="#D4537E"/>
+  <polygon points="33,40 20,11 46,34" fill="#ED93B1" opacity="0.7"/>
+  <polygon points="96,42 110,8 78,34" fill="#D4537E"/>
+  <polygon points="91,40 104,11 78,34" fill="#ED93B1" opacity="0.7"/>
+
+  <!-- Head (pink) -->
+  <rect x="18" y="36" width="88" height="66" rx="10" fill="#D4537E"/>
+
+  <!-- Left eye — dark patch with red glow (hacker asymmetry) -->
+  <rect x="22" y="48" width="28" height="20" rx="4" fill="#2C2C2A" opacity="0.9"/>
+  <rect x="25" y="51" width="22" height="14" rx="2" fill="#E24B4A" opacity="0.4"/>
+  <rect x="28" y="54" width="12" height="8" rx="2" fill="#E24B4A" opacity="0.7"/>
+
+  <!-- Right eye — normal -->
+  <rect x="74" y="48" width="26" height="20" rx="4" fill="white" opacity="0.95"/>
+  <rect x="75" y="48" width="24" height="9" rx="2" fill="#4B1528"/>
+  <rect x="78" y="50" width="18" height="14" fill="#4B1528"/>
+  <rect x="80" y="52" width="6" height="4" rx="1" fill="white" opacity="0.9"/>
+
+  <!-- Nose -->
+  <rect x="52" y="76" width="20" height="8" rx="4" fill="#993556" opacity="0.7"/>
+
+  <!-- Mouth (asymmetric smirk) -->
+  <path d="M50 87 Q62 93 72 84" fill="none" stroke="#993556" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Whisker lines -->
+  <line x1="20" y1="78" x2="46" y2="80" stroke="#993556" stroke-width="1" opacity="0.4"/>
+  <line x1="20" y1="84" x2="46" y2="84" stroke="#993556" stroke-width="1" opacity="0.4"/>
+  <line x1="78" y1="80" x2="104" y2="78" stroke="#993556" stroke-width="1" opacity="0.4"/>
+  <line x1="78" y1="84" x2="104" y2="84" stroke="#993556" stroke-width="1" opacity="0.4"/>
+
+  <!-- Scattered glitch pixels -->
+  <rect x="4" y="60" width="6" height="3" rx="1" fill="#E24B4A" opacity="0.45"/>
+  <rect x="112" y="44" width="5" height="3" rx="1" fill="#F4C0D1" opacity="0.5"/>
+</svg>

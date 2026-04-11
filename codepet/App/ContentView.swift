@@ -1,5 +1,8 @@
 import SwiftUI
 import FirebaseAuth
+import os
+
+private let logger = Logger(subsystem: "app.murror.codepet", category: "ContentView")
 
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
@@ -48,7 +51,7 @@ struct ContentView: View {
             // Don't try to load cloud data while onboarding is in progress —
             // it would tear down OnboardingFlow and reset the user to step 1
             guard !isOnboarding else {
-                print("[ContentView] User signed in during onboarding — skipping cloud load")
+                logger.info("User signed in during onboarding — skipping cloud load")
                 PersistenceManager.shared.currentUserId = user.uid
                 return
             }
@@ -61,8 +64,17 @@ struct ContentView: View {
             let isUnknownPriorUser = storedUID == nil && appState.onboardingComplete
 
             if isDifferentUser || isUnknownPriorUser {
-                print("[ContentView] User switch detected (\(storedUID ?? "none") → \(user.uid)) — clearing local data")
+                logger.info("User switch detected (\(storedUID ?? "none", privacy: .private) → \(user.uid, privacy: .private)) — clearing local data")
                 appState.resetProgress()
+            }
+
+            // Sync display name from Firebase Auth → AppState → UserDefaults
+            if appState.displayName.isEmpty {
+                if let authName = authManager.latestDisplayName, !authName.isEmpty {
+                    appState.displayName = authName
+                } else if let fbName = user.displayName, !fbName.isEmpty {
+                    appState.displayName = fbName
+                }
             }
 
             // Record this account as the owner of local data
@@ -75,9 +87,9 @@ struct ContentView: View {
                 cloudSync.loadFromCloud(userId: user.uid, appState: appState) { hasData in
                     isLoadingCloudData = false
                     if hasData {
-                        print("[ContentView] Restored cloud data for \(user.uid)")
+                        logger.info("Restored cloud data for \(user.uid, privacy: .private)")
                     } else {
-                        print("[ContentView] No cloud data for \(user.uid) — showing onboarding")
+                        logger.info("No cloud data for \(user.uid, privacy: .private) — showing onboarding")
                     }
                 }
             }

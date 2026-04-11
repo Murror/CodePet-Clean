@@ -39,6 +39,11 @@ class PersistenceManager {
         static let soundEnabled = "cp_soundEnabled"
         static let hasSavedBefore = "cp_hasSavedBefore"
         static let currentUserId = "cp_currentUserId"
+
+        // MCP Bridge sync tracking
+        static let mcpXPApplied = "cp_mcpXPApplied"
+        static let mcpCoinsApplied = "cp_mcpCoinsApplied"
+        static let lastMCPSync = "cp_lastMCPSync"
     }
 
     // MARK: - Current User Tracking

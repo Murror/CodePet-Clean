@@ -121,6 +121,44 @@ class AppState: ObservableObject {
         petEnergy = min(100, petEnergy + 5)
     }
 
+    // MARK: - MCP Bridge Sync
+
+    /// Merge real coding XP from the MCP server into the app.
+    /// Uses a high-water mark to avoid double-counting.
+    func syncFromMCP(_ bridge: MCPBridgeService) {
+        guard bridge.isConnected else { return }
+
+        let defaults = UserDefaults.standard
+        let previouslyApplied = defaults.integer(forKey: "cp_mcpXPApplied")
+        let currentMCPXP = bridge.totalSkillXP
+
+        let delta = currentMCPXP - previouslyApplied
+        guard delta > 0 else { return }
+
+        // Scale MCP XP: 10 MCP XP = 1 app XP (to balance with lesson XP)
+        let scaledXP = delta / 10
+        if scaledXP > 0 {
+            addXP(scaledXP)
+        }
+
+        // Update pet mood from daily summary
+        if let summary = bridge.todaySummary, let _ = summary.petReaction {
+            petMood = summary.totalCodingMinutes > 30 ? "Happy" :
+                      summary.totalCodingMinutes > 0 ? "Content" : "Idle"
+        }
+
+        // Update energy from coding activity
+        if let summary = bridge.todaySummary, summary.totalCodingMinutes > 30 {
+            petEnergy = min(100, petEnergy + 10)
+        }
+
+        // Persist high-water mark
+        defaults.set(currentMCPXP, forKey: "cp_mcpXPApplied")
+        defaults.set(Date().timeIntervalSince1970, forKey: "cp_lastMCPSync")
+
+        print("[MCP Sync] Applied \(scaledXP) XP (delta: \(delta) raw MCP XP)")
+    }
+
     /// Silently sync currentTier to match completed lessons (called on init)
     private func syncTierToCompletedLessons() {
         for tier in GameData.skillTiers {

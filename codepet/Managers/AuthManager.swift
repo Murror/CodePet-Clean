@@ -13,6 +13,9 @@ class AuthManager: ObservableObject {
 
     private var authStateListener: AuthStateDidChangeListenerHandle?
 
+    /// The most recent display name from sign-up / sign-in (propagated to AppState by ContentView)
+    @Published var latestDisplayName: String? = nil
+
     init() {
         if FirebaseApp.app() == nil { FirebaseApp.configure() }
         // Listen for auth state changes
@@ -21,7 +24,11 @@ class AuthManager: ObservableObject {
                 self?.currentUser = user
                 self?.isLoading = false
                 if let user = user {
-                    print("[Auth] User signed in: \(user.uid), anonymous: \(user.isAnonymous)")
+                    // Capture Firebase displayName so AppState can save it to UserDefaults
+                    if let name = user.displayName, !name.isEmpty {
+                        self?.latestDisplayName = name
+                    }
+                    print("[Auth] User signed in: \(user.uid), anonymous: \(user.isAnonymous), name: \(user.displayName ?? "nil")")
                 } else {
                     print("[Auth] User signed out")
                 }
