@@ -4,6 +4,89 @@ A local MCP server that captures coding context, tracks developer sessions, and 
 
 Built by [MURROR](https://murror.app).
 
+---
+
+## Quick Start
+
+### 1. Install
+
+```bash
+cd codepet-mcp-server
+npm install
+npm run build
+```
+
+### 2. Connect to Your Editor
+
+**Claude Code** — add to `~/.claude/claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "codepet": {
+      "command": "node",
+      "args": ["/full/path/to/codepet-mcp-server/dist/index.js"]
+    }
+  }
+}
+```
+
+**Cursor** — add to `.cursor/mcp.json` in your project root:
+```json
+{
+  "servers": {
+    "codepet": {
+      "command": "node",
+      "args": ["/full/path/to/codepet-mcp-server/dist/index.js"]
+    }
+  }
+}
+```
+
+**VS Code / Windsurf** — add to `.vscode/mcp.json` in your project root:
+```json
+{
+  "servers": {
+    "codepet": {
+      "command": "node",
+      "args": ["/full/path/to/codepet-mcp-server/dist/index.js"]
+    }
+  }
+}
+```
+
+Replace `/full/path/to/` with the actual path on your machine.
+
+### 3. Verify It Works
+
+Once connected, ask your AI assistant:
+
+> "Scan my project and tell me what I'm working with"
+
+If Codepet responds with your project structure, languages, and dependencies — you're all set.
+
+### 4. Test with Inspector (Optional)
+
+```bash
+npm run inspect
+```
+
+Opens the MCP Inspector — a browser-based UI to test all tools and resources interactively.
+
+---
+
+## Features Overview
+
+| What | How |
+|------|-----|
+| Scan your project structure | Ask AI: "What am I working with?" |
+| See recent git activity | Ask AI: "What did I commit today?" |
+| Check for build errors | Ask AI: "Are there any compiler errors?" |
+| Read any file with metadata | Ask AI: "Show me src/index.ts" |
+| Track skill progress | Ask AI: "How are my skills progressing?" |
+| Generate daily summary | Ask AI: "Generate my daily coding summary" |
+
+---
+
 ## Phase 1 — Context Capture
 
 ### Tools
@@ -139,3 +222,23 @@ All data is stored locally in `~/.codepet/`:
 - ~~**Phase 2**: `get_file_content`, `get_learning_context` tools + skill tree mapping~~ ✅
 - ~~**Phase 3**: Daily summary generation (LLM-powered), Codepet macOS app integration~~ ✅
 - **Future**: SQLite backend (better-sqlite3), real-time file watching, pet evolution
+
+---
+
+## Troubleshooting
+
+**"Server not found" or tools don't appear:** Make sure you ran `npm run build` and the path in your config points to `dist/index.js` (not `src/index.ts`). The path must be absolute.
+
+**No data in `~/.codepet/`:** The server only writes data when tools are called. Ask your AI to run `scan_project` or `get_git_context` to generate the first events.
+
+**Daily summary is empty:** Run `generate_daily_summary` — it creates the summary on demand. It needs at least a few tool calls logged in today's events file to produce meaningful output.
+
+**macOS app doesn't show MCP data:** The macOS app polls `~/.codepet/` every 30 seconds. Make sure the MCP server has been used at least once today so event files exist. Check the Xcode console for `[MCPBridge]` log messages.
+
+**Permission errors on `~/.codepet/`:** The server creates this directory automatically. If it fails, create it manually: `mkdir -p ~/.codepet/events ~/.codepet/summaries`
+
+---
+
+## License
+
+MIT — see the root [LICENSE](../LICENSE) file.
