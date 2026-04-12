@@ -2,7 +2,7 @@
 
 Your pixel-art coding pet lives in your editor. Tracks coding sessions, scans code in real-time, auto-fixes TypeScript errors, and maps your skills across 4 kingdoms.
 
-Built by [MURROR](https://murror.app).
+Built by Outcasts.
 
 **Compatible with:** VS Code, Cursor, Windsurf, VSCodium, and any VS Code fork.
 
