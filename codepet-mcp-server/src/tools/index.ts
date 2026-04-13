@@ -11,6 +11,7 @@ import { registerGetFileContent } from "./get-file-content.js";
 import { registerGetLearningContext } from "./get-learning-context.js";
 import { registerGenerateDailySummary } from "./generate-daily-summary.js";
 import { registerWatchDiagnostics } from "./watch-diagnostics.js";
+import { registerGenerateLessonCard } from "./generate-lesson-card.js";
 
 export function registerTools(server: McpServer, logger: SessionLogger): void {
   // Phase 1
@@ -27,4 +28,7 @@ export function registerTools(server: McpServer, logger: SessionLogger): void {
 
   // Phase 4 — Real-time diagnostics & auto-fix
   registerWatchDiagnostics(server, logger);
+
+  // Phase 5 — Lesson Feed (post-session knowledge capture)
+  registerGenerateLessonCard(server, logger);
 }

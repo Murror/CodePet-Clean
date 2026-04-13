@@ -18,6 +18,7 @@ import { SidebarProvider } from "./ui/sidebar-provider.js";
 import { WelcomePanel } from "./ui/welcome-panel.js";
 import type { WelcomeStats } from "./ui/welcome-panel.js";
 import { CloudSync } from "./services/cloud-sync.js";
+import { LessonService } from "./services/lesson-service.js";
 
 let fileWatcher: FileWatcher;
 let sessionTracker: SessionTracker;
@@ -26,6 +27,7 @@ let codeScanner: CodeScanner;
 let petReactions: PetReactionEngine;
 let statusBar: StatusBar;
 let cloudSync: CloudSync;
+let lessonService: LessonService;
 
 export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel("Codepet");
@@ -1568,6 +1570,40 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.workspace.getConfiguration("codepet").get<number>("syncIntervalSeconds") ?? 30;
   cloudSync.start(syncInterval);
   context.subscriptions.push(cloudSync);
+
+  // ───── Lesson Service (post-session knowledge capture) ─────
+  const rawPetChar = cloudSync.petName
+    || vscode.workspace.getConfiguration("codepet").get<string>("petName")
+    || "nova";
+  lessonService = new LessonService(
+    outputChannel,
+    sessionTracker,
+    petName,
+    rawPetChar
+  );
+  lessonService.setSidebar(sidebarProvider);
+  lessonService.setCloudSync(cloudSync);
+
+  // Load existing lesson feed
+  lessonService.loadAndPushFeed();
+
+  // Reset auto-save flag when user resumes coding
+  context.subscriptions.push(
+    sessionTracker.onResume(() => {
+      lessonService.resetAutoSave();
+    })
+  );
+
+  // Register "Save Lesson" command
+  context.subscriptions.push(
+    vscode.commands.registerCommand("codepet.saveLesson", async () => {
+      await lessonService.saveLesson();
+    })
+  );
+
+  context.subscriptions.push(lessonService);
+
+  outputChannel.appendLine("[Codepet] Lesson Feed service started.");
 
   // ───── Welcome Notification + Panel ─────
   const showWelcomeSetting = vscode.workspace.getConfiguration("codepet").get<boolean>("showWelcome") ?? true;

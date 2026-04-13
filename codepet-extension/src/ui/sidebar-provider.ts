@@ -20,6 +20,25 @@ import type { CodeScanner } from "../core/code-scanner.js";
 import type { PetReactionEngine } from "../core/pet-reactions.js";
 import * as fixEngine from "../core/fix-engine.js";
 
+/** Lesson Card — matches the MCP server's LessonCard type */
+export interface LessonCard {
+  id: string;
+  timestamp: string;
+  platform: string;
+  title: string;
+  kingdom: string;
+  skillTags: string[];
+  difficulty: "beginner" | "intermediate" | "advanced";
+  keyTakeaway: string;
+  codeSnippet?: string;
+  language?: string;
+  petNarration: string;
+  petReaction: string;
+  petCoachTip: string;
+  xpEarned: number;
+  skillsProgressed: { skillId: string; xpAdded: number }[];
+}
+
 export class SidebarProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "codepet.dashboard";
 
@@ -31,6 +50,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   private resolvedPetName: string = "Nova"; // set from extension.ts to stay consistent
   private userProfile: { totalXP: number; userLevel: number; streak: number; completedLessons: string[] } | null = null;
   private isCloudLinked: boolean = false; // whether the macOS app account is detected
+  private lessonFeed: LessonCard[] = []; // cached lesson cards for the feed
 
   constructor(
     private extensionUri: vscode.Uri,
@@ -44,6 +64,29 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   /** Set the resolved pet name (from macOS app or config) so the sidebar stays consistent */
   setPetName(name: string): void {
     this.resolvedPetName = name;
+  }
+
+  /** Push lesson cards to the webview feed */
+  pushLessonFeed(lessons: LessonCard[]): void {
+    this.lessonFeed = lessons;
+    if (this.view) {
+      this.view.webview.postMessage({
+        type: "lesson_feed",
+        data: { lessons },
+      });
+    }
+  }
+
+  /** Add a single new lesson card to the feed (prepends) */
+  addLessonCard(card: LessonCard): void {
+    this.lessonFeed.unshift(card);
+    if (this.lessonFeed.length > 20) this.lessonFeed.pop();
+    if (this.view) {
+      this.view.webview.postMessage({
+        type: "lesson_new",
+        data: card,
+      });
+    }
   }
 
   /** Set whether the macOS app account is linked (for connection badge) */
@@ -132,6 +175,9 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
               "workbench.action.openSettings",
               "codepet"
             );
+            break;
+          case "saveLesson":
+            vscode.commands.executeCommand("codepet.saveLesson");
             break;
           case "goToError": {
             // Jump to the error line in the active editor
@@ -1124,6 +1170,151 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       margin-bottom: 8px;
     }
 
+    /* ───── Lesson Feed ───── */
+    .lesson-feed-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .lesson-count {
+      font-size: 10px;
+      color: var(--vscode-descriptionForeground);
+      opacity: 0.7;
+    }
+    .lesson-card {
+      background: var(--vscode-editor-background);
+      border: 1px solid var(--vscode-panel-border, #333);
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 8px;
+      animation: lessonSlideIn 0.3s ease-out;
+    }
+    @keyframes lessonSlideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .lesson-title-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .lesson-kingdom-icon {
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .lesson-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--vscode-foreground);
+      flex: 1;
+    }
+    .lesson-difficulty {
+      font-size: 9px;
+      font-weight: 600;
+      padding: 1px 5px;
+      border-radius: 3px;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .lesson-difficulty.beginner { background: #3fb95033; color: #3fb950; }
+    .lesson-difficulty.intermediate { background: #e3b34133; color: #e3b341; }
+    .lesson-difficulty.advanced { background: #f8514933; color: #f85149; }
+    .lesson-takeaway {
+      font-size: 11px;
+      color: var(--vscode-foreground);
+      opacity: 0.9;
+      margin-bottom: 8px;
+      line-height: 1.4;
+    }
+    .lesson-snippet {
+      background: var(--vscode-textBlockQuote-background, #1e1e1e);
+      border: 1px solid var(--vscode-panel-border, #333);
+      border-radius: 4px;
+      padding: 8px;
+      font-family: var(--vscode-editor-font-family);
+      font-size: 11px;
+      line-height: 1.4;
+      overflow-x: auto;
+      margin-bottom: 8px;
+      white-space: pre;
+      color: var(--vscode-editor-foreground);
+    }
+    .lesson-snippet-lang {
+      font-size: 9px;
+      color: var(--vscode-descriptionForeground);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .lesson-pet-section {
+      border-top: 1px solid var(--vscode-panel-border, #333);
+      padding-top: 8px;
+      margin-top: 4px;
+    }
+    .lesson-pet-narration {
+      font-size: 11px;
+      font-style: italic;
+      color: var(--vscode-foreground);
+      opacity: 0.85;
+      margin-bottom: 4px;
+    }
+    .lesson-pet-reaction {
+      display: inline-block;
+      font-size: 12px;
+      margin-right: 4px;
+    }
+    .lesson-coach-tip {
+      font-size: 10px;
+      color: #e3b341;
+      margin-top: 4px;
+    }
+    .lesson-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 10px;
+      color: var(--vscode-descriptionForeground);
+    }
+    .lesson-xp {
+      font-weight: 600;
+      color: #4ADE80;
+    }
+    .lesson-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .lesson-tag {
+      font-size: 9px;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--vscode-badge-background, #333);
+      color: var(--vscode-badge-foreground, #ccc);
+    }
+    .save-lesson-btn {
+      width: 100%;
+      padding: 8px;
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      background: linear-gradient(135deg, #7B6BD8, #534AB7);
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .save-lesson-btn:hover { opacity: 0.85; }
+    .lesson-empty {
+      text-align: center;
+      font-size: 11px;
+      color: var(--vscode-descriptionForeground);
+      padding: 12px;
+      opacity: 0.6;
+    }
+
     /* ───── Pet Widget ───── */
     .pet-widget {
       text-align: center;
@@ -1622,6 +1813,18 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     <div id="findings-container"></div>
   </div>
 
+  <!-- Lesson Feed (v0.10 — post-session knowledge capture) -->
+  <div class="card" id="lesson-feed-section">
+    <div class="lesson-feed-header">
+      <div class="card-title" style="margin-bottom:0;">Lesson Feed</div>
+      <span class="lesson-count" id="lesson-count"></span>
+    </div>
+    <div id="lesson-feed">
+      <div class="lesson-empty">Complete a coding session to capture your first lesson!</div>
+    </div>
+    <button class="save-lesson-btn" data-action="saveLesson">📝 Save Lesson</button>
+  </div>
+
   <!-- Activity Feed (v0.9.2 — with debug log) -->
   <div class="card" id="feed-section">
     <div class="card-title">Activity Feed</div>
@@ -1679,6 +1882,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       if (msg.type === 'scan_update') updateScanUI(msg.data);
       if (msg.type === 'profile') updateProfileUI(msg.data);
       if (msg.type === 'cloud_stats') updateCloudStatsUI(msg.data);
+      if (msg.type === 'lesson_feed') renderLessonFeed(msg.data.lessons);
+      if (msg.type === 'lesson_new') prependLesson(msg.data);
     });
 
     // ───── Signal that the webview is ready to receive messages ─────
@@ -2019,6 +2224,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         return;
       }
 
+      if (action === 'saveLesson') {
+        e.stopPropagation();
+        vscode.postMessage({ command: 'saveLesson' });
+        return;
+      }
+
       if (action === 'openSettings') {
         vscode.postMessage({ command: 'openSettings' });
         return;
@@ -2047,6 +2258,112 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
     // NOTE: Per-file scan reactions removed — they caused feed spam.
     // Code Health card (via scan_update) shows all scan data.
     function _scanReactionRemoved() {
+    }
+
+    // ───── Lesson Feed Rendering ─────
+    const KINGDOM_ICONS = {
+      'The Molten Forge': '🔥', 'The Frozen Spire': '🏔️',
+      'The Eternal Garden': '🌿', 'The Mystic Grove': '🔮',
+    };
+    const REACTION_EMOJIS = {
+      excited: '🤩', proud: '😊', thinking: '🤔', sleepy: '😴',
+      happy: '😄', curious: '🧐', dreamy: '💭', confused: '😵‍💫',
+      serene: '🧘', contemplating: '📿', meditating: '🕊️',
+      hyped: '🔥', scheming: '👾', bored: '😒',
+      nod: '👍', idle: '💤', smirking: '😏',
+      glitching: '⚡', sleeping: '😴',
+    };
+
+    let lessonCards = [];
+
+    function renderLessonFeed(lessons) {
+      lessonCards = lessons || [];
+      const container = document.getElementById('lesson-feed');
+      const countEl = document.getElementById('lesson-count');
+      if (!container) return;
+
+      if (lessonCards.length === 0) {
+        container.innerHTML = '<div class="lesson-empty">Complete a coding session to capture your first lesson!</div>';
+        if (countEl) countEl.textContent = '';
+        return;
+      }
+
+      if (countEl) countEl.textContent = lessonCards.length + ' lesson' + (lessonCards.length !== 1 ? 's' : '');
+      container.innerHTML = '';
+      for (const card of lessonCards.slice(0, 5)) {
+        container.innerHTML += renderLessonCard(card);
+      }
+      if (lessonCards.length > 5) {
+        container.innerHTML += '<div class="lesson-empty">+ ' + (lessonCards.length - 5) + ' more lessons</div>';
+      }
+    }
+
+    function prependLesson(card) {
+      lessonCards.unshift(card);
+      if (lessonCards.length > 20) lessonCards.pop();
+      renderLessonFeed(lessonCards);
+      // Flash the new card
+      const container = document.getElementById('lesson-feed');
+      if (container && container.firstElementChild) {
+        container.firstElementChild.style.borderColor = '#7B6BD8';
+        setTimeout(function() {
+          container.firstElementChild.style.borderColor = '';
+          container.firstElementChild.style.transition = 'border-color 0.5s';
+        }, 2000);
+      }
+    }
+
+    function renderLessonCard(card) {
+      var kingdomIcon = KINGDOM_ICONS[card.kingdom] || '📚';
+      var reactionEmoji = REACTION_EMOJIS[card.petReaction] || '😊';
+      var kingdomColor = KINGDOM_COLORS[card.kingdom?.replace('The ', '')] || '#7B6BD8';
+      var ts = new Date(card.timestamp);
+      var timeStr = ts.getHours().toString().padStart(2,'0') + ':' + ts.getMinutes().toString().padStart(2,'0');
+
+      var html = '<div class="lesson-card">';
+
+      // Title row
+      html += '<div class="lesson-title-row">';
+      html += '<span class="lesson-kingdom-icon">' + kingdomIcon + '</span>';
+      html += '<span class="lesson-title">' + escapeHtml(card.title) + '</span>';
+      html += '<span class="lesson-difficulty ' + card.difficulty + '">' + card.difficulty + '</span>';
+      html += '</div>';
+
+      // Key takeaway
+      html += '<div class="lesson-takeaway">' + escapeHtml(card.keyTakeaway) + '</div>';
+
+      // Code snippet (if present)
+      if (card.codeSnippet) {
+        html += '<div class="lesson-snippet-lang">' + (card.language || '') + '</div>';
+        html += '<div class="lesson-snippet">' + escapeHtml(card.codeSnippet) + '</div>';
+      }
+
+      // Pet section (narrator + reaction + coach)
+      html += '<div class="lesson-pet-section">';
+      html += '<div class="lesson-pet-narration">';
+      html += '<span class="lesson-pet-reaction">' + reactionEmoji + '</span>';
+      html += escapeHtml(card.petNarration);
+      html += '</div>';
+      html += '<div class="lesson-coach-tip">💡 ' + escapeHtml(card.petCoachTip) + '</div>';
+      html += '</div>';
+
+      // Footer (XP + tags)
+      html += '<div class="lesson-footer">';
+      html += '<span class="lesson-xp">+' + card.xpEarned + ' XP</span>';
+      html += '<span style="color:' + kingdomColor + '">' + (card.kingdom || '') + '</span>';
+      html += '</div>';
+
+      // Skill tags
+      if (card.skillTags && card.skillTags.length > 0) {
+        html += '<div class="lesson-tags" style="margin-top:4px;">';
+        for (var t = 0; t < card.skillTags.length; t++) {
+          html += '<span class="lesson-tag">#' + card.skillTags[t] + '</span>';
+        }
+        html += '</div>';
+      }
+
+      html += '</div>';
+      return html;
     }
 
     // ───── Embedded initial scan data (bypasses postMessage timing) ─────

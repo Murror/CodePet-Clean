@@ -87,6 +87,10 @@
       {
         "command": "codepet.fixTsDiagnostic",
         "title": "Codepet: Fix TypeScript Diagnostic"
+      },
+      {
+        "command": "codepet.saveLesson",
+        "title": "Codepet: Save Lesson"
       }
     ],
     "configuration": {

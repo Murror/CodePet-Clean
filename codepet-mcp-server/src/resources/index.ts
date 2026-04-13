@@ -20,6 +20,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { SessionLogger } from "../logger/session-logger.js";
 import { mapActivityToSkills, SKILL_TREE } from "../skills/skill-map.js";
+import { loadLessonCards } from "../tools/generate-lesson-card.js";
 
 interface UserProfile {
   petName: string;
@@ -355,6 +356,43 @@ export function registerResources(server: McpServer, logger: SessionLogger): voi
             uri: "codepet://summary/today",
             mimeType: "application/json",
             text: JSON.stringify(summary, null, 2),
+          },
+        ],
+      };
+    }
+  );
+
+  // ───── codepet://lessons/feed ─────
+  server.resource(
+    "lesson-feed",
+    "codepet://lessons/feed",
+    {
+      description:
+        "Recent Lesson Cards from the learning feed. Each card captures what was learned in a session with pet narration, coach tip, and skill XP.",
+      mimeType: "application/json",
+    },
+    async () => {
+      logger.logEvent({
+        type: "resource_access",
+        action: "lesson_feed",
+      });
+
+      const lessons = loadLessonCards(20);
+
+      return {
+        contents: [
+          {
+            uri: "codepet://lessons/feed",
+            mimeType: "application/json",
+            text: JSON.stringify(
+              {
+                generatedAt: new Date().toISOString(),
+                total: lessons.length,
+                lessons,
+              },
+              null,
+              2
+            ),
           },
         ],
       };
