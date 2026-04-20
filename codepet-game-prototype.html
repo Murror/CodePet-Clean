@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Codepet - Game Prototype</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        body {
+            font-family: 'Press Start 2P', monospace;
+            background: #2D2B26;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 10px;
+            overflow: hidden;
+        }
+
+        #app {
+            width: 100%;
+            max-width: 900px;
+            height: 600px;
+            background: #F5F3FA;
+            border: 4px solid #2D2664;
+            box-shadow: 0 0 0 8px #2D2B26,
+                        inset 0 0 0 2px #8B7BE8;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .screen {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .screen.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* ========== WORLD MAP SCREEN ========== */
+        #worldMap {
+            background: linear-gradient(135deg, #F5F3FA 0%, #EFE9F8 100%);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .player-info {
+            background: linear-gradient(90deg, #7B6BD8 0%, #534AB7 100%);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border: 2px solid #2D2664;
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        .player-stats {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .xp-bar {
+            width: 150px;
+            height: 12px;
+            background: #2D2664;
+            border: 1px solid #8B7BE8;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .xp-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #8B7BE8, #A89BF2);
+            width: 65%;
+        }
+
+        .kingdoms-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 30px;
+        }
+
+        .kingdom-tile {
+            width: 160px;
+            height: 180px;
+            background: white;
+            border: 3px solid #2D2664;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.2s;
+            overflow: hidden;
+        }
+
+        .kingdom-tile:hover:not(.locked) {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(123, 107, 216, 0.5),
+                        inset 0 0 10px rgba(123, 107, 216, 0.2);
+        }
+
+        .kingdom-tile.locked {
+            opacity: 0.6;
+            cursor: not-allowed;
+            background: #E8E6F0;
+        }
+
+        .kingdom-icon {
+            font-size: 48px;
+            filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.3));
+        }
+
+        .kingdom-info {
+            text-align: center;
+            font-size: 8px;
+            line-height: 1.3;
+        }
+
+        .kingdom-name {
+            font-weight: bold;
+            color: #2D2664;
+            font-size: 9px;
+        }
+
+        .kingdom-progress {
+            color: #7B6BD8;
+            font-size: 7px;
+        }
+
+        .lock-icon {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 16px;
+            display: none;
+        }
+
+        .kingdom-tile.locked .lock-icon {
+            display: block;
+        }
+
+        .character-at-kingdom {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 24px;
+            animation: float 2s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        /* ========== KINGDOM INTERIOR SCREEN ========== */
+        #kingdomInterior {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .kingdom-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .back-btn {
+            background: #534AB7;
+            color: white;
+            border: 2px solid #2D2664;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(83, 74, 183, 0.6);
+        }
+
+        .zone-bg {
+            flex: 1;
+            position: relative;
+            background-size: 40px 40px;
+            background-image:
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(45, 38, 100, 0.1) 39px, rgba(45, 38, 100, 0.1) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(45, 38, 100, 0.1) 39px, rgba(45, 38, 100, 0.1) 40px);
+            margin: 10px 0;
+            border: 2px solid #2D2664;
+            overflow: hidden;
+        }
+
+        .zone-bg.molten {
+            background-color: #FFE4B5;
+            background-image:
+                radial-gradient(circle at 20% 30%, rgba(255, 140, 0, 0.15) 0%, transparent 50%),
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255, 100, 0, 0.1) 39px, rgba(255, 100, 0, 0.1) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255, 100, 0, 0.1) 39px, rgba(255, 100, 0, 0.1) 40px);
+        }
+
+        .zone-bg.frozen {
+            background-color: #B0E0E6;
+            background-image:
+                radial-gradient(circle at 80% 20%, rgba(173, 216, 230, 0.3) 0%, transparent 50%),
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(100, 200, 255, 0.1) 39px, rgba(100, 200, 255, 0.1) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(100, 200, 255, 0.1) 39px, rgba(100, 200, 255, 0.1) 40px);
+        }
+
+        .zone-bg.garden {
+            background-color: #FFE4E1;
+            background-image:
+                radial-gradient(circle at 60% 60%, rgba(255, 192, 203, 0.2) 0%, transparent 50%),
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(255, 105, 180, 0.1) 39px, rgba(255, 105, 180, 0.1) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(255, 105, 180, 0.1) 39px, rgba(255, 105, 180, 0.1) 40px);
+        }
+
+        .zone-bg.storm {
+            background-color: #E6F0FF;
+            background-image:
+                radial-gradient(circle at 70% 40%, rgba(100, 200, 0, 0.15) 0%, transparent 50%),
+                repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(0, 200, 100, 0.1) 39px, rgba(0, 200, 100, 0.1) 40px),
+                repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(0, 200, 100, 0.1) 39px, rgba(0, 200, 100, 0.1) 40px);
+        }
+
+        .challenge-node {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: white;
+            border: 2px solid #2D2664;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: all 0.2s;
+            font-size: 28px;
+        }
+
+        .challenge-node:hover:not(.locked) {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(123, 107, 216, 0.6);
+        }
+
+        .challenge-node.locked {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .challenge-node.completed {
+            background: #E8F5E9;
+            box-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
+        }
+
+        .challenge-node.current {
+            animation: pulse 1s infinite;
+            box-shadow: 0 0 20px rgba(123, 107, 216, 0.8);
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        .node-label {
+            font-size: 6px;
+            text-align: center;
+            line-height: 1;
+            color: #2D2664;
+        }
+
+        .character-sprite {
+            position: absolute;
+            bottom: 20px;
+            left: 30px;
+            animation: walk 2s linear infinite;
+        }
+
+        @keyframes walk {
+            0% { transform: translateX(0) scaleX(1); }
+            50% { transform: translateX(20px) scaleX(1); }
+            100% { transform: translateX(0) scaleX(1); }
+        }
+
+        /* ========== CHALLENGE/LESSON SCREEN ========== */
+        #challengeView {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #F5F3FA 0%, #EFE9F8 100%);
+        }
+
+        .challenge-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .challenge-title {
+            color: #2D2664;
+            font-size: 10px;
+            letter-spacing: 2px;
+        }
+
+        .challenge-content {
+            display: flex;
+            gap: 20px;
+            flex: 1;
+        }
+
+        .pet-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 10px;
+            width: 120px;
+        }
+
+        .pet-sprite {
+            width: 100px;
+            height: 100px;
+            background: white;
+            border: 2px solid #2D2664;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+        }
+
+        .speech-bubble {
+            background: white;
+            border: 2px solid #2D2664;
+            padding: 12px;
+            border-radius: 2px;
+            font-size: 7px;
+            line-height: 1.4;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            color: #2D2664;
+            position: relative;
+        }
+
+        .speech-bubble::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 20px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 0 solid transparent;
+            border-top: 8px solid white;
+        }
+
+        .speech-bubble::before {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 20px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 0 solid transparent;
+            border-top: 8px solid #2D2664;
+        }
+
+        .lesson-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .lesson-brief {
+            background: white;
+            border: 2px solid #2D2664;
+            padding: 12px;
+            font-size: 8px;
+            line-height: 1.6;
+            color: #2D2664;
+            min-height: 80px;
+        }
+
+        .code-input {
+            background: #2D2664;
+            color: #8B7BE8;
+            border: 2px solid #534AB7;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 8px;
+            min-height: 100px;
+            resize: none;
+            font-weight: bold;
+            line-height: 1.5;
+        }
+
+        .code-input::placeholder {
+            color: #534AB7;
+        }
+
+        .code-input:focus {
+            outline: none;
+            box-shadow: 0 0 10px rgba(139, 123, 232, 0.5);
+        }
+
+        .challenge-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #7B6BD8 0%, #534AB7 100%);
+            color: white;
+            border: 2px solid #2D2664;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 8px;
+            flex: 1;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .submit-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(123, 107, 216, 0.7);
+        }
+
+        .submit-btn:active {
+            transform: scale(0.98);
+        }
+
+        .back-btn.challenge {
+            flex: 0 0 auto;
+        }
+
+        /* ========== VICTORY SCREEN ========== */
+        #victoryScreen {
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 30px;
+            animation: slideIn 0.5s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .victory-title {
+            font-size: 20px;
+            color: #2D2664;
+            letter-spacing: 2px;
+            animation: bounce 0.6s ease;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-20px); }
+        }
+
+        .victory-content {
+            display: flex;
+            gap: 40px;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .victory-pet {
+            font-size: 80px;
+            animation: spin 1s ease-in-out;
+        }
+
+        @keyframes spin {
+            0% { transform: rotateY(0deg) scale(0.8); }
+            50% { transform: rotateY(180deg) scale(1); }
+            100% { transform: rotateY(360deg) scale(1); }
+        }
+
+        .victory-stats {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: flex-start;
+        }
+
+        .xp-gain {
+            font-size: 14px;
+            color: #7B6BD8;
+            font-weight: bold;
+            animation: slideInRight 0.6s ease 0.2s both;
+        }
+
+        @keyframes slideInRight {
+            from { opacity: 0; transform: translateX(-20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .badge-earned {
+            font-size: 24px;
+            animation: slideInRight 0.6s ease 0.4s both;
+        }
+
+        .level-up {
+            font-size: 12px;
+            color: #2D2664;
+            animation: slideInRight 0.6s ease 0.6s both;
+        }
+
+        .continue-btn {
+            background: linear-gradient(135deg, #7B6BD8 0%, #534AB7 100%);
+            color: white;
+            border: 2px solid #2D2664;
+            padding: 12px 24px;
+            cursor: pointer;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 10px;
+            transition: all 0.2s;
+            margin-top: 20px;
+        }
+
+        .continue-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(123, 107, 216, 0.7);
+        }
+
+        /* Confetti effect */
+        .confetti {
+            position: fixed;
+            width: 10px;
+            height: 10px;
+            pointer-events: none;
+            animation: confettiFall 2s ease-out forwards;
+        }
+
+        @keyframes confettiFall {
+            to {
+                transform: translateY(600px) rotateZ(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Luna character pixel art */
+        .luna-pixel {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            image-rendering: pixelated;
+            background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="0" width="6" height="4" fill="%238B7BE8"/><rect x="4" y="2" width="8" height="3" fill="%23A89BF2"/><rect x="3" y="5" width="10" height="4" fill="%238B7BE8"/><rect x="6" y="5" width="4" height="1" fill="%232D2664"/><rect x="3" y="9" width="10" height="3" fill="%237B6BD8"/><rect x="4" y="12" width="2" height="4" fill="%23534AB7"/><rect x="10" y="12" width="2" height="4" fill="%23534AB7"/><rect x="2" y="6" width="2" height="2" fill="%23F5F3FA"/><rect x="12" y="6" width="2" height="2" fill="%23F5F3FA"/></svg>');
+            background-size: contain;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: crisp-edges;
+        }
+
+        /* Luna pixel sprite - CSS version */
+        .pixel-luna {
+            display: inline-block;
+            position: relative;
+            width: 60px;
+            height: 80px;
+        }
+
+        .pixel-luna-pixel {
+            position: absolute;
+            background: #8B7BE8;
+            box-shadow:
+                /* Head */
+                8px 0 0 2px #A89BF2,
+                6px 2px 0 2px #A89BF2,
+                10px 2px 0 2px #A89BF2,
+                /* Eyes */
+                6px 4px 0 1px #2D2664,
+                10px 4px 0 1px #2D2664,
+                /* Body */
+                4px 8px 0 4px #8B7BE8,
+                8px 8px 0 4px #8B7BE8,
+                4px 12px 0 4px #7B6BD8,
+                8px 12px 0 4px #7B6BD8,
+                /* Arms */
+                2px 10px 0 2px #534AB7,
+                14px 10px 0 2px #534AB7,
+                /* Legs */
+                6px 18px 0 2px #534AB7,
+                8px 18px 0 2px #534AB7;
+        }
+
+        /* Utility animations */
+        .glow {
+            animation: glow 0.5s ease;
+        }
+
+        @keyframes glow {
+            0% { box-shadow: 0 0 0 rgba(123, 107, 216, 0.8); }
+            50% { box-shadow: 0 0 20px rgba(123, 107, 216, 0.8); }
+            100% { box-shadow: 0 0 0 rgba(123, 107, 216, 0.8); }
+        }
+
+        .text-shadow {
+            text-shadow: 2px 2px 0px rgba(45, 38, 100, 0.3);
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1024px) {
+            #app {
+                max-width: 95vw;
+                height: auto;
+                aspect-ratio: 3/2;
+            }
+
+            .player-info {
+                font-size: 8px;
+            }
+
+            .kingdom-tile {
+                width: 120px;
+                height: 140px;
+            }
+
+            .kingdom-icon {
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- SCREEN 1: WORLD MAP -->
+        <div id="worldMap" class="screen active">
+            <div class="player-info">
+                <div class="player-stats">
+                    <div class="stat">
+                        <span>🐱 LUNA</span>
+                    </div>
+                    <div class="stat">
+                        <span>LVL 5</span>
+                    </div>
+                    <div class="stat">
+                        <div class="xp-bar">
+                            <div class="xp-fill"></div>
+                        </div>
+                        <span>1,250/2,000</span>
+                    </div>
+                </div>
+                <div class="stat">
+                    <span>💰 450 GOLD</span>
+                </div>
+            </div>
+
+            <div class="kingdoms-container">
+                <div class="kingdom-tile" data-kingdom="molten" data-locked="false">
+                    <div class="kingdom-icon">🔥</div>
+                    <div class="kingdom-info">
+                        <div class="kingdom-name">THE MOLTEN FORGE</div>
+                        <div class="kingdom-progress">4/4 SKILLS</div>
+                    </div>
+                    <div class="character-at-kingdom">🐱</div>
+                </div>
+
+                <div class="kingdom-tile" data-kingdom="frozen" data-locked="false">
+                    <div class="kingdom-icon">❄️</div>
+                    <div class="kingdom-info">
+                        <div class="kingdom-name">THE FROZEN SPIRE</div>
+                        <div class="kingdom-progress">2/4 SKILLS</div>
+                    </div>
+                    <div class="lock-icon">🔒</div>
+                </div>
+
+                <div class="kingdom-tile" data-kingdom="garden" data-locked="true">
+                    <div class="kingdom-icon">🌸</div>
+                    <div class="kingdom-info">
+                        <div class="kingdom-name">THE ETERNAL GARDEN</div>
+                        <div class="kingdom-progress">0/4 SKILLS</div>
+                    </div>
+                    <div class="lock-icon">🔒</div>
+                </div>
+
+                <div class="kingdom-tile" data-kingdom="storm" data-locked="true">
+                    <div class="kingdom-icon">⚡</div>
+                    <div class="kingdom-info">
+                        <div class="kingdom-name">THE STORM SUMMIT</div>
+                        <div class="kingdom-progress">0/4 SKILLS</div>
+                    </div>
+                    <div class="lock-icon">🔒</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 2: KINGDOM INTERIOR -->
+        <div id="kingdomInterior" class="screen">
+            <div class="kingdom-header">
+                <button class="back-btn" onclick="goToWorldMap()">← BACK</button>
+                <div class="challenge-title" id="zoneTitle">THE MOLTEN FORGE</div>
+                <div style="width: 80px;"></div>
+            </div>
+
+            <div class="zone-bg molten" id="zoneBg">
+                <div class="challenge-node completed" data-node="0" onclick="startChallenge(0)">
+                    <div style="font-size: 32px;">✏️</div>
+                    <div class="node-label">PROMPT<br>CLARITY</div>
+                </div>
+
+                <div class="challenge-node completed" data-node="1" onclick="startChallenge(1)" style="left: 55%; top: 15%;">
+                    <div style="font-size: 32px;">🔍</div>
+                    <div class="node-label">ERROR<br>READING</div>
+                </div>
+
+                <div class="challenge-node current" data-node="2" onclick="startChallenge(2)" style="left: 70%; top: 55%;">
+                    <div style="font-size: 32px;">🛠️</div>
+                    <div class="node-label">TOOL<br>BASICS</div>
+                </div>
+
+                <div class="challenge-node" data-node="3" onclick="startChallenge(3)" style="left: 25%; top: 65%;">
+                    <div style="font-size: 32px;">⚖️</div>
+                    <div class="node-label">CODE<br>JUDGMENT</div>
+                </div>
+
+                <div class="character-sprite">🐱</div>
+            </div>
+        </div>
+
+        <!-- SCREEN 3: CHALLENGE/LESSON -->
+        <div id="challengeView" class="screen">
+            <div class="challenge-header">
+                <button class="back-btn challenge" onclick="backToKingdom()">← ZONE</button>
+                <div class="challenge-title" id="lessonTitle">TOOL BASICS</div>
+                <div style="width: 80px;"></div>
+            </div>
+
+            <div class="challenge-content">
+                <div class="pet-panel">
+                    <div class="pet-sprite">🐱</div>
+                    <div class="speech-bubble" id="petSpeech">
+                        Let's learn how to use AI coding tools responsibly!
+                    </div>
+                </div>
+
+                <div class="lesson-panel">
+                    <div class="lesson-brief" id="lessonBrief">
+                        <strong>CHALLENGE:</strong> Understand the basics of using coding tools. Write a brief explanation (2-3 sentences) of what an "IDE" is and why it's useful.
+                    </div>
+
+                    <textarea class="code-input" id="codeInput" placeholder="Type your answer here...
+Use coding tools to..."></textarea>
+
+                    <div class="challenge-actions">
+                        <button class="submit-btn" onclick="submitChallenge()">⚡ SUBMIT</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SCREEN 4: VICTORY -->
+        <div id="victoryScreen" class="screen">
+            <div class="victory-title">SKILL UNLOCKED!</div>
+
+            <div class="victory-content">
+                <div class="victory-pet">🐱</div>
+                <div class="victory-stats">
+                    <div class="xp-gain">+150 XP</div>
+                    <div class="badge-earned">🏅 TOOL MASTER</div>
+                    <div class="level-up">LEVEL UP! 5 → 6</div>
+                </div>
+            </div>
+
+            <button class="continue-btn" onclick="continueFromVictory()">CONTINUE</button>
+        </div>
+    </div>
+
+    <script>
+        // ========== GAME STATE ==========
+        const gameState = {
+            currentScreen: 'worldMap',
+            currentKingdom: null,
+            currentChallenge: null,
+            kingdomProgress: {
+                molten: { completed: 4, total: 4 },
+                frozen: { completed: 2, total: 4 },
+                garden: { completed: 0, total: 4 },
+                storm: { completed: 0, total: 4 }
+            },
+            challengeData: {
+                0: {
+                    title: 'PROMPT CLARITY',
+                    speech: 'A clear prompt is like clear instructions. The better you explain what you want, the better the result!',
+                    brief: '<strong>CHALLENGE:</strong> Write a clear, specific prompt that asks an AI to help you debug a simple calculation error in Python.'
+                },
+                1: {
+                    title: 'ERROR READING',
+                    speech: 'Reading error messages is a superpower! They tell you exactly what went wrong.',
+                    brief: '<strong>CHALLENGE:</strong> Describe what an error message typically tells you and how to use it to fix your code.'
+                },
+                2: {
+                    title: 'TOOL BASICS',
+                    speech: 'Let\'s learn how to use AI coding tools responsibly!',
+                    brief: '<strong>CHALLENGE:</strong> Understand the basics of using coding tools. Write a brief explanation (2-3 sentences) of what an "IDE" is and why it\'s useful.'
+                },
+                3: {
+                    title: 'CODE JUDGMENT',
+                    speech: 'Not all code is good code. Learn to think critically about what you write!',
+                    brief: '<strong>CHALLENGE:</strong> Explain one principle of writing clean, readable code that other programmers would appreciate.'
+                }
+            }
+        };
+
+        // ========== SCREEN NAVIGATION ==========
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+            gameState.currentScreen = screenId;
+        }
+
+        function goToKingdom(kingdom) {
+            const kingdomData = {
+                molten: { title: 'THE MOLTEN FORGE', emoji: '🔥', class: 'molten' },
+                frozen: { title: 'THE FROZEN SPIRE', emoji: '❄️', class: 'frozen' },
+                garden: { title: 'THE ETERNAL GARDEN', emoji: '🌸', class: 'garden' },
+                storm: { title: 'THE STORM SUMMIT', emoji: '⚡', class: 'storm' }
+            };
+
+            const data = kingdomData[kingdom];
+            if (!data) return;
+
+            gameState.currentKingdom = kingdom;
+            document.getElementById('zoneTitle').textContent = data.title;
+            document.getElementById('zoneBg').className = `zone-bg ${data.class}`;
+
+            showScreen('kingdomInterior');
+        }
+
+        function goToWorldMap() {
+            gameState.currentKingdom = null;
+            showScreen('worldMap');
+        }
+
+        function backToKingdom() {
+            if (gameState.currentKingdom) {
+                goToKingdom(gameState.currentKingdom);
+            }
+        }
+
+        function startChallenge(nodeId) {
+            const challenge = gameState.challengeData[nodeId];
+            if (!challenge) return;
+
+            gameState.currentChallenge = nodeId;
+            document.getElementById('lessonTitle').textContent = challenge.title;
+            document.getElementById('petSpeech').textContent = challenge.speech;
+            document.getElementById('lessonBrief').innerHTML = challenge.brief;
+            document.getElementById('codeInput').value = '';
+
+            showScreen('challengeView');
+        }
+
+        // ========== CHALLENGE SUBMISSION ==========
+        function submitChallenge() {
+            const input = document.getElementById('codeInput').value.trim();
+            if (input.length < 10) {
+                alert('Write more! Your answer seems too short.');
+                return;
+            }
+
+            // Trigger victory animation
+            createConfetti();
+            showScreen('victoryScreen');
+        }
+
+        function continueFromVictory() {
+            if (gameState.currentKingdom) {
+                goToKingdom(gameState.currentKingdom);
+            } else {
+                goToWorldMap();
+            }
+        }
+
+        // ========== CONFETTI EFFECT ==========
+        function createConfetti() {
+            const colors = ['#7B6BD8', '#534AB7', '#8B7BE8', '#A89BF2', '#2D2664'];
+            for (let i = 0; i < 30; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + '%';
+                confetti.style.top = '-10px';
+                confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.delay = Math.random() * 0.3 + 's';
+                document.body.appendChild(confetti);
+
+                setTimeout(() => confetti.remove(), 2500);
+            }
+        }
+
+        // ========== KINGDOM TILE CLICK HANDLERS ==========
+        document.querySelectorAll('.kingdom-tile').forEach(tile => {
+            tile.addEventListener('click', function() {
+                const kingdom = this.dataset.kingdom;
+                const isLocked = this.dataset.locked === 'true';
+
+                if (isLocked) {
+                    alert('🔒 This kingdom is locked! Complete more skills to unlock.');
+                    return;
+                }
+
+                goToKingdom(kingdom);
+            });
+        });
+
+        // ========== INITIAL SETUP ==========
+        window.addEventListener('load', () => {
+            console.log('Codepet Game Prototype loaded!');
+            console.log('Click on a kingdom to explore...');
+        });
+
+        // ========== KEYBOARD SHORTCUTS ==========
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (gameState.currentScreen === 'challengeView') {
+                    backToKingdom();
+                } else if (gameState.currentScreen === 'kingdomInterior') {
+                    goToWorldMap();
+                }
+            }
+            if (e.key === 'Enter' && gameState.currentScreen === 'challengeView') {
+                submitChallenge();
+            }
+        });
+    </script>
+</body>
+</html>

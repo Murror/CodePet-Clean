@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { background: #F7F5FC; display: flex; flex-wrap: wrap; gap: 24px; padding: 40px; font-family: sans-serif; }
+  .icon-card {
+    text-align: center;
+    padding: 20px;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    width: 140px;
+  }
+  img {
+    width: 64px; height: 64px;
+    image-rendering: pixelated;
+    margin-bottom: 8px;
+  }
+  .name { font-size: 11px; font-weight: 600; color: #2D2B26; }
+  .use { font-size: 9px; color: #7B6BD8; margin-top: 4px; }
+
+  .node-preview {
+    display: flex; gap: 20px; align-items: center;
+    margin-top: 30px; width: 100%;
+  }
+  .node {
+    width: 64px; height: 64px;
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    image-rendering: pixelated;
+  }
+  .node.available {
+    background: linear-gradient(135deg, #F0EDF8, #E8E3F6);
+    border: 3px solid #7B6BD8;
+    box-shadow: 0 0 12px rgba(123,107,216,0.3);
+  }
+  .node.completed {
+    background: linear-gradient(135deg, #D5F5E3, #C3EDC0);
+    border: 3px solid #6BCB77;
+  }
+  .node.locked {
+    background: linear-gradient(135deg, #E8E6EE, #DDDAE6);
+    border: 3px solid #C5C1D4;
+    opacity: 0.5;
+  }
+  .node img { width: 32px; height: 32px; }
+  h2 { width: 100%; margin: 20px 0 0; color: #2D2664; font-size: 14px; }
+</style>
+</head>
+<body>
+  <h2>Pixel Art Challenge Icons (16×16 → 64×64)</h2>
+
+  <div class="icon-card"><img src="challenge-pencil.png"><div class="name">Pencil</div><div class="use">Prompt Clarity</div></div>
+  <div class="icon-card"><img src="challenge-magnifier.png"><div class="name">Magnifier</div><div class="use">Error Reading</div></div>
+  <div class="icon-card"><img src="challenge-wrench.png"><div class="name">Wrench</div><div class="use">Tool Basics</div></div>
+  <div class="icon-card"><img src="challenge-scales.png"><div class="name">Scales</div><div class="use">Code Judgment</div></div>
+  <div class="icon-card"><img src="challenge-scroll.png"><div class="name">Scroll</div><div class="use">Context Setting</div></div>
+  <div class="icon-card"><img src="challenge-book.png"><div class="name">Book</div><div class="use">AI Rules Files</div></div>
+  <div class="icon-card"><img src="challenge-shield.png"><div class="name">Shield</div><div class="use">Documentation</div></div>
+  <div class="icon-card"><img src="challenge-gear.png"><div class="name">Gear</div><div class="use">File Structure</div></div>
+  <div class="icon-card"><img src="challenge-sword.png"><div class="name">Sword</div><div class="use">Boss Challenge</div></div>
+  <div class="icon-card"><img src="challenge-lock.png"><div class="name">Lock</div><div class="use">Locked State</div></div>
+
+  <h2>Node States Preview</h2>
+  <div class="node-preview">
+    <div>
+      <div class="node completed"><img src="challenge-pencil.png"></div>
+      <div style="text-align:center;font-size:9px;color:#6BCB77;margin-top:6px;font-weight:600;">Completed</div>
+    </div>
+    <div>
+      <div class="node completed"><img src="challenge-magnifier.png"></div>
+      <div style="text-align:center;font-size:9px;color:#6BCB77;margin-top:6px;font-weight:600;">Completed</div>
+    </div>
+    <div>
+      <div class="node available"><img src="challenge-wrench.png"></div>
+      <div style="text-align:center;font-size:9px;color:#7B6BD8;margin-top:6px;font-weight:600;">Available</div>
+    </div>
+    <div>
+      <div class="node available"><img src="challenge-scales.png"></div>
+      <div style="text-align:center;font-size:9px;color:#7B6BD8;margin-top:6px;font-weight:600;">Available</div>
+    </div>
+    <div>
+      <div class="node locked"><img src="challenge-lock.png"></div>
+      <div style="text-align:center;font-size:9px;color:#999;margin-top:6px;font-weight:600;">Locked</div>
+    </div>
+    <div>
+      <div class="node locked"><img src="challenge-lock.png"></div>
+      <div style="text-align:center;font-size:9px;color:#999;margin-top:6px;font-weight:600;">Locked</div>
+    </div>
+  </div>
+</body>
+</html>
