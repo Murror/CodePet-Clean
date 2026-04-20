@@ -100,7 +100,7 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: showChat)
-        .onChange(of: appState.selectedTab) { oldTab, newTab in
+        .onChange(of: appState.selectedTab) { newTab in
             SoundManager.shared.playTabSwitch()
             if newTab == .home {
                 SoundManager.shared.setPhase("home")

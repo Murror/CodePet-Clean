@@ -272,6 +272,14 @@ struct PetAreaView5: View {
 
     var currentGreeting: String {
         guard !character.greeting.isEmpty else { return "Hello!" }
+
+        // Every 3rd rotation, show a trap message if traps exist
+        let traps = appState.activeTraps
+        if greetingIndex % 3 == 2 && !traps.isEmpty {
+            let trapIndex = (greetingIndex / 3) % traps.count
+            return appState.trapMessage(for: traps[trapIndex].type)
+        }
+
         return character.greeting[greetingIndex % character.greeting.count]
     }
 
@@ -443,7 +451,8 @@ struct PetAreaView5: View {
             guard reactionText == nil && !showRadial else { return }
             withAnimation(.easeInOut(duration: 0.3)) { showSpeechBubble = false }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                greetingIndex = (greetingIndex + 1) % max(1, character.greeting.count)
+                greetingIndex += 1
+                if greetingIndex > 999 { greetingIndex = 0 }
                 withAnimation(.easeInOut(duration: 0.3)) { showSpeechBubble = true }
             }
         }

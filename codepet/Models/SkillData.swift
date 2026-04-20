@@ -15,7 +15,7 @@ enum SkillNodeType: String {
     case boss       // Final boss of a kingdom — 💀
 }
 
-struct Skill: Identifiable {
+struct Skill: Identifiable, Equatable {
     let id: String
     let name: String
     let icon: String

@@ -67,7 +67,7 @@ struct LessonModalView: View {
                             selectedAnswer: $selectedAnswer,
                             answerSubmitted: $answerSubmitted,
                             isCorrect: $isCorrect,
-                            teacherColor: teacher?.color ?? Color(hex: "#7B6BD8")
+                            teacherColor: teacher?.color ?? Color(hex: "#D4960A")
                         )
 
                     case .fieldMission(let scenario, let task, let options, let correctFeedback, let wrongFeedback):
@@ -107,7 +107,7 @@ struct LessonModalView: View {
                 .disabled(!canAdvance)
                 .padding(.vertical, 12)
             }
-            .background(Color(hex: "#F0EDF8"))
+            .background(Color.white)
         }
         .background(Color(hex: "#FFFDF8"))
     }
@@ -186,14 +186,14 @@ struct LessonTopBar: View {
                 HStack(spacing: 4) {
                     ForEach(0..<totalSteps, id: \.self) { i in
                         RoundedRectangle(cornerRadius: 2)
-                            .fill(i < currentStep ? Color(hex: "#8B7BE8") : (i == currentStep ? stepColor : Color(hex: "#DCD8EC")))
+                            .fill(i < currentStep ? Color(hex: "#6BCB77") : (i == currentStep ? stepColor : Color(hex: "#E8E6E0")))
                             .frame(height: 4)
                     }
                 }
 
                 Text("+\(xpEarned)")
                     .font(.system(size: 10, weight: .bold, design: .monospaced))
-                    .foregroundColor(Color(hex: "#7B6BD8"))
+                    .foregroundColor(Color(hex: "#D4960A"))
 
                 Text("...")
                     .font(.system(size: 12))
@@ -204,7 +204,7 @@ struct LessonTopBar: View {
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                         .frame(width: 28, height: 28)
-                        .background(Color(hex: "#E5E2F0"))
+                        .background(Color(hex: "#F0F0EC"))
                         .cornerRadius(14)
                 }
                 .buttonStyle(.plain)
@@ -221,7 +221,7 @@ struct LessonTopBar: View {
         .padding(.horizontal, 24)
         .padding(.top, 16)
         .padding(.bottom, 8)
-        .background(Color(hex: "#F0EDF8"))
+        .background(Color.white)
     }
 
     private var stepLabel: String {
@@ -246,11 +246,11 @@ struct LessonTopBar: View {
 
     private var stepColor: Color {
         switch stepType {
-        case .briefing: return Color(hex: "#7B6BD8")
-        case .learn: return Color(hex: "#8B7BE8")
+        case .briefing: return Color(hex: "#D4960A")
+        case .learn: return Color(hex: "#6BCB77")
         case .applyIt: return Color(hex: "#7B8CE0")
         case .fieldMission: return Color(hex: "#E0508C")
-        case .summary: return Color(hex: "#7B6BD8")
+        case .summary: return Color(hex: "#D4960A")
         }
     }
 }
@@ -266,7 +266,7 @@ struct BriefingContent: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .top, spacing: 0) {
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(Color(hex: "#7B6BD8"))
+                    .fill(Color(hex: "#D4960A"))
                     .frame(width: 3)
                     .padding(.trailing, 12)
                 Text(intro)
@@ -288,7 +288,7 @@ struct BriefingContent: View {
 
             Text("✦ \(hook)")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(Color(hex: "#7B6BD8"))
+                .foregroundColor(Color(hex: "#D4960A"))
                 .italic()
                 .lineSpacing(4)
         }
@@ -310,7 +310,7 @@ struct LearnContent: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(concept)
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(Color(hex: "#7B6BD8"))
+                    .foregroundColor(Color(hex: "#D4960A"))
                 Text(explanation)
                     .font(.system(size: 14))
                     .foregroundColor(Color(hex: "#2D2B26"))
@@ -319,10 +319,10 @@ struct LearnContent: View {
             .padding(16)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(hex: "#F0EDF8"))
+                    .fill(Color.white)
                     .overlay(
                         RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color(hex: "#DCD8EC"), lineWidth: 1)
+                            .stroke(Color(hex: "#E8E6E0"), lineWidth: 1)
                     )
             )
 
@@ -332,14 +332,14 @@ struct LearnContent: View {
                         ExampleCard(label: "✕ \(bad.label)", text: bad.text, color: Color(hex: "#E06050"), bgColor: Color(hex: "#FFF5F5"))
                     }
                     if let good = goodExample {
-                        ExampleCard(label: "✓ \(good.label)", text: good.text, color: Color(hex: "#8B7BE8"), bgColor: Color(hex: "#F0FFF4"))
+                        ExampleCard(label: "✓ \(good.label)", text: good.text, color: Color(hex: "#6BCB77"), bgColor: Color(hex: "#F0FFF4"))
                     }
                 }
             }
 
             HStack(alignment: .top, spacing: 0) {
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(Color(hex: "#7B6BD8"))
+                    .fill(Color(hex: "#D4960A"))
                     .frame(width: 3)
                     .padding(.trailing, 12)
                 Text(insight)
@@ -411,7 +411,7 @@ struct ApplyItContent: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("ORIGINAL PROMPT")
                     .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(Color(hex: "#7B6BD8"))
+                    .foregroundColor(Color(hex: "#D4960A"))
                 Text(originalPrompt)
                     .font(.system(size: 13, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B26"))
@@ -424,7 +424,7 @@ struct ApplyItContent: View {
                     .fill(Color(hex: "#FFFAF0"))
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
-                            .stroke(Color(hex: "#7B6BD8").opacity(0.3), lineWidth: 1.5)
+                            .stroke(Color(hex: "#D4960A").opacity(0.3), lineWidth: 1.5)
                     )
             )
 
@@ -461,7 +461,7 @@ struct ApplyItContent: View {
                 FeedbackBubble(
                     text: isCorrect ? correctFeedback : wrongFeedback,
                     isCorrect: isCorrect,
-                    color: isCorrect ? Color(hex: "#8B7BE8") : Color(hex: "#E06050")
+                    color: isCorrect ? Color(hex: "#6BCB77") : Color(hex: "#E06050")
                 )
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
@@ -499,7 +499,7 @@ struct FieldMissionContent: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 14)
-                    .fill(Color(hex: "#F0EDF8"))
+                    .fill(Color.white)
                     .overlay(
                         RoundedRectangle(cornerRadius: 14)
                             .stroke(Color(hex: "#E0508C").opacity(0.3), lineWidth: 1.5)
@@ -543,7 +543,7 @@ struct FieldMissionContent: View {
                 FeedbackBubble(
                     text: isCorrect ? correctFeedback : wrongFeedback,
                     isCorrect: isCorrect,
-                    color: isCorrect ? Color(hex: "#8B7BE8") : Color(hex: "#E0508C")
+                    color: isCorrect ? Color(hex: "#6BCB77") : Color(hex: "#E0508C")
                 )
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
@@ -564,9 +564,9 @@ struct QuizOptionRow: View {
 
     private var borderColor: Color {
         guard answerSubmitted && isSelected else {
-            return isSelected ? Color(hex: "#7B6BD8") : Color(hex: "#E0DBEF")
+            return isSelected ? Color(hex: "#D4960A") : Color(hex: "#EBE8DF")
         }
-        return option.correct ? Color(hex: "#8B7BE8") : Color(hex: "#E06050")
+        return option.correct ? Color(hex: "#6BCB77") : Color(hex: "#E06050")
     }
 
     private var bgColor: Color {
@@ -585,9 +585,9 @@ struct QuizOptionRow: View {
 
     private var letterColor: Color {
         guard answerSubmitted && isSelected else {
-            return isSelected ? Color(hex: "#7B6BD8") : Color(hex: "#B0A898")
+            return isSelected ? Color(hex: "#D4960A") : Color(hex: "#B0A898")
         }
-        return option.correct ? Color(hex: "#8B7BE8") : Color(hex: "#E06050")
+        return option.correct ? Color(hex: "#6BCB77") : Color(hex: "#E06050")
     }
 
     var body: some View {
@@ -670,46 +670,73 @@ struct SummaryContent: View {
     let badge: String?
     let teacherColor: Color
 
+    @State private var showCelebration = false
+    @State private var xpScale: CGFloat = 0.3
+
     var body: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 4) {
-                Text("+\(xpReward) XP")
-                    .font(.system(size: 28, weight: .black, design: .monospaced))
-                    .foregroundColor(Color(hex: "#7B6BD8"))
-                if let badge = badge {
-                    Text("🏅 \(badge)")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(teacherColor)
-                }
-            }
+        ZStack {
+            VStack(spacing: 20) {
+                ZStack {
+                    // Confetti behind XP
+                    if showCelebration {
+                        ConfettiBurstView(count: 25, colors: [
+                            Color(hex: "#D4960A"), Color(hex: "#6BCB77"), teacherColor, .orange, .purple
+                        ])
+                    }
 
-            VStack(alignment: .leading, spacing: 10) {
-                Text("WHAT YOU LEARNED")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
-
-                ForEach(Array(recap.enumerated()), id: \.offset) { i, item in
-                    HStack(alignment: .top, spacing: 10) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundColor(Color(hex: "#8B7BE8"))
-                        Text(item)
-                            .font(.system(size: 13))
-                            .foregroundColor(Color(hex: "#2D2B26"))
+                    VStack(spacing: 4) {
+                        Text("+\(xpReward) XP")
+                            .font(.system(size: 28, weight: .black, design: .monospaced))
+                            .foregroundColor(Color(hex: "#D4960A"))
+                            .scaleEffect(xpScale)
+                        if let badge = badge {
+                            Text("🏅 \(badge)")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(teacherColor)
+                        }
                     }
                 }
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("WHAT YOU LEARNED")
+                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
+
+                    ForEach(Array(recap.enumerated()), id: \.offset) { i, item in
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 14))
+                                .foregroundColor(Color(hex: "#6BCB77"))
+                            Text(item)
+                                .font(.system(size: 13))
+                                .foregroundColor(Color(hex: "#2D2B26"))
+                        }
+                        .opacity(showCelebration ? 1 : 0)
+                        .offset(y: showCelebration ? 0 : 10)
+                        .animation(.easeOut(duration: 0.4).delay(0.3 + Double(i) * 0.1), value: showCelebration)
+                    }
+                }
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(hex: "#F0FFF4"))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color(hex: "#6BCB77").opacity(0.3), lineWidth: 1)
+                        )
+                )
             }
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(Color(hex: "#F0FFF4"))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(Color(hex: "#8B7BE8").opacity(0.3), lineWidth: 1)
-                    )
-            )
+            .frame(maxWidth: 480)
         }
-        .frame(maxWidth: 480)
+        .onAppear {
+            SoundManager.shared.playSuccess()
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.6)) {
+                xpScale = 1.0
+            }
+            withAnimation(.easeOut(duration: 0.3).delay(0.2)) {
+                showCelebration = true
+            }
+        }
     }
 }
 

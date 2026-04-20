@@ -35,6 +35,11 @@ class AppState: ObservableObject {
     @Published var difficultyLevel: String = "medium"
     @Published var performanceHistory: [PerformanceEntry] = []
 
+    // Review / Spaced Repetition
+    @Published var lessonReviewDates: [String: Date] = [:]  // skillId -> last review date
+    @Published var lessonReviewCounts: [String: Int] = [:]  // skillId -> review count
+    @Published var dailySnapshots: [DailySnapshot] = []
+
     // Daily Challenge
     @Published var dailyChallengeCompleted: Bool = false
 
@@ -87,6 +92,7 @@ class AppState: ObservableObject {
 
         // Ensure tier progression matches completed lessons (fixes existing progress)
         syncTierToCompletedLessons()
+        checkAndUpdateSnapshot()
 
         // Auto-save whenever any @Published property changes (debounced 2s)
         saveCancellable = objectWillChange
@@ -119,6 +125,9 @@ class AppState: ObservableObject {
 
         // Energy boost from activity
         petEnergy = min(100, petEnergy + 5)
+
+        // Keep today's snapshot current
+        checkAndUpdateSnapshot()
     }
 
     // MARK: - MCP Bridge Sync
@@ -189,6 +198,74 @@ class AppState: ObservableObject {
         }
     }
 
+    // MARK: - Spaced Repetition
+
+    /// Lessons ready for review (spaced repetition: 1d, 3d, 7d, 14d intervals)
+    var lessonsReadyForReview: [String] {
+        completedLessons.filter { skillId in
+            guard let lastReview = lessonReviewDates[skillId] else {
+                // Never reviewed — ready if completed more than 1 day ago
+                return true
+            }
+            let reviewCount = lessonReviewCounts[skillId] ?? 0
+            let interval: TimeInterval
+            switch reviewCount {
+            case 0: interval = 86400       // 1 day
+            case 1: interval = 86400 * 3   // 3 days
+            case 2: interval = 86400 * 7   // 7 days
+            default: interval = 86400 * 14 // 14 days
+            }
+            return Date().timeIntervalSince(lastReview) >= interval
+        }
+    }
+
+    /// Mark a lesson as reviewed
+    func markReviewed(_ skillId: String) {
+        lessonReviewDates[skillId] = Date()
+        lessonReviewCounts[skillId] = (lessonReviewCounts[skillId] ?? 0) + 1
+        incrementTodayReviews()
+    }
+
+    // MARK: - Daily Snapshots
+
+    func checkAndUpdateSnapshot() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        if let idx = dailySnapshots.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: today) }) {
+            // Update today's snapshot with current values
+            dailySnapshots[idx].totalXP = totalXP
+            dailySnapshots[idx].lessonsCompleted = completedLessons.count
+            dailySnapshots[idx].challengesCompleted = completedChallenges.count
+            dailySnapshots[idx].streak = streak
+        } else {
+            // Create new snapshot for today
+            let snapshot = DailySnapshot(
+                id: UUID(),
+                date: today,
+                totalXP: totalXP,
+                lessonsCompleted: completedLessons.count,
+                challengesCompleted: completedChallenges.count,
+                streak: streak,
+                reviewsDone: 0
+            )
+            dailySnapshots.append(snapshot)
+
+            // Trim to 90 days
+            if dailySnapshots.count > 90 {
+                dailySnapshots = Array(dailySnapshots.suffix(90))
+            }
+        }
+    }
+
+    func incrementTodayReviews() {
+        checkAndUpdateSnapshot()
+        let calendar = Calendar.current
+        if let idx = dailySnapshots.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: Date()) }) {
+            dailySnapshots[idx].reviewsDone += 1
+        }
+    }
+
     /// Toggle dark mode with sound
     func toggleDarkMode() {
         isDarkMode.toggle()
@@ -239,6 +316,7 @@ class AppState: ObservableObject {
         petMood = "Idle"
         weeklyStats = WeeklyStats()
         performanceHistory = []
+        dailySnapshots = []
     }
 
     /// Reset onboarding only (for testing)
@@ -267,4 +345,14 @@ struct PerformanceEntry: Codable {
     let score: Int
     let date: Date
     let skillId: String
+}
+
+struct DailySnapshot: Codable, Identifiable {
+    let id: UUID
+    let date: Date
+    var totalXP: Int
+    var lessonsCompleted: Int
+    var challengesCompleted: Int
+    var streak: Int
+    var reviewsDone: Int
 }
