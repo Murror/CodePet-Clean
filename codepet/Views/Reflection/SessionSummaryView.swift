@@ -3,6 +3,7 @@ import SwiftUI
 /// Session-level summary + lesson card shown at the bottom of a session body.
 struct SessionSummaryView: View {
     let summary: SessionSummary?
+    var onTriggerSummary: () -> Void = {}
 
     var body: some View {
         if let summary = summary {
@@ -95,6 +96,14 @@ struct SessionSummaryView: View {
                 Text("Đang tóm tắt phiên…")
                     .font(ReflectionTheme.sans(11))
                     .foregroundColor(ReflectionTheme.mutedText)
+
+                Button(action: onTriggerSummary) {
+                    Text("Tóm tắt phiên ngay")
+                        .font(ReflectionTheme.sans(11, weight: .medium))
+                        .foregroundColor(ReflectionTheme.accent)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)

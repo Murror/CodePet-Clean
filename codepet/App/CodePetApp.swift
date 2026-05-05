@@ -26,6 +26,8 @@ struct CodePetApp: App {
                 .environmentObject(reflectionComposition.narrativeStore)
                 .environmentObject(reflectionComposition.summaryStore)
                 .environmentObject(reflectionComposition.enricher)
+                .environmentObject(reflectionComposition.endStore)
+                .environmentObject(reflectionComposition.sessionEnricher)
                 .frame(minWidth: 400, minHeight: 700)
                 .themed(isDark: appState.isDarkMode)
                 .task { reflectionComposition.start() }

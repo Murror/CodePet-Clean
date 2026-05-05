@@ -6,6 +6,8 @@ struct ReflectionTab: View {
     @EnvironmentObject var narrativeStore: NarrativeStore
     @EnvironmentObject var summaryStore: SessionSummaryStore
     @EnvironmentObject var enricher: NarrativeEnricher
+    @EnvironmentObject var endStore: SessionEndStore
+    @EnvironmentObject var sessionEnricher: SessionSummaryEnricher
 
     @State private var selectedSessionId: String? = nil
     @State private var hoveredSessionId: String? = nil
@@ -83,6 +85,20 @@ struct ReflectionTab: View {
             for session in sessions {
                 for turn in session.turns where turn.state == .summarizing && turn.narrative == nil {
                     Task { await enricher.enrich(turn: turn, petPersona: persona) }
+                }
+            }
+            for session in sessions {
+                if sessionEnricher.shouldAutoSummarize(session: session, endedSessionIds: endStore.endedSessionIds) {
+                    Task { await sessionEnricher.enrich(session: session, petPersona: persona) }
+                }
+            }
+        }
+        .onChange(of: endStore.endedSessionIds) { _ in
+            let sessions = allSessions
+            let persona = currentPetPersona()
+            for session in sessions {
+                if sessionEnricher.shouldAutoSummarize(session: session, endedSessionIds: endStore.endedSessionIds) {
+                    Task { await sessionEnricher.enrich(session: session, petPersona: persona) }
                 }
             }
         }
@@ -315,7 +331,10 @@ struct ReflectionTab: View {
             }
 
             // Session summary card at the bottom
-            SessionSummaryView(summary: session.summary)
+            SessionSummaryView(summary: session.summary) {
+                let persona = currentPetPersona()
+                Task { await sessionEnricher.enrich(session: session, petPersona: persona) }
+            }
         }
     }
 
@@ -400,14 +419,21 @@ struct ReflectionTab: View {
 
 #Preview {
     let summaryStore = SessionSummaryStore()
+    let api = ReflectionAPIClient()
     return ReflectionTab()
         .environmentObject(AppState())
         .environmentObject(ReflectionEventStore())
         .environmentObject(NarrativeStore())
         .environmentObject(summaryStore)
         .environmentObject(NarrativeEnricher(
-            api: ReflectionAPIClient(),
+            api: api,
             store: NarrativeStore(),
+            language: "vi"
+        ))
+        .environmentObject(SessionEndStore())
+        .environmentObject(SessionSummaryEnricher(
+            api: api,
+            store: summaryStore,
             language: "vi"
         ))
         .frame(width: 900, height: 800)

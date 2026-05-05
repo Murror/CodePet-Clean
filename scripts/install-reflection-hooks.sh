@@ -85,12 +85,28 @@ jq -nc \
     >> "$HOME/.codepet/events.jsonl"
 TOOL_EOF
 
-chmod +x "$HOOKS_DIR/log-prompt.sh" "$HOOKS_DIR/log-tool.sh"
+cat > "$HOOKS_DIR/log-session-end.sh" <<'SESSIONEND_EOF'
+#!/bin/bash
+SESSION_ENDS="$HOME/Library/Containers/app.murror.codepet/Data/.codepet/session_ends.jsonl"
+mkdir -p "$(dirname "$SESSION_ENDS")"
+
+INPUT=$(cat)
+SESSION=$(echo "$INPUT" | jq -r '.session_id // empty')
+TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+if [ -z "$SESSION" ]; then exit 0; fi
+
+jq -nc --arg s "$SESSION" --arg t "$TIME" \
+    '{session_id:$s, time:$t}' >> "$SESSION_ENDS"
+SESSIONEND_EOF
+
+chmod +x "$HOOKS_DIR/log-prompt.sh" "$HOOKS_DIR/log-tool.sh" "$HOOKS_DIR/log-session-end.sh"
 
 cat <<'INSTRUCTIONS'
 
 ✓ Hook scripts installed at ~/.codepet/hooks/
 ✓ Events will be appended to ~/.codepet/events.jsonl
+✓ Session ends will be appended to ~/Library/Containers/app.murror.codepet/Data/.codepet/session_ends.jsonl
 
 To activate, paste the following into ~/.claude/settings.json under the
 top-level "hooks" key (merge with any existing hooks you already have):
@@ -106,10 +122,17 @@ top-level "hooks" key (merge with any existing hooks you already have):
       "hooks": [
         { "type": "command", "command": "~/.codepet/hooks/log-tool.sh" }
       ]
+    }],
+    "SessionEnd": [{
+      "hooks": [
+        { "type": "command", "command": "~/.codepet/hooks/log-session-end.sh" }
+      ]
     }]
   }
 
 Restart Claude Code after editing settings.json. Then open CodePet and
 go to the Reflection tab — your decision moments will appear there.
+Session summaries will be auto-generated when sessions go idle (30 min)
+or when Claude Code ends a session.
 
 INSTRUCTIONS

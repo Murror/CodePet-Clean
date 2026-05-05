@@ -21,6 +21,15 @@ final class MockAPIClient: ReflectionAPIClientProtocol {
             cacheHit: false
         )
     }
+
+    func summarizeSession(_ request: SummarizeSessionRequest) async throws -> SummarizeSessionResponse {
+        if let error = error { throw error }
+        return SummarizeSessionResponse(
+            sessionId: request.sessionId,
+            summary: .init(summary: "Mock session summary", lesson: "Mock lesson"),
+            model: "claude-haiku-4-5-20251001"
+        )
+    }
 }
 
 @MainActor

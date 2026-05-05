@@ -106,6 +106,99 @@ export interface CallArgs extends BuildArgs {
   petPersona?: PetPersonaInput;
 }
 
+// MARK: - Session-level types and helpers
+
+export interface TurnInput {
+  prompt: string;
+  what_you_wanted?: string;
+  what_happened?: string;
+  duration_minutes?: number;
+}
+
+export interface SessionSummaryOutput {
+  summary: string;
+  lesson: string;
+}
+
+export const SESSION_SYSTEM_PROMPT = `Bạn đang viết bản TÓM TẮT cho 1 phiên làm việc với AI (gồm nhiều lượt prompt-response).
+Mục tiêu: kể lại ARC của phiên và rút ra 1 BÀI HỌC tổng quát mà ai đọc cũng hiểu, kể cả người không phải dev.
+
+Quy tắc:
+1. summary: 2-4 câu kể lại đường đi của phiên — bắt đầu từ đâu, đi qua những bước nào, kết thúc ở đâu. KHÔNG liệt kê tên file, lệnh CLI.
+2. lesson: 1-2 câu rút ra TỪ ARC của phiên (không phải từ 1 turn riêng lẻ). Bài học phải tổng quát hơn từng turn — về pattern làm việc, cách brainstorm, cách debug, cách quản lý feedback... Nếu phiên không có lesson rõ → trả lesson rỗng "".
+3. Tone: ấm áp, gọn, như đang nói chuyện. Không emoji.
+4. summary ≤500 chars. lesson ≤300 chars.
+<persona_block>
+Ngôn ngữ output: <language>`;
+
+export const SESSION_SUMMARY_TOOL = {
+  name: "record_session_summary",
+  description: "Record the narrative arc + overarching lesson of a coding session.",
+  input_schema: {
+    type: "object",
+    properties: {
+      summary: {
+        type: "string",
+        description: "2-4 sentences describing the arc of the session (≤500 chars)."
+      },
+      lesson: {
+        type: "string",
+        description: "1-2 sentences with an overarching lesson, or empty string (≤300 chars)."
+      }
+    },
+    required: ["summary", "lesson"]
+  }
+} as const;
+
+export interface SessionCallArgs {
+  turns: TurnInput[];
+  language: "vi" | "en";
+  petPersona?: PetPersonaInput;
+}
+
+export function buildSessionUserMessage(turns: TurnInput[]): string {
+  const lines = turns.slice(0, 30).map((t, i) => {
+    const dur = t.duration_minutes ? ` (~${t.duration_minutes}p)` : "";
+    const what = t.what_happened ? `\n   Đã xảy ra: ${t.what_happened.slice(0, 300)}` : "";
+    return `${i + 1}. User hỏi: "${t.prompt.slice(0, 200)}"${dur}${what}`;
+  }).join("\n\n");
+
+  return `Đây là 1 phiên làm việc với AI gồm ${turns.length} lượt:
+
+${lines}
+
+Hãy gọi tool record_session_summary để tóm tắt arc + bài học tổng quát của phiên.`;
+}
+
+export async function callAnthropicSession(
+  client: Anthropic,
+  args: SessionCallArgs
+): Promise<SessionSummaryOutput> {
+  const system = SESSION_SYSTEM_PROMPT
+    .replace("<language>", args.language === "vi" ? "Tiếng Việt" : "English")
+    .replace("<persona_block>", renderPersonaBlock(args.petPersona));
+  const user = buildSessionUserMessage(args.turns);
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 600,
+    system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+    tools: [SESSION_SUMMARY_TOOL as any],
+    tool_choice: { type: "tool", name: "record_session_summary" },
+    messages: [{ role: "user", content: user }]
+  });
+
+  for (const block of response.content) {
+    if (block.type === "tool_use" && block.name === "record_session_summary") {
+      const input = block.input as SessionSummaryOutput;
+      if (typeof input.summary === "string" && typeof input.lesson === "string") {
+        return input;
+      }
+    }
+  }
+  throw new Error("Anthropic response missing valid record_session_summary tool use");
+}
+
 export function renderPersonaBlock(persona: PetPersonaInput | undefined): string {
   if (!persona) return "";
   return PERSONA_BLOCK_TEMPLATE

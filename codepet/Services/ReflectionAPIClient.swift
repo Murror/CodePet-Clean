@@ -79,10 +79,58 @@ struct SummarizeTurnError: Codable, Error {
     }
 }
 
+// MARK: - Session DTOs
+
+struct SummarizeSessionRequest: Codable {
+    let sessionId: String
+    let language: String
+    let turns: [TurnDTO]
+    let petPersona: SummarizeTurnRequest.PetPersonaDTO?
+
+    struct TurnDTO: Codable {
+        let prompt: String
+        let whatYouWanted: String?
+        let whatHappened: String?
+        let durationMinutes: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case prompt
+            case whatYouWanted = "what_you_wanted"
+            case whatHappened = "what_happened"
+            case durationMinutes = "duration_minutes"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case sessionId = "session_id"
+        case language
+        case turns
+        case petPersona = "pet_persona"
+    }
+}
+
+struct SummarizeSessionResponse: Codable {
+    let sessionId: String
+    let summary: SummaryPayload
+    let model: String
+
+    struct SummaryPayload: Codable {
+        let summary: String
+        let lesson: String
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case sessionId = "session_id"
+        case summary
+        case model
+    }
+}
+
 // MARK: - Client
 
 protocol ReflectionAPIClientProtocol {
     func summarizeTurn(_ request: SummarizeTurnRequest) async throws -> SummarizeTurnResponse
+    func summarizeSession(_ request: SummarizeSessionRequest) async throws -> SummarizeSessionResponse
 }
 
 enum ReflectionAPIError: Error {
@@ -97,6 +145,8 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
 
     /// Replace with the deployed Cloud Function URL after Task 10.
     static let endpoint = URL(string: "https://summarizeturn-REPLACE_ME-uc.a.run.app")!
+
+    private static let sessionEndpoint = URL(string: "https://summarizesession-REPLACE_ME-uc.a.run.app")!
 
     private let session: URLSession
 
@@ -133,6 +183,32 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
             } catch {
                 throw ReflectionAPIError.malformedResponse
             }
+        }
+
+        let parsed = try? JSONDecoder().decode(SummarizeTurnError.self, from: data)
+        throw ReflectionAPIError.http(status: http.statusCode, body: parsed)
+    }
+
+    func summarizeSession(_ request: SummarizeSessionRequest) async throws -> SummarizeSessionResponse {
+        guard let user = Auth.auth().currentUser else {
+            throw ReflectionAPIError.notSignedIn
+        }
+        let token: String
+        do { token = try await user.getIDToken() } catch { throw ReflectionAPIError.network(error) }
+
+        var urlRequest = URLRequest(url: Self.sessionEndpoint)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await session.data(for: urlRequest)
+        guard let http = response as? HTTPURLResponse else { throw ReflectionAPIError.malformedResponse }
+
+        if http.statusCode == 200 {
+            do {
+                return try JSONDecoder().decode(SummarizeSessionResponse.self, from: data)
+            } catch { throw ReflectionAPIError.malformedResponse }
         }
 
         let parsed = try? JSONDecoder().decode(SummarizeTurnError.self, from: data)
