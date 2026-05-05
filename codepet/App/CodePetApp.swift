@@ -7,7 +7,7 @@ struct CodePetApp: App {
     @StateObject private var authManager = AuthManager()
     @StateObject private var gameState = GameState()
     @StateObject private var mcpBridge = MCPBridgeService.shared
-    @StateObject private var reflectionStore = ReflectionEventStore()
+    @StateObject private var reflectionComposition = ReflectionComposition()
     private var notificationManager = NotificationManager()
 
     init() {
@@ -22,9 +22,12 @@ struct CodePetApp: App {
                 .environmentObject(authManager)
                 .environmentObject(gameState)
                 .environmentObject(mcpBridge)
-                .environmentObject(reflectionStore)
+                .environmentObject(reflectionComposition.eventStore)
+                .environmentObject(reflectionComposition.narrativeStore)
+                .environmentObject(reflectionComposition.enricher)
                 .frame(minWidth: 400, minHeight: 700)
                 .themed(isDark: appState.isDarkMode)
+                .task { reflectionComposition.start() }
                 .onAppear {
                     notificationManager.requestAuthorization()
                     notificationManager.scheduleDailyReminder(hour: 9, minute: 0)
@@ -37,9 +40,6 @@ struct CodePetApp: App {
                     // Sync real coding XP from MCP server
                     mcpBridge.refresh()
                     appState.syncFromMCP(mcpBridge)
-
-                    // Start watching ~/.codepet/events.jsonl for Claude Code captures
-                    reflectionStore.start()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in
                     // Save game state when app goes to background
