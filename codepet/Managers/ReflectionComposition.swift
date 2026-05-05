@@ -12,7 +12,7 @@ final class ReflectionComposition: ObservableObject {
     let enricher: NarrativeEnricher
     let sessionEnricher: SessionSummaryEnricher
 
-    init(language: String = "vi") {
+    init(language: String = "en") {
         let events = ReflectionEventStore()
         let narratives = NarrativeStore()
         let summaries = SessionSummaryStore()

@@ -9,8 +9,8 @@ struct TurnLoadingStates: View {
         switch state {
         case .pending:
             stateRow(
-                title: "Đang làm…",
-                detail: "Lượt này chưa kết thúc. Câu chuyện sẽ xuất hiện khi Claude xong."
+                title: "Working…",
+                detail: "This turn isn't finished yet. The story will appear once Claude is done."
             )
 
         case .summarizing:
@@ -18,18 +18,18 @@ struct TurnLoadingStates: View {
                 skeletonLine(width: 0.85)
                 skeletonLine(width: 0.7)
                 skeletonLine(width: 0.6)
-                Text("Đang tóm tắt câu chuyện…")
+                Text("Summarizing the story…")
                     .font(ReflectionTheme.sans(11))
                     .foregroundColor(ReflectionTheme.mutedText)
             }
 
         case .ready:
-            EmptyView()  // body shown by NarrativeBodyView
+            EmptyView()  // body shown by NarrativeChatTurnView
 
         case .pendingOrphan:
             stateRow(
-                title: "Phiên chưa hoàn thành",
-                detail: "Lượt này không kết thúc bình thường — có thể Claude Code bị đóng giữa chừng."
+                title: "Session left unfinished",
+                detail: "This turn didn't close normally — Claude Code may have been closed mid-way."
             )
 
         case .failed(let reason):
@@ -62,24 +62,24 @@ struct TurnLoadingStates: View {
         let (title, detail, action): (String, String, () -> Void) = {
             switch reason {
             case .network:
-                return ("Không tóm tắt được câu chuyện",
-                        "Có vẻ mạng đang trục trặc. Bạn có thể thử lại.",
+                return ("Couldn't summarize the story",
+                        "Network seems to be acting up. You can try again.",
                         onRetry)
             case .quota:
-                return ("Hết hạn ngạch hôm nay",
-                        "Bạn đã đạt 50 câu chuyện hôm nay. Reset sau 00:00 UTC.",
+                return ("Daily limit reached",
+                        "You've hit 50 summaries today. Resets at 00:00 UTC.",
                         onRetry)
             case .auth:
-                return ("Cần đăng nhập lại",
-                        "Phiên đăng nhập đã hết hạn.",
+                return ("Sign in again",
+                        "Your sign-in has expired.",
                         onSignIn)
             case .badResponse:
-                return ("Lỗi tóm tắt",
-                        "AI trả về dữ liệu lạ. Bạn có thể thử lại.",
+                return ("Summary error",
+                        "AI returned unexpected data. You can try again.",
                         onRetry)
             case .unknown:
-                return ("Không tóm tắt được",
-                        "Có lỗi không rõ. Bạn có thể thử lại.",
+                return ("Couldn't summarize",
+                        "Something went wrong. You can try again.",
                         onRetry)
             }
         }()
@@ -98,7 +98,7 @@ struct TurnLoadingStates: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             Button(action: action) {
-                Text(reason == .auth ? "Đăng nhập" : "Thử lại")
+                Text(reason == .auth ? "Sign in" : "Try again")
                     .font(ReflectionTheme.sans(12, weight: .semibold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 14)

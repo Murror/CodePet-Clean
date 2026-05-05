@@ -119,11 +119,11 @@ struct ReflectionTab: View {
     private var emptyState: some View {
         VStack(alignment: .center, spacing: 12) {
             Spacer()
-            Text("Chưa có gì để phản tỉnh.")
+            Text("Nothing to reflect on yet.")
                 .font(ReflectionTheme.serif(20, weight: .medium))
                 .foregroundColor(ReflectionTheme.primaryText)
                 .multilineTextAlignment(.center)
-            Text("Mở Claude Code và bắt đầu code — câu chuyện sẽ tự xuất hiện ở đây sau mỗi lượt làm việc.")
+            Text("Open Claude Code and start coding — your story will appear here after each working session.")
                 .font(ReflectionTheme.sans(13))
                 .foregroundColor(ReflectionTheme.mutedText)
                 .multilineTextAlignment(.center)
@@ -150,19 +150,19 @@ struct ReflectionTab: View {
         let weekStart = cal.date(byAdding: .day, value: -6, to: today)!
 
         var bucketed: [String: [Session]] = [
-            "HÔM NAY": [], "HÔM QUA": [], "TUẦN NÀY": [], "CŨ HƠN": []
+            "TODAY": [], "YESTERDAY": [], "THIS WEEK": [], "EARLIER": []
         ]
         for session in allSessions {
             let day = cal.startOfDay(for: session.startedAt)
             let key: String
-            if day == today { key = "HÔM NAY" }
-            else if day == yesterday { key = "HÔM QUA" }
-            else if day >= weekStart { key = "TUẦN NÀY" }
-            else { key = "CŨ HƠN" }
+            if day == today { key = "TODAY" }
+            else if day == yesterday { key = "YESTERDAY" }
+            else if day >= weekStart { key = "THIS WEEK" }
+            else { key = "EARLIER" }
             bucketed[key, default: []].append(session)
         }
 
-        let order = ["HÔM NAY", "HÔM QUA", "TUẦN NÀY", "CŨ HƠN"]
+        let order = ["TODAY", "YESTERDAY", "THIS WEEK", "EARLIER"]
         return order.compactMap { label in
             let sessions = bucketed[label] ?? []
             guard !sessions.isEmpty else { return nil }
@@ -180,17 +180,17 @@ struct ReflectionTab: View {
         // 2. Newest turn narrative title
         let newestTurn = session.turns.last
         if let title = newestTurn?.narrative?.title { return title }
-        // 3. Fallback: "Phiên HH:mm"
-        return "Phiên \(timeDisplay(session.startedAt))"
+        // 3. Fallback: "Session HH:mm"
+        return "Session \(timeDisplay(session.startedAt))"
     }
 
     private func sessionMetaLabel(for session: Session) -> String {
         let turnCount = session.turns.count
-        let turnWord = turnCount == 1 ? "turn" : "turn"
-        var parts = ["Phiên \(timeDisplay(session.startedAt))", "\(turnCount) \(turnWord)"]
+        let turnWord = turnCount == 1 ? "turn" : "turns"
+        var parts = ["Session \(timeDisplay(session.startedAt))", "\(turnCount) \(turnWord)"]
         if let ended = session.endedAt {
             let mins = Int(ended.timeIntervalSince(session.startedAt) / 60)
-            if mins > 0 { parts.append("\(mins) phút") }
+            if mins > 0 { parts.append("\(mins) min") }
         }
         return parts.joined(separator: " · ")
     }
@@ -211,7 +211,7 @@ struct ReflectionTab: View {
                 VStack(alignment: .leading, spacing: 18) {
                     let groups = groupedSessions()
                     if groups.isEmpty {
-                        Text("Chưa có lượt nào.")
+                        Text("No sessions yet.")
                             .font(ReflectionTheme.sans(11))
                             .foregroundColor(ReflectionTheme.mutedText)
                             .padding(.horizontal, 16)
@@ -367,7 +367,7 @@ struct ReflectionTab: View {
                     if let ended = turn.endedAt {
                         Text("·")
                             .foregroundColor(ReflectionTheme.mutedText)
-                        Text("\(Int(ended.timeIntervalSince(turn.startedAt) / 60)) phút")
+                        Text("\(Int(ended.timeIntervalSince(turn.startedAt) / 60)) min")
                             .font(ReflectionTheme.sans(12))
                             .foregroundColor(ReflectionTheme.mutedText)
                     }

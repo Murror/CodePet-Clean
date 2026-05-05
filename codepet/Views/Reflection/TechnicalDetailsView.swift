@@ -13,7 +13,7 @@ struct TechnicalDetailsView: View {
                 HStack(spacing: 6) {
                     Image(systemName: expanded ? "chevron.down" : "chevron.right")
                         .font(.system(size: 10, weight: .medium))
-                    Text("Xem chi tiết kỹ thuật (\(events.count) thao tác)")
+                    Text("View technical details (\(events.count) actions)")
                         .font(ReflectionTheme.sans(11, weight: .medium))
                 }
                 .foregroundColor(ReflectionTheme.mutedText)

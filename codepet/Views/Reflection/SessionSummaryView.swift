@@ -26,7 +26,7 @@ struct SessionSummaryView: View {
                         Image(systemName: "note.text")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(ReflectionTheme.accent)
-                        Text("TÓM TẮT PHIÊN")
+                        Text("SESSION SUMMARY")
                             .font(ReflectionTheme.sans(11, weight: .semibold))
                             .tracking(1.2)
                             .foregroundColor(ReflectionTheme.accent)
@@ -45,7 +45,7 @@ struct SessionSummaryView: View {
                             Image(systemName: "lightbulb.fill")
                                 .font(.system(size: 12, weight: .medium))
                                 .foregroundColor(ReflectionTheme.accent)
-                            Text("BÀI HỌC PHIÊN")
+                            Text("SESSION LESSON")
                                 .font(ReflectionTheme.sans(11, weight: .semibold))
                                 .tracking(1.2)
                                 .foregroundColor(ReflectionTheme.accent)
@@ -93,7 +93,7 @@ struct SessionSummaryView: View {
                 skeletonLine(width: 0.9)
                 skeletonLine(width: 0.75)
                 skeletonLine(width: 0.55)
-                Text("Đang tóm tắt phiên…")
+                Text("Summarizing session…")
                     .font(ReflectionTheme.sans(11))
                     .foregroundColor(ReflectionTheme.mutedText)
 
@@ -101,7 +101,7 @@ struct SessionSummaryView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "sparkle")
                             .font(.system(size: 11, weight: .semibold))
-                        Text("Tóm tắt phiên ngay")
+                        Text("Summarize now")
                             .font(ReflectionTheme.sans(12, weight: .semibold))
                     }
                     .foregroundColor(.white)
