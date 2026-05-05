@@ -98,7 +98,18 @@ export async function handleSummarizeTurn(
     return;
   }
 
-  await putCached(auth.uid, payload.turn_id, { ...narrative, model: MODEL });
+  try {
+    await putCached(auth.uid, payload.turn_id, { ...narrative, model: MODEL });
+  } catch (err) {
+    // Best-effort cache write. Failure here just means the next call for this
+    // turn_id will hit Anthropic again (still idempotent for the user — they
+    // get a narrative either way). Log and proceed.
+    logger.warn("putCached failed; narrative will not be cached", {
+      uid: auth.uid,
+      turn_id: payload.turn_id,
+      err: String(err)
+    });
+  }
 
   res.status(200).json({
     turn_id: payload.turn_id,
