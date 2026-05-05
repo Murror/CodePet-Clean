@@ -178,6 +178,59 @@ final class TurnAssemblerTests: XCTestCase {
         XCTAssertEqual(turns[0].state, .ready)
     }
 
+    func testRawEventIDsAreDeterministicAcrossCalls() {
+        let p = AssemblerInput(
+            kind: .prompt(text: "p"),
+            isoTime: "2026-05-05T09:00:00Z",
+            sessionId: session
+        )
+        let t = AssemblerInput(
+            kind: .tool(text: "Edit"),
+            isoTime: "2026-05-05T09:00:30Z",
+            sessionId: session
+        )
+        let s = AssemblerInput(
+            kind: .summary(text: "done"),
+            isoTime: "2026-05-05T09:01:00Z",
+            sessionId: session
+        )
+
+        let first = TurnAssembler.assemble(inputs: [p, t, s], now: Date(), narratives: [:])
+        let second = TurnAssembler.assemble(inputs: [p, t, s], now: Date(), narratives: [:])
+
+        XCTAssertEqual(first[0].rawEvents[0].id, second[0].rawEvents[0].id,
+                       "Same logical event must get same UUID across calls")
+    }
+
+    func testPromptAtExactly30MinutesIsPending() {
+        let p = AssemblerInput(
+            kind: .prompt(text: "boundary"),
+            isoTime: "2026-05-05T09:00:00Z",
+            sessionId: session
+        )
+        let now = ISO8601DateFormatter().date(from: "2026-05-05T09:30:00Z")!
+
+        let turns = TurnAssembler.assemble(inputs: [p], now: now, narratives: [:])
+
+        XCTAssertEqual(turns.count, 1)
+        XCTAssertEqual(turns[0].state, .pending,
+                       "At exactly 30:00 the prompt is still pending — orphan threshold is strict >30min")
+    }
+
+    func testPromptAtJustOver30MinutesIsOrphan() {
+        let p = AssemblerInput(
+            kind: .prompt(text: "boundary"),
+            isoTime: "2026-05-05T09:00:00Z",
+            sessionId: session
+        )
+        let now = ISO8601DateFormatter().date(from: "2026-05-05T09:30:01Z")!
+
+        let turns = TurnAssembler.assemble(inputs: [p], now: now, narratives: [:])
+
+        XCTAssertEqual(turns.count, 1)
+        XCTAssertEqual(turns[0].state, .pendingOrphan)
+    }
+
     func testInterleavedSessionsKeptSeparate() {
         let pA = AssemblerInput(
             kind: .prompt(text: "A1"),

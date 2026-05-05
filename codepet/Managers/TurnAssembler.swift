@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 /// Input to the assembler. Source events from `events.jsonl` and `narratives.jsonl`
 /// are converted to this shape before assembly so the assembler stays pure.
@@ -113,7 +114,10 @@ enum TurnAssembler {
            case .prompt(let text) = prompt.kind,
            let started = isoFormatter.date(from: prompt.isoTime) {
             let age = now.timeIntervalSince(started)
-            let state: TurnState = age > 30 * 60 ? .pendingOrphan : .pending
+            // Spec: trailing prompts older than 30 minutes (wall clock) become orphans.
+            // Threshold is strict — exactly 30:00 stays pending; >30:00 becomes orphan.
+            let orphanThreshold: TimeInterval = 30 * 60
+            let state: TurnState = age > orphanThreshold ? .pendingOrphan : .pending
             turns.append(makeTurn(
                 prompt: text,
                 started: started,
@@ -157,7 +161,9 @@ enum TurnAssembler {
             let displayTime = displayHHmm(input.isoTime)
             let text: String
             if case .tool(let t) = input.kind { text = t } else { text = "" }
+            let seed = "\(sessionId)|\(input.isoTime)|\(text)"
             return CapturedEvent(
+                id: deterministicID(seed: seed),
                 time: displayTime,
                 source: .claudeCode,
                 text: text,
@@ -175,6 +181,17 @@ enum TurnAssembler {
             narrative: narrative,
             state: state
         )
+    }
+
+    private static func deterministicID(seed: String) -> UUID {
+        let digest = SHA256.hash(data: Data(seed.utf8))
+        let bytes = Array(digest.prefix(16))
+        return UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3],
+            bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11],
+            bytes[12], bytes[13], bytes[14], bytes[15]
+        ))
     }
 
     private static func displayHHmm(_ iso: String) -> String {
