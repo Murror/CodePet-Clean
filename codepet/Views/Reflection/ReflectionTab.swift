@@ -4,10 +4,11 @@ struct ReflectionTab: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var reflectionStore: ReflectionEventStore
     @EnvironmentObject var narrativeStore: NarrativeStore
+    @EnvironmentObject var summaryStore: SessionSummaryStore
     @EnvironmentObject var enricher: NarrativeEnricher
 
-    @State private var selectedTurnId: String? = nil
-    @State private var hoveredTurnId: String? = nil
+    @State private var selectedSessionId: String? = nil
+    @State private var hoveredSessionId: String? = nil
 
     // MARK: - Pet name
 
@@ -15,7 +16,7 @@ struct ReflectionTab: View {
         PetCharacter.all[appState.activeChar]?.name ?? ReflectionPet.name
     }
 
-    // MARK: - Turn assembly from raw JSONL events (Step 4: clean version using rawJSONLEvents)
+    // MARK: - Turn + Session assembly
 
     private var allTurns: [Turn] {
         let inputs: [AssemblerInput] = reflectionStore.rawJSONLEvents.compactMap { entry in
@@ -36,9 +37,16 @@ struct ReflectionTab: View {
         )
     }
 
-    private var selectedTurn: Turn? {
-        guard let id = selectedTurnId else { return allTurns.first }
-        return allTurns.first(where: { $0.id == id }) ?? allTurns.first
+    private var allSessions: [Session] {
+        TurnAssembler.assembleSessions(
+            turns: allTurns,
+            summaries: summaryStore.summaries
+        )
+    }
+
+    private var selectedSession: Session? {
+        guard let id = selectedSessionId else { return allSessions.first }
+        return allSessions.first(where: { $0.id == id }) ?? allSessions.first
     }
 
     // MARK: - Body
@@ -52,11 +60,11 @@ struct ReflectionTab: View {
                 .background(ReflectionTheme.borderLight)
 
             Group {
-                if let turn = selectedTurn {
+                if let session = selectedSession {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 36) {
-                            petHeader(for: turn)
-                            turnBody(for: turn)
+                            petHeader(for: session)
+                            sessionBody(for: session)
                             footer
                         }
                         .padding(.horizontal, 40)
@@ -70,10 +78,12 @@ struct ReflectionTab: View {
             .frame(maxWidth: .infinity)
         }
         .background(ReflectionTheme.background)
-        .onChange(of: allTurns) { turns in
+        .onChange(of: allSessions) { sessions in
             let persona = currentPetPersona()
-            for turn in turns where turn.state == .summarizing && turn.narrative == nil {
-                Task { await enricher.enrich(turn: turn, petPersona: persona) }
+            for session in sessions {
+                for turn in session.turns where turn.state == .summarizing && turn.narrative == nil {
+                    Task { await enricher.enrich(turn: turn, petPersona: persona) }
+                }
             }
         }
     }
@@ -110,66 +120,63 @@ struct ReflectionTab: View {
 
     // MARK: - Sidebar
 
-    private struct SessionBucket: Identifiable {
-        let sessionId: String
-        let startedAt: Date
-        let turns: [Turn]
-        var id: String { sessionId }
-    }
-
-    private struct TurnGroup {
+    private struct DayGroup: Identifiable {
         let label: String
-        let sessions: [SessionBucket]
+        let sessions: [Session]
+        var id: String { label }
     }
 
-    /// Group turns by day, then by session within day. Sessions sorted by their
-    /// most recent turn descending (newest activity first).
-    private func groupedTurns() -> [TurnGroup] {
+    /// Group sessions into day buckets. Sessions sorted newest-first within each bucket.
+    private func groupedSessions() -> [DayGroup] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
         let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
         let weekStart = cal.date(byAdding: .day, value: -6, to: today)!
 
-        var bucketed: [String: [Turn]] = [
+        var bucketed: [String: [Session]] = [
             "HÔM NAY": [], "HÔM QUA": [], "TUẦN NÀY": [], "CŨ HƠN": []
         ]
-        for turn in allTurns {
-            let day = cal.startOfDay(for: turn.startedAt)
+        for session in allSessions {
+            let day = cal.startOfDay(for: session.startedAt)
             let key: String
             if day == today { key = "HÔM NAY" }
             else if day == yesterday { key = "HÔM QUA" }
             else if day >= weekStart { key = "TUẦN NÀY" }
             else { key = "CŨ HƠN" }
-            bucketed[key, default: []].append(turn)
+            bucketed[key, default: []].append(session)
         }
 
         let order = ["HÔM NAY", "HÔM QUA", "TUẦN NÀY", "CŨ HƠN"]
-        var groups: [TurnGroup] = []
-        for label in order {
-            let turns = bucketed[label] ?? []
-            guard !turns.isEmpty else { continue }
-            let sessions = sessionsFromTurns(turns)
-            groups.append(.init(label: label, sessions: sessions))
+        return order.compactMap { label in
+            let sessions = bucketed[label] ?? []
+            guard !sessions.isEmpty else { return nil }
+            return DayGroup(label: label, sessions: sessions)
         }
-        return groups
     }
 
-    private func sessionsFromTurns(_ turns: [Turn]) -> [SessionBucket] {
-        var bySession: [String: [Turn]] = [:]
-        for turn in turns { bySession[turn.sessionId, default: []].append(turn) }
-        return bySession.map { sessionId, turns in
-            let sortedTurns = turns.sorted { $0.startedAt > $1.startedAt }
-            let earliest = turns.map { $0.startedAt }.min() ?? Date()
-            return SessionBucket(sessionId: sessionId, startedAt: earliest, turns: sortedTurns)
+    private func sessionRowTitle(for session: Session) -> String {
+        // 1. First sentence of summary (≤60 chars)
+        if let summaryText = session.summary?.summary {
+            let firstSentence = summaryText.components(separatedBy: ".").first?.trimmingCharacters(in: .whitespaces) ?? summaryText
+            let truncated = String(firstSentence.prefix(60))
+            if !truncated.isEmpty { return truncated }
         }
-        .sorted { ($0.turns.first?.startedAt ?? .distantPast) > ($1.turns.first?.startedAt ?? .distantPast) }
+        // 2. Newest turn narrative title
+        let newestTurn = session.turns.last
+        if let title = newestTurn?.narrative?.title { return title }
+        // 3. Fallback: "Phiên HH:mm"
+        return "Phiên \(timeDisplay(session.startedAt))"
     }
 
-    private func sessionLabel(_ bucket: SessionBucket) -> String {
-        let f = DateFormatter()
-        f.dateFormat = "HH:mm"
-        let start = f.string(from: bucket.startedAt)
-        return "Phiên \(start) · \(bucket.turns.count) turn"
+    private func sessionMetaLabel(for session: Session) -> String {
+        let turnCount = session.turns.count
+        let turnWord = turnCount == 1 ? "turn" : "turn"
+        var parts = ["Phiên \(timeDisplay(session.startedAt))", "\(turnCount) \(turnWord)"]
+        if let ended = session.endedAt {
+            let mins = Int(ended.timeIntervalSince(session.startedAt) / 60)
+            if mins > 0 { parts.append("\(mins) phút") }
+        }
+        return parts.joined(separator: " · ")
     }
 
     private var sessionsSidebar: some View {
@@ -186,7 +193,7 @@ struct ReflectionTab: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    let groups = groupedTurns()
+                    let groups = groupedSessions()
                     if groups.isEmpty {
                         Text("Chưa có lượt nào.")
                             .font(ReflectionTheme.sans(11))
@@ -194,7 +201,7 @@ struct ReflectionTab: View {
                             .padding(.horizontal, 16)
                             .padding(.top, 4)
                     }
-                    ForEach(groups, id: \.label) { group in
+                    ForEach(groups) { group in
                         VStack(alignment: .leading, spacing: 10) {
                             Text(group.label)
                                 .font(ReflectionTheme.sans(10, weight: .semibold))
@@ -203,18 +210,8 @@ struct ReflectionTab: View {
                                 .padding(.horizontal, 16)
                                 .padding(.bottom, 2)
 
-                            ForEach(group.sessions) { bucket in
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(sessionLabel(bucket))
-                                        .font(ReflectionTheme.sans(10, weight: .medium))
-                                        .foregroundColor(ReflectionTheme.mutedText.opacity(0.85))
-                                        .padding(.horizontal, 20)
-                                        .padding(.top, 2)
-                                        .padding(.bottom, 2)
-                                    ForEach(bucket.turns) { turn in
-                                        sidebarRow(turn)
-                                    }
-                                }
+                            ForEach(group.sessions) { session in
+                                sidebarSessionRow(session)
                             }
                         }
                     }
@@ -226,27 +223,27 @@ struct ReflectionTab: View {
         .background(Color(red: 0xFD / 255.0, green: 0xFC / 255.0, blue: 0xF8 / 255.0))
     }
 
-    private func sidebarRow(_ turn: Turn) -> some View {
-        let isSelected = turn.id == selectedTurnId
-        let isHovered = turn.id == hoveredTurnId
+    private func sidebarSessionRow(_ session: Session) -> some View {
+        let isSelected = session.id == selectedSessionId
+        let isHovered = session.id == hoveredSessionId
         return Button {
-            selectedTurnId = turn.id
+            selectedSessionId = session.id
         } label: {
             HStack(alignment: .top, spacing: 10) {
                 Circle()
-                    .fill(stateColor(turn.state))
+                    .fill(sessionStateColor(session))
                     .frame(width: 6, height: 6)
                     .padding(.top, 7)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(sidebarTitle(for: turn))
+                    Text(sessionRowTitle(for: session))
                         .font(ReflectionTheme.sans(12.5, weight: isSelected ? .semibold : .regular))
                         .foregroundColor(ReflectionTheme.primaryText)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    Text(timeDisplay(turn.startedAt))
+                    Text(sessionMetaLabel(for: session))
                         .font(ReflectionTheme.sans(10.5))
                         .foregroundColor(ReflectionTheme.mutedText)
                 }
@@ -271,38 +268,32 @@ struct ReflectionTab: View {
             .padding(.horizontal, 8)
         }
         .buttonStyle(.plain)
-        .onHover { hoveredTurnId = $0 ? turn.id : nil }
+        .onHover { hoveredSessionId = $0 ? session.id : nil }
     }
 
-    private func sidebarTitle(for turn: Turn) -> String {
-        if let title = turn.narrative?.title { return title }
-        switch turn.state {
-        case .pending, .summarizing: return "Đang tóm tắt…"
-        case .pendingOrphan:         return "Phiên chưa hoàn thành"
-        case .failed:                return "Không tóm tắt được"
-        case .ready:                 return turn.prompt
+    /// Color represents the "worst" state among the session's turns.
+    private func sessionStateColor(_ session: Session) -> Color {
+        let hasFailed = session.turns.contains {
+            if case .failed = $0.state { return true }
+            return false
         }
+        if hasFailed { return ReflectionTheme.moodAlert }
+        let hasSummarizing = session.turns.contains { $0.state == .summarizing || $0.state == .pending }
+        if hasSummarizing { return ReflectionTheme.accent }
+        return ReflectionTheme.moodCalm
     }
 
-    private func stateColor(_ state: TurnState) -> Color {
-        switch state {
-        case .ready:                    return ReflectionTheme.moodCalm
-        case .summarizing, .pending:    return ReflectionTheme.accent
-        case .failed:                   return ReflectionTheme.moodAlert
-        case .pendingOrphan:            return ReflectionTheme.mutedText
-        }
-    }
+    // MARK: - Pet header (session level)
 
-    // MARK: - Pet header
-
-    private func petHeader(for turn: Turn) -> some View {
+    @ViewBuilder
+    private func petHeader(for session: Session) -> some View {
         HStack(alignment: .center, spacing: 14) {
             PetAvatar(mood: .calm, size: 96)
             VStack(alignment: .leading, spacing: 8) {
                 Text(petName)
                     .font(ReflectionTheme.serif(22, weight: .medium))
                     .foregroundColor(ReflectionTheme.primaryText)
-                Text(dateDisplay(turn.startedAt))
+                Text(dateDisplay(session.startedAt))
                     .font(ReflectionTheme.sans(12))
                     .foregroundColor(ReflectionTheme.mutedText)
             }
@@ -310,16 +301,44 @@ struct ReflectionTab: View {
         }
     }
 
-    // MARK: - Turn body
+    // MARK: - Session body
 
     @ViewBuilder
-    private func turnBody(for turn: Turn) -> some View {
+    private func sessionBody(for session: Session) -> some View {
         VStack(alignment: .leading, spacing: 28) {
-            // Title + duration
-            VStack(alignment: .leading, spacing: 8) {
+            // Session header strip
+            sessionHeaderStrip(for: session)
+
+            // Per-turn rendering (chronological, oldest first)
+            ForEach(session.turns) { turn in
+                turnSection(for: turn)
+            }
+
+            // Session summary card at the bottom
+            SessionSummaryView(summary: session.summary)
+        }
+    }
+
+    private func sessionHeaderStrip(for session: Session) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(sessionMetaLabel(for: session))
+                .font(ReflectionTheme.sans(13, weight: .medium))
+                .foregroundColor(ReflectionTheme.primaryText)
+            Rectangle()
+                .fill(ReflectionTheme.borderLight)
+                .frame(maxWidth: .infinity)
+                .frame(height: 1)
+        }
+    }
+
+    @ViewBuilder
+    private func turnSection(for turn: Turn) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Turn title + time metadata
+            VStack(alignment: .leading, spacing: 6) {
                 if let title = turn.narrative?.title {
                     Text(title)
-                        .font(ReflectionTheme.serif(22, weight: .medium))
+                        .font(ReflectionTheme.serif(18, weight: .medium))
                         .foregroundColor(ReflectionTheme.primaryText)
                 }
                 HStack(spacing: 6) {
@@ -336,9 +355,9 @@ struct ReflectionTab: View {
                 }
             }
 
-            // Narrative or loading state
+            // Narrative chat view or loading state
             if let narrative = turn.narrative {
-                NarrativeChatView(narrative: narrative)
+                NarrativeChatTurnView(narrative: narrative)
             } else {
                 TurnLoadingStates(state: turn.state, onRetry: {
                     let persona = currentPetPersona()
@@ -380,10 +399,12 @@ struct ReflectionTab: View {
 }
 
 #Preview {
-    ReflectionTab()
+    let summaryStore = SessionSummaryStore()
+    return ReflectionTab()
         .environmentObject(AppState())
         .environmentObject(ReflectionEventStore())
         .environmentObject(NarrativeStore())
+        .environmentObject(summaryStore)
         .environmentObject(NarrativeEnricher(
             api: ReflectionAPIClient(),
             store: NarrativeStore(),

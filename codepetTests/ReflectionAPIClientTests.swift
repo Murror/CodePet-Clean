@@ -12,7 +12,8 @@ final class ReflectionAPIClientTests: XCTestCase {
             events: [
                 .init(time: "09:00", tool: "Edit", path: "foo.swift", text: nil)
             ],
-            rawSummary: "Edit foo.swift"
+            rawSummary: "Edit foo.swift",
+            petPersona: nil
         )
         let data = try JSONEncoder().encode(payload)
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]

@@ -201,3 +201,28 @@ enum TurnAssembler {
         return f.string(from: date)
     }
 }
+
+extension TurnAssembler {
+    /// Group turns into Sessions. Each session sorted oldest-first internally.
+    /// Sessions sorted by their newest turn's startedAt descending.
+    static func assembleSessions(
+        turns: [Turn],
+        summaries: [String: SessionSummary]
+    ) -> [Session] {
+        var bySession: [String: [Turn]] = [:]
+        for turn in turns { bySession[turn.sessionId, default: []].append(turn) }
+        return bySession.map { sessionId, sessionTurns in
+            let chronological = sessionTurns.sorted { $0.startedAt < $1.startedAt }
+            let earliest = chronological.first?.startedAt ?? Date()
+            let latestEnded = chronological.compactMap { $0.endedAt }.max()
+            return Session(
+                id: sessionId,
+                turns: chronological,
+                startedAt: earliest,
+                endedAt: latestEnded,
+                summary: summaries[sessionId]
+            )
+        }
+        .sorted { ($0.turns.last?.startedAt ?? .distantPast) > ($1.turns.last?.startedAt ?? .distantPast) }
+    }
+}

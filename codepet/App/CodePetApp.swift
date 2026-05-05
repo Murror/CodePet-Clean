@@ -24,6 +24,7 @@ struct CodePetApp: App {
                 .environmentObject(mcpBridge)
                 .environmentObject(reflectionComposition.eventStore)
                 .environmentObject(reflectionComposition.narrativeStore)
+                .environmentObject(reflectionComposition.summaryStore)
                 .environmentObject(reflectionComposition.enricher)
                 .frame(minWidth: 400, minHeight: 700)
                 .themed(isDark: appState.isDarkMode)

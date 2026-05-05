@@ -1,5 +1,32 @@
 import Foundation
 
+struct SessionSummary: Codable, Hashable {
+    let sessionId: String
+    let summary: String       // ≤500 chars — narrative arc of the session
+    let lesson: String        // ≤300 chars — overarching takeaway
+    let generatedAt: Date
+    let model: String
+    let schemaVersion: Int
+
+    enum CodingKeys: String, CodingKey {
+        case sessionId = "session_id"
+        case summary
+        case lesson
+        case generatedAt = "generated_at"
+        case model
+        case schemaVersion = "schema_version"
+    }
+}
+
+/// Session = N turns + optional summary. Pure aggregation, no I/O.
+struct Session: Identifiable, Hashable {
+    let id: String              // sessionId
+    let turns: [Turn]           // sorted oldest-first (chronological reading)
+    let startedAt: Date
+    let endedAt: Date?
+    let summary: SessionSummary?
+}
+
 struct Narrative: Codable, Hashable {
     let title: String          // ≤60 chars
     let whatYouWanted: String  // ≤240 chars

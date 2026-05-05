@@ -231,6 +231,66 @@ final class TurnAssemblerTests: XCTestCase {
         XCTAssertEqual(turns[0].state, .pendingOrphan)
     }
 
+    // MARK: - Session assembler tests
+
+    func testAssembleSessionsGroupsTurnsBySessionId() {
+        let pA = AssemblerInput(kind: .prompt(text: "A1"), isoTime: "2026-05-05T09:00:00Z", sessionId: "A")
+        let sA = AssemblerInput(kind: .summary(text: "A done"), isoTime: "2026-05-05T09:05:00Z", sessionId: "A")
+        let pB1 = AssemblerInput(kind: .prompt(text: "B1"), isoTime: "2026-05-05T09:01:00Z", sessionId: "B")
+        let sB1 = AssemblerInput(kind: .summary(text: "B1 done"), isoTime: "2026-05-05T09:06:00Z", sessionId: "B")
+        let pB2 = AssemblerInput(kind: .prompt(text: "B2"), isoTime: "2026-05-05T09:10:00Z", sessionId: "B")
+        let sB2 = AssemblerInput(kind: .summary(text: "B2 done"), isoTime: "2026-05-05T09:15:00Z", sessionId: "B")
+
+        let turns = TurnAssembler.assemble(
+            inputs: [pA, sA, pB1, sB1, pB2, sB2],
+            now: Date(),
+            narratives: [:]
+        )
+        let sessions = TurnAssembler.assembleSessions(turns: turns, summaries: [:])
+
+        XCTAssertEqual(sessions.count, 2, "Should produce exactly 2 sessions")
+
+        let sessionIds = Set(sessions.map { $0.id })
+        XCTAssertEqual(sessionIds, ["A", "B"])
+
+        let sessionB = sessions.first(where: { $0.id == "B" })!
+        XCTAssertEqual(sessionB.turns.count, 2, "Session B should have 2 turns")
+
+        // Turns within session B should be sorted oldest-first
+        XCTAssertLessThan(sessionB.turns[0].startedAt, sessionB.turns[1].startedAt,
+                          "Turns inside session should be sorted oldest-first")
+
+        // Sessions sorted newest-first by their last turn's startedAt
+        // Session B's newest turn is at 09:10 vs Session A's only turn at 09:00
+        XCTAssertEqual(sessions[0].id, "B", "Session with more recent activity should sort first")
+    }
+
+    func testAssembleSessionsAttachesSummary() {
+        let p = AssemblerInput(kind: .prompt(text: "do stuff"), isoTime: "2026-05-05T09:00:00Z", sessionId: "S1")
+        let s = AssemblerInput(kind: .summary(text: "done"), isoTime: "2026-05-05T09:05:00Z", sessionId: "S1")
+
+        let turns = TurnAssembler.assemble(inputs: [p, s], now: Date(), narratives: [:])
+
+        let mockSummary = SessionSummary(
+            sessionId: "S1",
+            summary: "Session S1 summary",
+            lesson: "Key lesson",
+            generatedAt: Date(),
+            model: "claude-haiku",
+            schemaVersion: 1
+        )
+        let sessions = TurnAssembler.assembleSessions(turns: turns, summaries: ["S1": mockSummary])
+
+        XCTAssertEqual(sessions.count, 1)
+        XCTAssertNotNil(sessions[0].summary, "Summary should be attached to session")
+        XCTAssertEqual(sessions[0].summary?.summary, "Session S1 summary")
+        XCTAssertEqual(sessions[0].summary?.lesson, "Key lesson")
+
+        // Session without summary should have nil
+        let sessionsNoSummary = TurnAssembler.assembleSessions(turns: turns, summaries: [:])
+        XCTAssertNil(sessionsNoSummary[0].summary, "Session without matching summary should have nil")
+    }
+
     func testInterleavedSessionsKeptSeparate() {
         let pA = AssemblerInput(
             kind: .prompt(text: "A1"),

@@ -1,10 +1,10 @@
 import SwiftUI
 
-/// Chat-style render for a Turn's Narrative.
+/// Chat-style render for ONE Turn's Narrative.
 /// - User bubble (right, pet avatar) shows the rephrased intent.
-/// - AI bubble (left, sparkles avatar) shows what was accomplished.
-/// - Lesson is a separate accent card below the AI bubble.
-struct NarrativeChatView: View {
+/// - AI bubble (left, sparkles avatar) shows what was accomplished (educational explanation).
+/// - NO lesson card — lesson is now session-level, shown in SessionSummaryView.
+struct NarrativeChatTurnView: View {
     @EnvironmentObject var appState: AppState
     let narrative: Narrative
 
@@ -16,9 +16,6 @@ struct NarrativeChatView: View {
         VStack(alignment: .leading, spacing: 18) {
             userBubble
             aiBubble
-            if !narrative.lesson.isEmpty {
-                lessonCard
-            }
         }
     }
 
@@ -115,40 +112,5 @@ struct NarrativeChatView: View {
                 )
         }
         .frame(width: size, height: size)
-    }
-
-    // MARK: Lesson card
-
-    private var lessonCard: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Spacer(minLength: 46)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    Image(systemName: "lightbulb.fill")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(ReflectionTheme.accent)
-                    Text("BÀI HỌC")
-                        .font(ReflectionTheme.sans(10, weight: .semibold))
-                        .tracking(1.2)
-                        .foregroundColor(ReflectionTheme.accent)
-                }
-                Text(narrative.lesson)
-                    .font(ReflectionTheme.serif(14, weight: .medium))
-                    .italic()
-                    .foregroundColor(ReflectionTheme.primaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(14)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(ReflectionTheme.accent.opacity(0.08))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(ReflectionTheme.accent.opacity(0.25), lineWidth: 1)
-            )
-            Spacer(minLength: 0)
-        }
     }
 }
