@@ -98,12 +98,22 @@ struct SessionSummaryView: View {
                     .foregroundColor(ReflectionTheme.mutedText)
 
                 Button(action: onTriggerSummary) {
-                    Text("Tóm tắt phiên ngay")
-                        .font(ReflectionTheme.sans(11, weight: .medium))
-                        .foregroundColor(ReflectionTheme.accent)
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkle")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Tóm tắt phiên ngay")
+                            .font(ReflectionTheme.sans(12, weight: .semibold))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(ReflectionTheme.accent)
+                    )
                 }
                 .buttonStyle(.plain)
-                .padding(.top, 4)
+                .padding(.top, 8)
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)

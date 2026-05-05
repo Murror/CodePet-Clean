@@ -333,14 +333,18 @@ enum ReflectionMockSeeder {
             schemaVersion: 1
         ))
 
-        composition.summaryStore.seedMockSummary(SessionSummary(
-            sessionId: "mock-yesterday",
-            summary: "Phiên chiều hôm qua 25 phút brainstorm thiết kế hệ thống Reflection từ đầu. 5 quyết định kiến trúc lớn: granularity (per-turn), nguồn dữ liệu (app gọi Claude API qua Firebase proxy), timing (auto-summarize), format hiển thị (3 phần narrative), và mức chi tiết mặc định (ẩn raw events).",
-            lesson: "Brainstorm kiến trúc hiệu quả nhất khi liệt kê các QUYẾT ĐỊNH cần ra, không phải các tính năng muốn có. Mỗi quyết định nên có lý do rõ — nếu không giải thích được tại sao, đó là dấu hiệu quyết định chưa đủ chín, cần nghĩ thêm trước khi code.",
-            generatedAt: yesterday16_22.addingTimeInterval(8 * 60),
-            model: "claude-haiku-4-5-20251001",
-            schemaVersion: 1
-        ))
+        // Intentionally NOT seeding summary for mock-yesterday — so the
+        // "Đang tóm tắt phiên..." placeholder + "Tóm tắt phiên ngay" manual
+        // button are visible when you click that session.
+        // Uncomment to restore:
+        // composition.summaryStore.seedMockSummary(SessionSummary(
+        //     sessionId: "mock-yesterday",
+        //     summary: "Phiên chiều hôm qua 25 phút brainstorm thiết kế hệ thống Reflection từ đầu...",
+        //     lesson: "Brainstorm kiến trúc hiệu quả nhất khi liệt kê các QUYẾT ĐỊNH cần ra...",
+        //     generatedAt: yesterday16_22.addingTimeInterval(8 * 60),
+        //     model: "claude-haiku-4-5-20251001",
+        //     schemaVersion: 1
+        // ))
     }
 
     // MARK: - Helpers
