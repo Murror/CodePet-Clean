@@ -47,6 +47,9 @@ fastlane/test_output
 # Claude internal
 .claude/
 
+# Git worktrees (project-local isolated workspaces)
+.worktrees/
+
 # Cursor / IDE
 .cursor/
 
