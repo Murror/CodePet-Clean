@@ -2,14 +2,28 @@ import SwiftUI
 
 /// Chat-style render for ONE Turn's Narrative.
 /// - User bubble (right, pet avatar) shows the rephrased intent.
-/// - AI bubble (left, sparkles avatar) shows what was accomplished (educational explanation).
-/// - NO lesson card — lesson is now session-level, shown in SessionSummaryView.
+/// - AI bubble (left, claude avatar) shows what was accomplished (educational explanation).
+/// - Both avatars use playful gamification animations:
+///     pet  → bounce, glow ring, head tilt
+///     ai   → fast spin, pulsing glow, orbiting sparkles
+///   Bubbles spring-in on first appear.
 struct NarrativeChatTurnView: View {
     @EnvironmentObject var appState: AppState
     let narrative: Narrative
 
-    @State private var isBreathing = false
+    // Pet animation tracks
+    @State private var petBounce = false
+    @State private var petTilt = false
+    @State private var petGlow: CGFloat = 0
+    @State private var petWiggleTrigger = false
+
+    // AI animation tracks
     @State private var aiRotation: Double = 0
+    @State private var aiPulse: CGFloat = 0
+    @State private var sparkleAngle: Double = 0
+
+    // Bubble entry animation
+    @State private var didAppear = false
 
     private var pet: PetCharacter? {
         PetCharacter.all[appState.activeChar]
@@ -18,15 +32,54 @@ struct NarrativeChatTurnView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             userBubble
+                .scaleEffect(didAppear ? 1.0 : 0.6)
+                .opacity(didAppear ? 1.0 : 0.0)
             aiBubble
+                .scaleEffect(didAppear ? 1.0 : 0.6)
+                .opacity(didAppear ? 1.0 : 0.0)
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
-                isBreathing = true
+        .onAppear { startAnimations() }
+    }
+
+    private func startAnimations() {
+        // Spring-in entrance
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.65).delay(0.05)) {
+            didAppear = true
+        }
+
+        // Pet bounce — bigger, springier
+        withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+            petBounce = true
+        }
+        // Pet head tilt
+        withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
+            petTilt = true
+        }
+        // Pet glow ring pulse
+        withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+            petGlow = 1.0
+        }
+        // Periodic excited wiggle every ~6s
+        Task { @MainActor in
+            while true {
+                try? await Task.sleep(nanoseconds: 6_000_000_000)
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.4).repeatCount(2, autoreverses: true)) {
+                    petWiggleTrigger.toggle()
+                }
             }
-            withAnimation(.linear(duration: 12).repeatForever(autoreverses: false)) {
-                aiRotation = 360
-            }
+        }
+
+        // AI spin — faster, more obvious
+        withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
+            aiRotation = 360
+        }
+        // AI pulse glow
+        withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+            aiPulse = 1.0
+        }
+        // Sparkle orbit
+        withAnimation(.linear(duration: 4).repeatForever(autoreverses: false)) {
+            sparkleAngle = 360
         }
     }
 
@@ -53,38 +106,61 @@ struct NarrativeChatTurnView: View {
                             .fill(ReflectionTheme.accent)
                     )
             }
-            petAvatar(size: 36)
+            petAvatar(size: 44)
         }
     }
 
     private func petAvatar(size: CGFloat) -> some View {
-        Group {
+        ZStack {
+            // Outer pulsing glow ring
             if let pet = pet {
+                Circle()
+                    .stroke(pet.color.opacity(0.4), lineWidth: 2)
+                    .scaleEffect(1.0 + petGlow * 0.35)
+                    .opacity(1.0 - petGlow * 0.85)
+                    .frame(width: size, height: size)
+
+                // Inner soft halo
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [pet.color.opacity(0.35), pet.color.opacity(0.0)],
+                            center: .center,
+                            startRadius: size * 0.25,
+                            endRadius: size * 0.7
+                        )
+                    )
+                    .scaleEffect(1.0 + petGlow * 0.25)
+                    .frame(width: size * 1.4, height: size * 1.4)
+
+                // Pet sprite with bounce + tilt + wiggle
                 Image(pet.imageName)
                     .resizable()
                     .interpolation(.none)
                     .scaledToFit()
                     .frame(width: size, height: size)
-                    .background(
-                        Circle().fill(pet.color.opacity(0.18))
-                    )
+                    .background(Circle().fill(pet.color.opacity(0.22)))
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(pet.color.opacity(0.6), lineWidth: 1.5))
-                    .scaleEffect(isBreathing ? 1.04 : 0.96)
-                    .offset(y: isBreathing ? -1 : 1)
+                    .overlay(Circle().stroke(pet.color.opacity(0.7), lineWidth: 2))
+                    .scaleEffect(petBounce ? 1.08 : 0.92)
+                    .offset(y: petBounce ? -3 : 3)
+                    .rotationEffect(.degrees(petTilt ? 4 : -4))
+                    .rotationEffect(.degrees(petWiggleTrigger ? 12 : -12))
+                    .shadow(color: pet.color.opacity(0.45), radius: 6, x: 0, y: 3)
             } else {
                 Circle()
                     .fill(ReflectionTheme.accent.opacity(0.2))
                     .frame(width: size, height: size)
             }
         }
+        .frame(width: size, height: size)
     }
 
-    // MARK: AI-side (left) — sparkles avatar
+    // MARK: AI-side (left) — claude avatar with sparkles
 
     private var aiBubble: some View {
         HStack(alignment: .bottom, spacing: 10) {
-            aiAvatar(size: 36)
+            aiAvatar(size: 44)
             VStack(alignment: .leading, spacing: 4) {
                 Text("AI")
                     .font(ReflectionTheme.sans(10, weight: .semibold))
@@ -110,16 +186,55 @@ struct NarrativeChatTurnView: View {
     }
 
     private func aiAvatar(size: CGFloat) -> some View {
-        ZStack {
+        let claudeOrange = Color(red: 0xE3/255.0, green: 0x70/255.0, blue: 0x55/255.0)
+        let claudeCream = Color(red: 0xFD/255.0, green: 0xF6/255.0, blue: 0xF1/255.0)
+
+        return ZStack {
+            // Outer pulsing glow
             Circle()
-                .fill(Color(red: 0xFD/255.0, green: 0xF6/255.0, blue: 0xF1/255.0))
-                .overlay(Circle().stroke(Color(red: 0xE3/255.0, green: 0x9A/255.0, blue: 0x7B/255.0).opacity(0.4), lineWidth: 1))
+                .fill(claudeOrange.opacity(0.25))
+                .scaleEffect(1.0 + aiPulse * 0.5)
+                .opacity(1.0 - aiPulse * 0.7)
+                .frame(width: size, height: size)
+
+            // Background circle
+            Circle()
+                .fill(claudeCream)
+                .overlay(Circle().stroke(claudeOrange.opacity(0.5), lineWidth: 1.5))
+                .frame(width: size, height: size)
+                .shadow(color: claudeOrange.opacity(0.4), radius: 5, x: 0, y: 2)
+
+            // Spinning starburst icon
             Image("claude-icon")
                 .resizable()
                 .scaledToFit()
                 .frame(width: size * 0.7, height: size * 0.7)
                 .rotationEffect(.degrees(aiRotation))
+
+            // Orbiting sparkles
+            ForEach(0..<4) { i in
+                sparkle(at: i, around: size, color: claudeOrange)
+            }
         }
         .frame(width: size, height: size)
+    }
+
+    /// Tiny dot that orbits the AI avatar.
+    private func sparkle(at index: Int, around size: CGFloat, color: Color) -> some View {
+        let baseAngle = Double(index) * 90.0
+        let angle = baseAngle + sparkleAngle
+        let radius = size * 0.65
+        let x = cos(angle * .pi / 180) * radius
+        let y = sin(angle * .pi / 180) * radius
+        // Each sparkle's twinkle is offset by index so they pulse out of phase
+        let twinklePhase = (sparkleAngle / 90.0).truncatingRemainder(dividingBy: 1.0)
+        let phaseShift = Double(index) * 0.25
+        let rawTwinkle = abs(sin((twinklePhase + phaseShift) * .pi))
+        return Circle()
+            .fill(color)
+            .frame(width: 4, height: 4)
+            .opacity(0.4 + rawTwinkle * 0.6)
+            .scaleEffect(0.7 + rawTwinkle * 0.6)
+            .offset(x: x, y: y)
     }
 }
