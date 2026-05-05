@@ -789,40 +789,60 @@ struct RecommendationCard: View {
                     .foregroundColor(Color(hex: "#999999"))
                     .tracking(1.5)
 
-                // Character card
-                HStack(spacing: 20) {
-                    CharacterImage(activeChar, size: 80)
-                        .charIdle(activeChar)
-                        .petBreathing()
-                        .pulseGlow(color: char.color)
+                // Character card — pet is the hero, info sits below
+                VStack(spacing: 18) {
+                    ZStack {
+                        // Soft radial glow behind the pet
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [char.color.opacity(0.28), char.color.opacity(0.0)],
+                                    center: .center,
+                                    startRadius: 10,
+                                    endRadius: 140
+                                )
+                            )
+                            .frame(width: 260, height: 260)
 
-                    VStack(alignment: .leading, spacing: 4) {
+                        CharacterImage(activeChar, size: 200)
+                            .charIdle(activeChar)
+                            .petBreathing()
+                            .pulseGlow(color: char.color)
+                    }
+                    .frame(height: 240)
+
+                    VStack(spacing: 6) {
                         Text(rec.why)
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 12, weight: .bold))
                             .foregroundColor(Color(hex: "#7B6BD8"))
                             .textCase(.uppercase)
+                            .tracking(1.2)
 
                         Text(char.name)
-                            .font(.system(size: 22, weight: .bold))
+                            .font(.system(size: 32, weight: .bold))
                             .foregroundColor(char.color)
 
                         Text(char.badge)
-                            .font(.system(size: 12))
+                            .font(.system(size: 13))
                             .foregroundColor(Color(hex: "#999999"))
 
                         Text(rec.reason)
-                            .font(.system(size: 13))
+                            .font(.system(size: 14))
                             .foregroundColor(Color(hex: "#555555"))
+                            .multilineTextAlignment(.center)
                             .lineSpacing(4)
-                            .padding(.top, 4)
+                            .padding(.top, 8)
+                            .padding(.horizontal, 8)
                     }
                 }
-                .padding(24)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 28)
+                .padding(.horizontal, 24)
                 .background(
-                    RoundedRectangle(cornerRadius: 24)
+                    RoundedRectangle(cornerRadius: 28)
                         .fill(Color.white)
-                        .overlay(RoundedRectangle(cornerRadius: 24).stroke(char.color, lineWidth: 2))
-                        .shadow(color: .black.opacity(0.08), radius: 12, y: 4)
+                        .overlay(RoundedRectangle(cornerRadius: 28).stroke(char.color, lineWidth: 2))
+                        .shadow(color: char.color.opacity(0.18), radius: 20, y: 6)
                 )
                 .fadeUp()
 
@@ -840,39 +860,57 @@ struct RecommendationCard: View {
                 }
                 .buttonStyle(.plain)
 
-                // Full character grid
+                // Full character grid — bigger tiles, pet as the hero
                 if showFullChooser {
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                         ForEach(PetCharacter.starters, id: \.self) { charId in
                             if let c = PetCharacter.all[charId] {
+                                let isActive = activeChar == charId
                                 Button {
                                     SoundManager.shared.playCharSelect()
                                     chosen = charId
                                 } label: {
-                                    HStack(spacing: 12) {
-                                        CharacterImage(charId, size: 40)
-                                            .charIdle(charId)
+                                    VStack(spacing: 10) {
+                                        ZStack {
+                                            Circle()
+                                                .fill(
+                                                    RadialGradient(
+                                                        colors: [c.color.opacity(isActive ? 0.28 : 0.14), c.color.opacity(0.0)],
+                                                        center: .center,
+                                                        startRadius: 6,
+                                                        endRadius: 80
+                                                    )
+                                                )
+                                                .frame(width: 140, height: 140)
 
-                                        VStack(alignment: .leading, spacing: 2) {
+                                            CharacterImage(charId, size: 96)
+                                                .charIdle(charId)
+                                                .petBreathing()
+                                        }
+                                        .frame(height: 130)
+
+                                        VStack(spacing: 3) {
                                             Text(c.name)
-                                                .font(.system(size: 14, weight: .bold))
+                                                .font(.system(size: 17, weight: .bold))
                                                 .foregroundColor(c.color)
                                             Text(c.badge.replacingOccurrences(of: "The ", with: ""))
-                                                .font(.system(size: 9))
+                                                .font(.system(size: 10, weight: .semibold))
                                                 .foregroundColor(Color(hex: "#999999"))
                                                 .textCase(.uppercase)
+                                                .tracking(0.8)
                                         }
-                                        Spacer()
                                     }
-                                    .padding(14)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 18)
+                                    .padding(.horizontal, 12)
                                     .background(
-                                        RoundedRectangle(cornerRadius: 18)
-                                            .fill(activeChar == charId ? c.color.opacity(0.08) : Color.white)
+                                        RoundedRectangle(cornerRadius: 22)
+                                            .fill(isActive ? c.color.opacity(0.10) : Color.white)
                                             .overlay(
-                                                RoundedRectangle(cornerRadius: 18)
-                                                    .stroke(activeChar == charId ? c.color : Color(hex: "#E0DBEF"), lineWidth: activeChar == charId ? 2 : 1)
+                                                RoundedRectangle(cornerRadius: 22)
+                                                    .stroke(isActive ? c.color : Color(hex: "#E0DBEF"), lineWidth: isActive ? 2.5 : 1)
                                             )
-                                            .shadow(color: .black.opacity(0.05), radius: 6, y: 2)
+                                            .shadow(color: isActive ? c.color.opacity(0.2) : .black.opacity(0.05), radius: isActive ? 10 : 6, y: 2)
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -994,20 +1032,35 @@ struct FirstWordsPhase: View {
             Color.black.opacity(0.5)
                 .ignoresSafeArea()
 
-            VStack(spacing: 16) {
-                // Character
-                CharacterImage(characterId, size: 80)
-                    .charIdle(characterId)
-                    .petBreathing()
-                    .pulseGlow(color: char.color)
+            VStack(spacing: 20) {
+                // Character — hero-sized with radial glow
+                ZStack {
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [char.color.opacity(0.3), char.color.opacity(0.0)],
+                                center: .center,
+                                startRadius: 10,
+                                endRadius: 150
+                            )
+                        )
+                        .frame(width: 280, height: 280)
+
+                    CharacterImage(characterId, size: 220)
+                        .charIdle(characterId)
+                        .petBreathing()
+                        .pulseGlow(color: char.color)
+                }
+                .frame(height: 260)
 
                 Text(char.name)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.system(size: 30, weight: .bold))
                     .foregroundColor(char.color)
 
                 Text(char.badge)
-                    .font(.system(size: 11))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(Color(hex: "#999999"))
+                    .tracking(0.5)
 
                 // First words speech
                 Text(char.firstWords)
@@ -1049,7 +1102,7 @@ struct FirstWordsPhase: View {
                 .buttonStyle(.plain)
             }
             .padding(36)
-            .frame(maxWidth: 480)
+            .frame(maxWidth: 540)
             .background(
                 RoundedRectangle(cornerRadius: 24)
                     .fill(Color.white)

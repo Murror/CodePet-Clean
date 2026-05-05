@@ -7,6 +7,7 @@ struct CodePetApp: App {
     @StateObject private var authManager = AuthManager()
     @StateObject private var gameState = GameState()
     @StateObject private var mcpBridge = MCPBridgeService.shared
+    @StateObject private var reflectionStore = ReflectionEventStore()
     private var notificationManager = NotificationManager()
 
     init() {
@@ -21,6 +22,7 @@ struct CodePetApp: App {
                 .environmentObject(authManager)
                 .environmentObject(gameState)
                 .environmentObject(mcpBridge)
+                .environmentObject(reflectionStore)
                 .frame(minWidth: 400, minHeight: 700)
                 .themed(isDark: appState.isDarkMode)
                 .onAppear {
@@ -35,6 +37,9 @@ struct CodePetApp: App {
                     // Sync real coding XP from MCP server
                     mcpBridge.refresh()
                     appState.syncFromMCP(mcpBridge)
+
+                    // Start watching ~/.codepet/events.jsonl for Claude Code captures
+                    reflectionStore.start()
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in
                     // Save game state when app goes to background
@@ -64,8 +69,14 @@ struct CodePetApp: App {
                 Button("Insights") { appState.selectedTab = .insights }
                     .keyboardShortcut("4", modifiers: .command)
 
-                Button("Profile") { appState.selectedTab = .profile }
+                Button("Reflection") { appState.selectedTab = .reflection }
                     .keyboardShortcut("5", modifiers: .command)
+
+                Button("Tips") { appState.selectedTab = .tips }
+                    .keyboardShortcut("6", modifiers: .command)
+
+                Button("Profile") { appState.selectedTab = .profile }
+                    .keyboardShortcut("7", modifiers: .command)
             }
 
             CommandMenu("Theme") {

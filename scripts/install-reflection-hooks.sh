@@ -1,0 +1,115 @@
+#!/bin/bash
+# install-reflection-hooks.sh
+# Installs Claude Code hooks that capture decision moments to ~/.codepet/events.jsonl,
+# which CodePet's Reflection tab reads.
+#
+# Run once. Safe to re-run — overwrites the hook scripts but never touches
+# ~/.claude/settings.json (you paste that snippet manually).
+
+set -euo pipefail
+
+CODEPET_DIR="$HOME/.codepet"
+HOOKS_DIR="$CODEPET_DIR/hooks"
+EVENTS_FILE="$CODEPET_DIR/events.jsonl"
+
+if ! command -v jq >/dev/null 2>&1; then
+    echo "error: jq is not installed."
+    echo "install it with: brew install jq"
+    exit 1
+fi
+
+mkdir -p "$HOOKS_DIR"
+touch "$EVENTS_FILE"
+
+cat > "$HOOKS_DIR/log-prompt.sh" <<'PROMPT_EOF'
+#!/bin/bash
+INPUT=$(cat)
+PROMPT=$(echo "$INPUT" | jq -r '.prompt // empty')
+
+if [ ${#PROMPT} -lt 10 ]; then
+    exit 0
+fi
+
+SESSION=$(echo "$INPUT" | jq -r '.session_id // empty')
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+jq -nc \
+    --arg t "$TIME" \
+    --arg s "$SESSION" \
+    --arg c "$CWD" \
+    --arg p "$PROMPT" \
+    '{time:$t, type:"prompt", session_id:$s, cwd:$c, text:$p}' \
+    >> "$HOME/.codepet/events.jsonl"
+PROMPT_EOF
+
+cat > "$HOOKS_DIR/log-tool.sh" <<'TOOL_EOF'
+#!/bin/bash
+INPUT=$(cat)
+TOOL=$(echo "$INPUT" | jq -r '.tool_name // empty')
+SESSION=$(echo "$INPUT" | jq -r '.session_id // empty')
+CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
+TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+BASH_ALLOWLIST="^(git commit|git push|git merge|git rebase|git tag|npm install|npm run|pip install|brew install|xcodebuild|swift build|swift test|fastlane|rm |mv |mkdir |make |docker |kubectl )"
+
+PATH_=""
+TEXT=""
+case "$TOOL" in
+    Edit|Write|NotebookEdit)
+        PATH_=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+        if [ -z "$PATH_" ]; then exit 0; fi
+        TEXT="$TOOL $(basename "$PATH_")"
+        ;;
+    Bash)
+        CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
+        if [ -z "$CMD" ]; then exit 0; fi
+        if ! echo "$CMD" | grep -qE "$BASH_ALLOWLIST"; then
+            exit 0
+        fi
+        TEXT="Bash: $(echo "$CMD" | head -c 80)"
+        ;;
+    *)
+        exit 0
+        ;;
+esac
+
+jq -nc \
+    --arg t "$TIME" \
+    --arg s "$SESSION" \
+    --arg c "$CWD" \
+    --arg tn "$TOOL" \
+    --arg p "$PATH_" \
+    --arg tx "$TEXT" \
+    '{time:$t, type:"tool", session_id:$s, cwd:$c, tool_name:$tn, path:$p, text:$tx}' \
+    >> "$HOME/.codepet/events.jsonl"
+TOOL_EOF
+
+chmod +x "$HOOKS_DIR/log-prompt.sh" "$HOOKS_DIR/log-tool.sh"
+
+cat <<'INSTRUCTIONS'
+
+✓ Hook scripts installed at ~/.codepet/hooks/
+✓ Events will be appended to ~/.codepet/events.jsonl
+
+To activate, paste the following into ~/.claude/settings.json under the
+top-level "hooks" key (merge with any existing hooks you already have):
+
+  "hooks": {
+    "UserPromptSubmit": [{
+      "hooks": [
+        { "type": "command", "command": "~/.codepet/hooks/log-prompt.sh" }
+      ]
+    }],
+    "PostToolUse": [{
+      "matcher": "*",
+      "hooks": [
+        { "type": "command", "command": "~/.codepet/hooks/log-tool.sh" }
+      ]
+    }]
+  }
+
+Restart Claude Code after editing settings.json. Then open CodePet and
+go to the Reflection tab — your decision moments will appear there.
+
+INSTRUCTIONS

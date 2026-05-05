@@ -103,7 +103,7 @@ SESSION=$(echo "$INPUT" | jq -r '.session_id')
 CWD=$(echo "$INPUT" | jq -r '.cwd // empty')
 TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-jq -n \
+jq -nc \
   --arg t "$TIME" --arg s "$SESSION" --arg c "$CWD" --arg p "$PROMPT" \
   '{time:$t, type:"prompt", session_id:$s, cwd:$c, text:$p}' \
   >> ~/.codepet/events.jsonl
@@ -136,7 +136,7 @@ case "$TOOL" in
     exit 0 ;;
 esac
 
-jq -n \
+jq -nc \
   --arg t "$TIME" --arg s "$SESSION" --arg c "$CWD" --arg tn "$TOOL" \
   --arg p "$PATH_" --arg tx "$TEXT" \
   '{time:$t, type:"tool", session_id:$s, cwd:$c, tool_name:$tn, path:$p, text:$tx}' \

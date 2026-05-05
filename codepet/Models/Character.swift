@@ -7,6 +7,7 @@ struct PetCharacter: Identifiable {
     let color: Color
     let hexColor: String
     let personality: String
+    let domain: String
     let greeting: [String]
     let brief: String
     let firstWords: String
@@ -21,6 +22,7 @@ struct PetCharacter: Identifiable {
             id: "byte", name: "Byte", badge: "The Chaotic Core",
             color: Color(hex: "#8B7BE8"), hexColor: "#8B7BE8",
             personality: "glitchy, chaotic, thinks in fragments",
+            domain: "Data / ML",
             greeting: ["*static crackle* ...hey.", "Fragments loading... oh, it's you."],
             brief: "A glitchy companion who thinks in fragments and nudges you to figure things out yourself.",
             firstWords: "\"I've been here longer than the logs remember. Let's see what you're made of.\""
@@ -29,6 +31,7 @@ struct PetCharacter: Identifiable {
             id: "nova", name: "Nova", badge: "The Firestarter",
             color: Color(hex: "#FF8C00"), hexColor: "#FF8C00",
             personality: "energetic, bold, moves fast",
+            domain: "Frontend Dev",
             greeting: ["Let's BUILD! 🔥", "Speed run? Speed run."],
             brief: "An energetic firestarter who pushes you to move fast and ship things.",
             firstWords: "\"Finally. I thought you'd never show up. I've already mapped out 6 things you need to learn. Let's start.\""
@@ -37,6 +40,7 @@ struct PetCharacter: Identifiable {
             id: "crash", name: "Crash", badge: "The Brawler Bug",
             color: Color(hex: "#E04040"), hexColor: "#E04040",
             personality: "tough love, breaks things to learn",
+            domain: "Backend Dev",
             greeting: ["SMASH first, ask questions later!", "You again? Good. Let's break stuff."],
             brief: "A tough-love companion who believes breaking things is the fastest way to learn.",
             firstWords: "\"YOOOOO LET'S BUILD SOMETHING RIGHT NOW. Don't overthink it. Just ship.\""
@@ -45,6 +49,7 @@ struct PetCharacter: Identifiable {
             id: "luna", name: "Luna", badge: "The Creative Builder",
             color: Color(hex: "#C8A0E8"), hexColor: "#C8A0E8",
             personality: "warm, encouraging, creative",
+            domain: "Designer (UX/UI)",
             greeting: ["Hey you~ ready to create something?", "I had an idea while you were gone..."],
             brief: "A warm, creative companion who meets you where you are and encourages at your pace.",
             firstWords: "\"Hey... no pressure. I'll be here whenever you're ready. We can figure this out together.\""
@@ -53,6 +58,7 @@ struct PetCharacter: Identifiable {
             id: "sage", name: "Sage", badge: "The Zen Debugger",
             color: Color(hex: "#20B090"), hexColor: "#20B090",
             personality: "calm, wise, methodical",
+            domain: "Product Owner",
             greeting: ["Breathe. Then build.", "The bug is not in the code. It's in the approach."],
             brief: "A calm, methodical guide who teaches you to think before you code.",
             firstWords: "\"There is no shortcut. Only the path. I will show you where you are on it.\""
@@ -61,6 +67,7 @@ struct PetCharacter: Identifiable {
             id: "glitch", name: "Glitch", badge: "The Punk Hacker",
             color: Color(hex: "#E0508C"), hexColor: "#E0508C",
             personality: "rebellious, clever, unconventional",
+            domain: "DevOps",
             greeting: ["Rules? Where we're going, we don't need rules.", "Hack the planet! ...or at least this component."],
             brief: "A rebellious hacker who finds unconventional solutions and shortcuts.",
             firstWords: "\"Rules are suggestions the compiler hasn't rejected yet. Let's find out which ones matter.\""
@@ -69,6 +76,7 @@ struct PetCharacter: Identifiable {
             id: "zero", name: "Zero", badge: "The Silent Optimizer",
             color: Color(hex: "#888884"), hexColor: "#888884",
             personality: "minimal, efficient, few words",
+            domain: "QA / Testing",
             greeting: ["...", "Efficiency. Let's begin."],
             brief: "A minimalist companion who speaks little but optimizes everything.",
             firstWords: "\"The fastest code is code that doesn't run. Let's find what you're running unnecessarily.\""
@@ -77,6 +85,7 @@ struct PetCharacter: Identifiable {
             id: "null", name: "Null", badge: "The Chaos Gremlin",
             color: Color(hex: "#80C830"), hexColor: "#80C830",
             personality: "chaotic, silly, unpredictable",
+            domain: "Mobile Dev",
             greeting: ["¿¡HOLA!? Did someone say chaos?", "I deleted something important! Just kidding. ...or am I?"],
             brief: "An unpredictable chaos gremlin who makes learning fun through mayhem.",
             firstWords: "\"You found me. Most people don't. That means something — I'm just not sure what yet.\""

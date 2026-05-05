@@ -173,9 +173,10 @@ struct ReturningSignInView: View {
                 .buttonStyle(.plain)
                 .disabled(!emailReady)
 
-                // Skip — continue as anonymous
+                // Skip — continue as a local guest (no Firebase account)
                 Button("Continue without signing in →") {
-                    authManager.signInAnonymously(name: appState.displayName, pin: "")
+                    authManager.authError = nil
+                    authManager.isGuestMode = true
                 }
                 .font(.system(size: 13))
                 .foregroundColor(Color(hex: "#B0A898"))

@@ -101,12 +101,17 @@ struct MenuBarView: View {
 
             Divider()
 
+            // Reflection feature — shows today's captured/decisions/risks and opens the Reflection tab
+            ReflectionSummaryBlock()
+
+            Divider()
+
             Button("Quit CodePet") {
                 NSApplication.shared.terminate(nil)
             }
         }
-        .padding(8)
-        .frame(width: 200)
+        .padding(10)
+        .frame(width: 260)
     }
 }
 

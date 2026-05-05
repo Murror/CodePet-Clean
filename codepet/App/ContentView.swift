@@ -25,7 +25,7 @@ struct ContentView: View {
             } else if !isOnboarding && (authManager.isLoading || isLoadingCloudData) {
                 // Still checking auth state or loading cloud data (not during onboarding)
                 SplashView()
-            } else if appState.onboardingComplete && authManager.currentUser == nil {
+            } else if appState.onboardingComplete && authManager.currentUser == nil && !authManager.isGuestMode {
                 // Returning user who already onboarded but signed out — show simple sign-in
                 ReturningSignInView()
             } else if !appState.onboardingComplete {

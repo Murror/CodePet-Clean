@@ -16,6 +16,7 @@ class PersistenceManager {
         static let skillLevel = "cp_skillLevel"
         static let dailyGoalMinutes = "cp_dailyGoalMinutes"
         static let preferredLanguage = "cp_preferredLanguage"
+        static let languagePersona = "cp_languagePersona"
         static let displayName = "cp_displayName"
         static let activeChar = "cp_activeChar"
         static let userInterests = "cp_userInterests"
@@ -76,6 +77,7 @@ class PersistenceManager {
         defaults.set(state.skillLevel, forKey: Key.skillLevel)
         defaults.set(state.dailyGoalMinutes, forKey: Key.dailyGoalMinutes)
         defaults.set(state.preferredLanguage, forKey: Key.preferredLanguage)
+        defaults.set(state.languagePersona.rawValue, forKey: Key.languagePersona)
 
         // User
         defaults.set(state.displayName, forKey: Key.displayName)
@@ -158,6 +160,12 @@ class PersistenceManager {
             state.dailyGoalMinutes = defaults.integer(forKey: Key.dailyGoalMinutes)
         }
         state.preferredLanguage = defaults.string(forKey: Key.preferredLanguage) ?? "javascript"
+
+        // Language persona — device pref, loads regardless of onboarding state
+        if let raw = defaults.string(forKey: Key.languagePersona),
+           let persona = LanguagePersona(rawValue: raw) {
+            state.languagePersona = persona
+        }
 
         // User
         state.displayName = defaults.string(forKey: Key.displayName) ?? ""
@@ -278,7 +286,7 @@ class PersistenceManager {
     /// and the stored current user ID.
     func clearProgress() {
         let keysToPreserve: Set<String> = [
-            Key.isDarkMode, Key.soundEnabled, Key.currentUserId
+            Key.isDarkMode, Key.soundEnabled, Key.currentUserId, Key.languagePersona
         ]
         let progressKeys = [
             Key.onboardingComplete, Key.userAge, Key.obWho, Key.obDesire, Key.obGoal,

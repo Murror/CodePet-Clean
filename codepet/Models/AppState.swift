@@ -11,6 +11,7 @@ class AppState: ObservableObject {
     @Published var skillLevel: String = ""
     @Published var dailyGoalMinutes: Int = 0
     @Published var preferredLanguage: String = "javascript"
+    @Published var languagePersona: LanguagePersona = .developer
 
     // User
     @Published var displayName: String = ""
@@ -44,7 +45,7 @@ class AppState: ObservableObject {
     @Published var dailyChallengeCompleted: Bool = false
 
     // UI State
-    @Published var selectedTab: Tab = .home
+    @Published var selectedTab: Tab = .reflection
     @Published var showWeeklyRecap: Bool = false
     /// Set by Skills tab to deep-link into a kingdom on the Home tab
     @Published var pendingKingdomId: Int? = nil
@@ -53,7 +54,7 @@ class AppState: ObservableObject {
 
     // Phase 5: Theme & Sound
     @Published var isDarkMode: Bool = false
-    @Published var soundEnabled: Bool = true
+    @Published var soundEnabled: Bool = false
 
     // Phase 5: Level-up tracking
     @Published var showLevelUp: Bool = false
@@ -71,6 +72,8 @@ class AppState: ObservableObject {
         case skills = "Skills"
         case sessions = "Sessions"
         case insights = "Insights"
+        case reflection = "Reflection"
+        case tips = "Tips"
         case profile = "Profile"
 
         var icon: String {
@@ -79,6 +82,8 @@ class AppState: ObservableObject {
             case .skills: return "sparkles"
             case .sessions: return "doc.text.fill"
             case .insights: return "chart.bar.fill"
+            case .reflection: return "quote.opening"
+            case .tips: return "lightbulb.fill"
             case .profile: return "person.fill"
             }
         }
@@ -87,7 +92,8 @@ class AppState: ObservableObject {
     init() {
         // Load saved data
         PersistenceManager.shared.load(into: self)
-        SoundManager.shared.isEnabled = soundEnabled
+        soundEnabled = false
+        SoundManager.shared.isEnabled = false
         previousLevel = userLevel
 
         // Ensure tier progression matches completed lessons (fixes existing progress)

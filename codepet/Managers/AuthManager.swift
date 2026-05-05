@@ -11,6 +11,12 @@ class AuthManager: ObservableObject {
     @Published var authError: String? = nil
     @Published var authMethod: String? = nil // "google", "email", "pin"
 
+    /// Local-only guest mode — user chose to skip sign-in entirely (no Firebase account).
+    /// Persisted via UserDefaults so the choice sticks across launches.
+    @Published var isGuestMode: Bool = UserDefaults.standard.bool(forKey: "cp_isGuestMode") {
+        didSet { UserDefaults.standard.set(isGuestMode, forKey: "cp_isGuestMode") }
+    }
+
     private var authStateListener: AuthStateDidChangeListenerHandle?
 
     /// The most recent display name from sign-up / sign-in (propagated to AppState by ContentView)
@@ -202,6 +208,7 @@ class AuthManager: ObservableObject {
             try Auth.auth().signOut()
             authMethod = nil
             authError = nil
+            isGuestMode = false
             print("[Auth] Sign out success")
         } catch {
             authError = error.localizedDescription

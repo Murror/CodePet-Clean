@@ -637,7 +637,7 @@ struct SessionsView: View {
             }
 
             // Skill name
-            Text(skill.name)
+            Text(PersonaContent.resolve(PersonaContent.skillName, id: skill.id, persona: appState.languagePersona, fallback: skill.name))
                 .font(.system(size: 11, weight: .bold, design: .monospaced))
                 .foregroundColor(state == .locked ? Color(hex: "#E0D0FF").opacity(0.35) : .white)
                 .multilineTextAlignment(.center)
@@ -809,7 +809,7 @@ struct SessionsView: View {
                             .font(.system(size: 7, weight: .bold, design: .monospaced))
                             .foregroundColor(typeBadgeColor(skill.nodeType))
                             .tracking(1.5)
-                        Text(skill.name)
+                        Text(PersonaContent.resolve(PersonaContent.skillName, id: skill.id, persona: appState.languagePersona, fallback: skill.name))
                             .font(.system(size: 13, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                     }
@@ -841,7 +841,7 @@ struct SessionsView: View {
 
                 // Body
                 VStack(spacing: 16) {
-                    Text(skill.desc)
+                    Text(PersonaContent.resolve(PersonaContent.skillDesc, id: skill.id, persona: appState.languagePersona, fallback: skill.desc))
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
                         .foregroundColor(Color(hex: "#C0B0E0"))
                         .lineSpacing(4)
@@ -1112,6 +1112,7 @@ struct SessionsView: View {
 // MARK: - Full 6-Stage Challenge Overlay
 
 struct ChallengeOverlayView: View {
+    @EnvironmentObject var appState: AppState
     let challenge: Challenge
     let difficultyLevel: String
     let onComplete: (_ xpEarned: Int, _ attempt: Int) -> Void
@@ -1208,7 +1209,7 @@ struct ChallengeOverlayView: View {
                 .background(RoundedRectangle(cornerRadius: 8).fill(difficultyColor.opacity(0.1)))
             VStack(alignment: .leading, spacing: 8) {
                 Text("🎯 YOUR MISSION").font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundColor(teacherColor)
-                Text(challenge.brief).font(.system(size: 12)).foregroundColor(Color(hex: "#444444")).lineSpacing(4)
+                Text(PersonaContent.resolve(PersonaContent.challengeBrief, id: challenge.id, persona: appState.languagePersona, fallback: challenge.brief)).font(.system(size: 12)).foregroundColor(Color(hex: "#444444")).lineSpacing(4)
             }
             .padding(16).frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 14).fill(Color(hex: "#F7F5FC")).overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#E0DBEF"), lineWidth: 1)))
