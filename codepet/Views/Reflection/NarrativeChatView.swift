@@ -11,11 +11,9 @@ struct NarrativeChatTurnView: View {
     @EnvironmentObject var appState: AppState
     let narrative: Narrative
 
-    // Pet animation tracks
-    @State private var petBounce = false
-    @State private var petTilt = false
+    // Pet animation tracks (premium = restrained)
+    @State private var petFloat = false
     @State private var petGlow: CGFloat = 0
-    @State private var petWiggleTrigger = false
 
     // AI animation tracks
     @State private var aiRotation: Double = 0
@@ -47,26 +45,13 @@ struct NarrativeChatTurnView: View {
             didAppear = true
         }
 
-        // Pet bounce — bigger, springier
-        withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
-            petBounce = true
+        // Pet — slow, unified float (drives both Y-offset and scale)
+        withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) {
+            petFloat = true
         }
-        // Pet head tilt
-        withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: true)) {
-            petTilt = true
-        }
-        // Pet glow ring pulse
-        withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+        // Pet — single soft glow ring, slightly slower than float so they breathe gently apart
+        withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
             petGlow = 1.0
-        }
-        // Periodic excited wiggle every ~6s
-        Task { @MainActor in
-            while true {
-                try? await Task.sleep(nanoseconds: 6_000_000_000)
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.4).repeatCount(2, autoreverses: true)) {
-                    petWiggleTrigger.toggle()
-                }
-            }
         }
 
         // AI spin — faster, more obvious
@@ -112,41 +97,31 @@ struct NarrativeChatTurnView: View {
 
     private func petAvatar(size: CGFloat) -> some View {
         ZStack {
-            // Outer pulsing glow ring
             if let pet = pet {
+                // Single soft glow ring — slow, gentle expansion + fade
                 Circle()
-                    .stroke(pet.color.opacity(0.4), lineWidth: 2)
-                    .scaleEffect(1.0 + petGlow * 0.35)
-                    .opacity(1.0 - petGlow * 0.85)
+                    .stroke(pet.color.opacity(0.35), lineWidth: 1.5)
+                    .scaleEffect(1.0 + petGlow * 0.18)
+                    .opacity(1.0 - petGlow * 0.7)
                     .frame(width: size, height: size)
 
-                // Inner soft halo
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [pet.color.opacity(0.35), pet.color.opacity(0.0)],
-                            center: .center,
-                            startRadius: size * 0.25,
-                            endRadius: size * 0.7
-                        )
-                    )
-                    .scaleEffect(1.0 + petGlow * 0.25)
-                    .frame(width: size * 1.4, height: size * 1.4)
-
-                // Pet sprite with bounce + tilt + wiggle
+                // Pet sprite — unified float (subtle scale + 2px y-bob)
                 Image(pet.imageName)
                     .resizable()
                     .interpolation(.none)
                     .scaledToFit()
                     .frame(width: size, height: size)
-                    .background(Circle().fill(pet.color.opacity(0.22)))
+                    .background(Circle().fill(pet.color.opacity(0.18)))
                     .clipShape(Circle())
-                    .overlay(Circle().stroke(pet.color.opacity(0.7), lineWidth: 2))
-                    .scaleEffect(petBounce ? 1.08 : 0.92)
-                    .offset(y: petBounce ? -3 : 3)
-                    .rotationEffect(.degrees(petTilt ? 4 : -4))
-                    .rotationEffect(.degrees(petWiggleTrigger ? 12 : -12))
-                    .shadow(color: pet.color.opacity(0.45), radius: 6, x: 0, y: 3)
+                    .overlay(Circle().stroke(pet.color.opacity(0.55), lineWidth: 1.5))
+                    .scaleEffect(petFloat ? 1.02 : 0.98)
+                    .offset(y: petFloat ? -2 : 2)
+                    .shadow(
+                        color: pet.color.opacity(petFloat ? 0.45 : 0.3),
+                        radius: petFloat ? 10 : 6,
+                        x: 0,
+                        y: petFloat ? 5 : 3
+                    )
             } else {
                 Circle()
                     .fill(ReflectionTheme.accent.opacity(0.2))
