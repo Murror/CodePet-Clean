@@ -19,8 +19,11 @@ Quy tắc bắt buộc:
    được bài học rõ → trả lesson "" (empty string), KHÔNG bịa.
 4. Tone: ấm áp, gọn, như 1 người bạn đang kể lại. Không dùng emoji.
 5. Trả về theo schema. Title <60 ký tự. Mỗi đoạn <240 ký tự.
-
+<persona_block>
 Ngôn ngữ output: <language>`;
+
+export const PERSONA_BLOCK_TEMPLATE = `
+Persona viết: bạn đang viết với giọng của <pet_name>, một bạn đồng hành coding với tính cách "<personality>", chuyên về <domain>. Mỗi đoạn nên thấp thoáng đặc trưng đó (cách dùng từ, nhịp câu) NHƯNG không lạm dụng — vẫn phải dễ đọc và đúng quy tắc 1-5 ở trên. Đừng nhắc đến tên <pet_name> trong nội dung.`;
 
 export const NARRATIVE_TOOL = {
   name: "record_narrative",
@@ -91,8 +94,24 @@ export interface NarrativeOutput {
   lesson: string;
 }
 
+export interface PetPersonaInput {
+  id: string;
+  name: string;
+  personality: string;
+  domain: string;
+}
+
 export interface CallArgs extends BuildArgs {
   language: "vi" | "en";
+  petPersona?: PetPersonaInput;
+}
+
+export function renderPersonaBlock(persona: PetPersonaInput | undefined): string {
+  if (!persona) return "";
+  return PERSONA_BLOCK_TEMPLATE
+    .replace(/<pet_name>/g, persona.name)
+    .replace("<personality>", persona.personality)
+    .replace("<domain>", persona.domain);
 }
 
 /**
@@ -103,7 +122,9 @@ export async function callAnthropic(
   client: Anthropic,
   args: CallArgs
 ): Promise<NarrativeOutput> {
-  const system = SYSTEM_PROMPT.replace("<language>", args.language === "vi" ? "Tiếng Việt" : "English");
+  const system = SYSTEM_PROMPT
+    .replace("<language>", args.language === "vi" ? "Tiếng Việt" : "English")
+    .replace("<persona_block>", renderPersonaBlock(args.petPersona));
   const user = buildUserMessage(args);
 
   const response = await client.messages.create({

@@ -30,14 +30,19 @@ final class NarrativeEnricher: ObservableObject {
 
     /// Enrich a single turn. Awaits completion. If a turn with the same id is
     /// already in flight, returns the same task's result.
+    /// `petPersona` is optional — when provided, Claude will mirror the
+    /// pet's personality and domain in the narrative voice.
     @discardableResult
-    func enrich(turn: Turn) async -> TurnState {
+    func enrich(
+        turn: Turn,
+        petPersona: SummarizeTurnRequest.PetPersonaDTO? = nil
+    ) async -> TurnState {
         if let existing = inFlight[turn.id] {
             return await existing.value
         }
         let task = Task<TurnState, Never> { [weak self] in
             guard let self else { return .failed(reason: .unknown) }
-            return await self.runEnrich(turn: turn)
+            return await self.runEnrich(turn: turn, petPersona: petPersona)
         }
         inFlight[turn.id] = task
         let result = await task.value
@@ -45,8 +50,11 @@ final class NarrativeEnricher: ObservableObject {
         return result
     }
 
-    private func runEnrich(turn: Turn) async -> TurnState {
-        let request = makeRequest(for: turn)
+    private func runEnrich(
+        turn: Turn,
+        petPersona: SummarizeTurnRequest.PetPersonaDTO?
+    ) async -> TurnState {
+        let request = makeRequest(for: turn, petPersona: petPersona)
         for attempt in 0...1 {
             do {
                 let response = try await api.summarizeTurn(request)
@@ -91,7 +99,10 @@ final class NarrativeEnricher: ObservableObject {
         return .failed(reason: .unknown)
     }
 
-    private func makeRequest(for turn: Turn) -> SummarizeTurnRequest {
+    private func makeRequest(
+        for turn: Turn,
+        petPersona: SummarizeTurnRequest.PetPersonaDTO?
+    ) -> SummarizeTurnRequest {
         let events = turn.rawEvents.map {
             SummarizeTurnRequest.EventDTO(
                 time: $0.time,
@@ -107,7 +118,8 @@ final class NarrativeEnricher: ObservableObject {
             language: language,
             prompt: turn.prompt,
             events: events,
-            rawSummary: rawSummary
+            rawSummary: rawSummary,
+            petPersona: petPersona
         )
     }
 

@@ -71,10 +71,21 @@ struct ReflectionTab: View {
         }
         .background(ReflectionTheme.background)
         .onChange(of: allTurns) { turns in
+            let persona = currentPetPersona()
             for turn in turns where turn.state == .summarizing && turn.narrative == nil {
-                Task { await enricher.enrich(turn: turn) }
+                Task { await enricher.enrich(turn: turn, petPersona: persona) }
             }
         }
+    }
+
+    private func currentPetPersona() -> SummarizeTurnRequest.PetPersonaDTO? {
+        guard let pet = PetCharacter.all[appState.activeChar] else { return nil }
+        return SummarizeTurnRequest.PetPersonaDTO(
+            id: pet.id,
+            name: pet.name,
+            personality: pet.personality,
+            domain: pet.domain
+        )
     }
 
     // MARK: - Empty state
@@ -330,7 +341,8 @@ struct ReflectionTab: View {
                 NarrativeChatView(narrative: narrative)
             } else {
                 TurnLoadingStates(state: turn.state, onRetry: {
-                    Task { await enricher.enrich(turn: turn) }
+                    let persona = currentPetPersona()
+                    Task { await enricher.enrich(turn: turn, petPersona: persona) }
                 })
             }
 

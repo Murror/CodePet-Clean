@@ -10,12 +10,20 @@ struct SummarizeTurnRequest: Codable {
     let prompt: String
     let events: [EventDTO]
     let rawSummary: String
+    let petPersona: PetPersonaDTO?
 
     struct EventDTO: Codable {
         let time: String       // "HH:mm"
         let tool: String
         let path: String?
         let text: String?
+    }
+
+    struct PetPersonaDTO: Codable {
+        let id: String           // "byte"
+        let name: String         // "Byte"
+        let personality: String  // "glitchy, chaotic, thinks in fragments"
+        let domain: String       // "Data / ML"
     }
 
     enum CodingKeys: String, CodingKey {
@@ -25,6 +33,7 @@ struct SummarizeTurnRequest: Codable {
         case prompt
         case events
         case rawSummary = "raw_summary"
+        case petPersona = "pet_persona"
     }
 }
 

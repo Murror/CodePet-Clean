@@ -5,7 +5,7 @@ import * as logger from "firebase-functions/logger";
 import { verifyAuth } from "./auth";
 import { checkAndIncrement } from "./rateLimit";
 import { getCached, putCached } from "./cache";
-import { callAnthropic, MODEL, EventForPrompt, NarrativeOutput } from "./anthropic";
+import { callAnthropic, MODEL, EventForPrompt, NarrativeOutput, PetPersonaInput } from "./anthropic";
 
 export interface SummarizePayload {
   turn_id: string;
@@ -14,6 +14,7 @@ export interface SummarizePayload {
   prompt: string;
   events: EventForPrompt[];
   raw_summary: string;
+  pet_persona?: PetPersonaInput;
 }
 
 export function validatePayload(body: any): string | null {
@@ -25,6 +26,14 @@ export function validatePayload(body: any): string | null {
   if (typeof b.prompt !== "string" || b.prompt.length === 0) return "prompt required";
   if (!Array.isArray(b.events)) return "events must be an array";
   if (typeof b.raw_summary !== "string") return "raw_summary required";
+  if (b.pet_persona !== undefined) {
+    const p = b.pet_persona;
+    if (!p || typeof p !== "object") return "pet_persona must be an object";
+    if (typeof p.id !== "string" || typeof p.name !== "string"
+        || typeof p.personality !== "string" || typeof p.domain !== "string") {
+      return "pet_persona requires id/name/personality/domain strings";
+    }
+  }
   return null;
 }
 
@@ -90,7 +99,8 @@ export async function handleSummarizeTurn(
       prompt: payload.prompt,
       events: payload.events,
       raw_summary: payload.raw_summary,
-      language: payload.language
+      language: payload.language,
+      petPersona: payload.pet_persona
     });
   } catch (err) {
     logger.error("anthropic call failed", { uid: auth.uid, turn_id: payload.turn_id, err: String(err) });
