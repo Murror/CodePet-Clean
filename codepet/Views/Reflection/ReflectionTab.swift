@@ -99,36 +99,66 @@ struct ReflectionTab: View {
 
     // MARK: - Sidebar
 
-    private struct TurnGroup {
-        let label: String
+    private struct SessionBucket: Identifiable {
+        let sessionId: String
+        let startedAt: Date
         let turns: [Turn]
+        var id: String { sessionId }
     }
 
+    private struct TurnGroup {
+        let label: String
+        let sessions: [SessionBucket]
+    }
+
+    /// Group turns by day, then by session within day. Sessions sorted by their
+    /// most recent turn descending (newest activity first).
     private func groupedTurns() -> [TurnGroup] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
         let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
         let weekStart = cal.date(byAdding: .day, value: -6, to: today)!
 
-        var todayTurns: [Turn] = []
-        var yesterdayTurns: [Turn] = []
-        var weekTurns: [Turn] = []
-        var olderTurns: [Turn] = []
-
+        var bucketed: [String: [Turn]] = [
+            "HÔM NAY": [], "HÔM QUA": [], "TUẦN NÀY": [], "CŨ HƠN": []
+        ]
         for turn in allTurns {
             let day = cal.startOfDay(for: turn.startedAt)
-            if day == today { todayTurns.append(turn) }
-            else if day == yesterday { yesterdayTurns.append(turn) }
-            else if day >= weekStart { weekTurns.append(turn) }
-            else { olderTurns.append(turn) }
+            let key: String
+            if day == today { key = "HÔM NAY" }
+            else if day == yesterday { key = "HÔM QUA" }
+            else if day >= weekStart { key = "TUẦN NÀY" }
+            else { key = "CŨ HƠN" }
+            bucketed[key, default: []].append(turn)
         }
 
+        let order = ["HÔM NAY", "HÔM QUA", "TUẦN NÀY", "CŨ HƠN"]
         var groups: [TurnGroup] = []
-        if !todayTurns.isEmpty     { groups.append(.init(label: "HÔM NAY",   turns: todayTurns)) }
-        if !yesterdayTurns.isEmpty { groups.append(.init(label: "HÔM QUA",   turns: yesterdayTurns)) }
-        if !weekTurns.isEmpty      { groups.append(.init(label: "TUẦN NÀY",  turns: weekTurns)) }
-        if !olderTurns.isEmpty     { groups.append(.init(label: "CŨ HƠN",    turns: olderTurns)) }
+        for label in order {
+            let turns = bucketed[label] ?? []
+            guard !turns.isEmpty else { continue }
+            let sessions = sessionsFromTurns(turns)
+            groups.append(.init(label: label, sessions: sessions))
+        }
         return groups
+    }
+
+    private func sessionsFromTurns(_ turns: [Turn]) -> [SessionBucket] {
+        var bySession: [String: [Turn]] = [:]
+        for turn in turns { bySession[turn.sessionId, default: []].append(turn) }
+        return bySession.map { sessionId, turns in
+            let sortedTurns = turns.sorted { $0.startedAt > $1.startedAt }
+            let earliest = turns.map { $0.startedAt }.min() ?? Date()
+            return SessionBucket(sessionId: sessionId, startedAt: earliest, turns: sortedTurns)
+        }
+        .sorted { ($0.turns.first?.startedAt ?? .distantPast) > ($1.turns.first?.startedAt ?? .distantPast) }
+    }
+
+    private func sessionLabel(_ bucket: SessionBucket) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        let start = f.string(from: bucket.startedAt)
+        return "Phiên \(start) · \(bucket.turns.count) turn"
     }
 
     private var sessionsSidebar: some View {
@@ -154,15 +184,26 @@ struct ReflectionTab: View {
                             .padding(.top, 4)
                     }
                     ForEach(groups, id: \.label) { group in
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: 10) {
                             Text(group.label)
                                 .font(ReflectionTheme.sans(10, weight: .semibold))
                                 .tracking(1.2)
                                 .foregroundColor(ReflectionTheme.mutedText)
                                 .padding(.horizontal, 16)
-                                .padding(.bottom, 4)
-                            ForEach(group.turns) { turn in
-                                sidebarRow(turn)
+                                .padding(.bottom, 2)
+
+                            ForEach(group.sessions) { bucket in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(sessionLabel(bucket))
+                                        .font(ReflectionTheme.sans(10, weight: .medium))
+                                        .foregroundColor(ReflectionTheme.mutedText.opacity(0.85))
+                                        .padding(.horizontal, 20)
+                                        .padding(.top, 2)
+                                        .padding(.bottom, 2)
+                                    ForEach(bucket.turns) { turn in
+                                        sidebarRow(turn)
+                                    }
+                                }
                             }
                         }
                     }
