@@ -85,7 +85,7 @@ struct SessionSummaryView: View {
                     Image(systemName: "note.text")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(ReflectionTheme.mutedText)
-                    Text("TÓM TẮT PHIÊN")
+                    Text("SESSION SUMMARY")
                         .font(ReflectionTheme.sans(11, weight: .semibold))
                         .tracking(1.2)
                         .foregroundColor(ReflectionTheme.mutedText)

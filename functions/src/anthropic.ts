@@ -5,25 +5,26 @@ export const MAX_TOKENS = 800;
 const MAX_PROMPT_CHARS = 8000;
 const MAX_EVENTS = 50;
 
-export const SYSTEM_PROMPT = `Bạn là người ghi nhật ký phản tỉnh cho 1 lập trình viên đang dùng AI assistant.
-Mục tiêu: biến 1 lượt làm việc kỹ thuật thành 1 entry nhật ký mà CHA MẸ
-hoặc BẠN BÈ KHÔNG PHẢI DEV cũng đọc hiểu.
+export const SYSTEM_PROMPT = `You are a reflection journalist for a developer working with an AI assistant.
+Goal: turn one technical working turn into a journal entry that even
+NON-DEVELOPERS — parents, friends — can understand.
 
-Quy tắc bắt buộc:
-1. KHÔNG dùng tên file, tên hàm, tên class, tên CLI command. Diễn đạt bằng
-   ý nghĩa: thay vì "Edit ReflectionTab.swift" → "chỉnh phần hiển thị trang
-   nhật ký". Thay vì "git commit" → "lưu lại tiến độ".
-2. KHÔNG sao chép nguyên văn prompt user — diễn đạt lại ý định bằng lời
-   của người ngoài cuộc.
-3. Bài học PHẢI cụ thể với lượt này, KHÔNG sáo rỗng. Nếu không rút ra
-   được bài học rõ → trả lesson "" (empty string), KHÔNG bịa.
-4. Tone: ấm áp, gọn, như 1 người bạn đang kể lại. Không dùng emoji.
-5. Trả về theo schema. Title <60 ký tự. Mỗi đoạn <240 ký tự.
+Required rules:
+1. DO NOT use file names, function names, class names, or CLI commands.
+   Express the MEANING instead: replace "Edit ReflectionTab.swift" with
+   "adjusted the way the journal page displays". Replace "git commit"
+   with "saved the progress".
+2. DO NOT copy the user's prompt verbatim — rephrase the intent in an
+   outsider's voice.
+3. The lesson MUST be specific to this turn, NOT generic. If no clear
+   lesson can be drawn → return lesson "" (empty string). DO NOT invent.
+4. Tone: warm, concise, like a friend recounting. No emoji.
+5. Return per schema. Title <60 chars. Each section <240 chars.
 <persona_block>
-Ngôn ngữ output: <language>`;
+Output language: <language>`;
 
 export const PERSONA_BLOCK_TEMPLATE = `
-Persona viết: bạn đang viết với giọng của <pet_name>, một bạn đồng hành coding với tính cách "<personality>", chuyên về <domain>. Mỗi đoạn nên thấp thoáng đặc trưng đó (cách dùng từ, nhịp câu) NHƯNG không lạm dụng — vẫn phải dễ đọc và đúng quy tắc 1-5 ở trên. Đừng nhắc đến tên <pet_name> trong nội dung.`;
+Writing persona: you're writing in the voice of <pet_name>, a coding companion with the personality "<personality>", specialized in <domain>. Each paragraph should subtly reflect that personality (word choice, sentence rhythm) BUT don't overdo it — readability and rules 1-5 still come first. Do NOT mention <pet_name> by name in the content.`;
 
 export const NARRATIVE_TOOL = {
   name: "record_narrative",
@@ -75,16 +76,16 @@ export function buildUserMessage(args: BuildArgs): string {
         .map((e) => `${e.time} — ${e.tool}: ${e.path ?? e.text ?? ""}`)
         .join("\n");
 
-  return `Đây là 1 lượt làm việc với Claude Code:
+  return `Here is one Claude Code working turn:
 
-User đã gõ: "${promptText}"
+The user typed: "${promptText}"
 
-Trong lượt đó, các thao tác đã xảy ra:
+The following actions happened during the turn:
 ${eventLines}
 
-Tóm tắt kỹ thuật ngắn (cho bạn tham khảo): ${args.raw_summary}
+Short technical summary (for your reference): ${args.raw_summary}
 
-Hãy gọi tool record_narrative.`;
+Now call the record_narrative tool.`;
 }
 
 export interface NarrativeOutput {
@@ -120,16 +121,22 @@ export interface SessionSummaryOutput {
   lesson: string;
 }
 
-export const SESSION_SYSTEM_PROMPT = `Bạn đang viết bản TÓM TẮT cho 1 phiên làm việc với AI (gồm nhiều lượt prompt-response).
-Mục tiêu: kể lại ARC của phiên và rút ra 1 BÀI HỌC tổng quát mà ai đọc cũng hiểu, kể cả người không phải dev.
+export const SESSION_SYSTEM_PROMPT = `You are writing a SUMMARY for one AI working session (made up of many prompt-response turns).
+Goal: tell the ARC of the session and surface ONE overarching LESSON
+that any reader — including non-developers — can understand.
 
-Quy tắc:
-1. summary: 2-4 câu kể lại đường đi của phiên — bắt đầu từ đâu, đi qua những bước nào, kết thúc ở đâu. KHÔNG liệt kê tên file, lệnh CLI.
-2. lesson: 1-2 câu rút ra TỪ ARC của phiên (không phải từ 1 turn riêng lẻ). Bài học phải tổng quát hơn từng turn — về pattern làm việc, cách brainstorm, cách debug, cách quản lý feedback... Nếu phiên không có lesson rõ → trả lesson rỗng "".
-3. Tone: ấm áp, gọn, như đang nói chuyện. Không emoji.
+Rules:
+1. summary: 2-4 sentences describing the path of the session — where it
+   started, what it moved through, where it ended. DO NOT list file
+   names or CLI commands.
+2. lesson: 1-2 sentences drawn FROM THE ARC of the session (not from a
+   single turn). The lesson must be more general than any one turn —
+   about working patterns, brainstorming, debugging, handling feedback…
+   If the session has no clear lesson → return empty string "".
+3. Tone: warm, concise, conversational. No emoji.
 4. summary ≤500 chars. lesson ≤300 chars.
 <persona_block>
-Ngôn ngữ output: <language>`;
+Output language: <language>`;
 
 export const SESSION_SUMMARY_TOOL = {
   name: "record_session_summary",
@@ -158,16 +165,16 @@ export interface SessionCallArgs {
 
 export function buildSessionUserMessage(turns: TurnInput[]): string {
   const lines = turns.slice(0, 30).map((t, i) => {
-    const dur = t.duration_minutes ? ` (~${t.duration_minutes}p)` : "";
-    const what = t.what_happened ? `\n   Đã xảy ra: ${t.what_happened.slice(0, 300)}` : "";
-    return `${i + 1}. User hỏi: "${t.prompt.slice(0, 200)}"${dur}${what}`;
+    const dur = t.duration_minutes ? ` (~${t.duration_minutes}m)` : "";
+    const what = t.what_happened ? `\n   Happened: ${t.what_happened.slice(0, 300)}` : "";
+    return `${i + 1}. User asked: "${t.prompt.slice(0, 200)}"${dur}${what}`;
   }).join("\n\n");
 
-  return `Đây là 1 phiên làm việc với AI gồm ${turns.length} lượt:
+  return `Here is one AI working session with ${turns.length} turns:
 
 ${lines}
 
-Hãy gọi tool record_session_summary để tóm tắt arc + bài học tổng quát của phiên.`;
+Now call the record_session_summary tool to summarize the arc + overarching lesson of the session.`;
 }
 
 export async function callAnthropicSession(
