@@ -14,6 +14,9 @@ final class ReflectionEventStore: ObservableObject {
 
     @Published private(set) var events: [CapturedEvent] = []
 
+    /// Raw JSONL event tuples exposed for TurnAssembler — preserves type and full ISO time.
+    @Published private(set) var rawJSONLEvents: [(type: String, isoTime: String, sessionId: String, text: String)] = []
+
     private let logURL: URL = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".codepet/events.jsonl")
     private let pollInterval: TimeInterval = 1.5
@@ -113,6 +116,12 @@ final class ReflectionEventStore: ObservableObject {
                 continue
             }
             newEvents.append(raw.toCapturedEvent())
+            rawJSONLEvents.append((
+                type: raw.type,
+                isoTime: raw.time,
+                sessionId: raw.session_id ?? "",
+                text: raw.text
+            ))
         }
 
         if !newEvents.isEmpty {
@@ -144,6 +153,7 @@ private struct JSONLEvent: Decodable {
     func toCapturedEvent() -> CapturedEvent {
         CapturedEvent(
             time: Self.formatHHmm(time),
+            isoTime: time,
             source: .claudeCode,
             text: text,
             aiSummary: nil,

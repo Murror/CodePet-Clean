@@ -23,6 +23,7 @@ struct TriggerTag: Hashable, Identifiable {
 struct CapturedEvent: Identifiable, Hashable {
     let id: UUID
     let time: String          // "14:15"
+    let isoTime: String       // full ISO 8601 — used for turn_id derivation
     let source: EventSource
     let text: String          // user's prompt (cursor chat) or AI action (claude code)
     let aiSummary: String?    // short summary of AI's response — only populated for cursor chat
@@ -34,6 +35,7 @@ struct CapturedEvent: Identifiable, Hashable {
     init(
         id: UUID = UUID(),
         time: String,
+        isoTime: String = "",   // default empty for back-compat with mock data
         source: EventSource,
         text: String,
         aiSummary: String? = nil,
@@ -44,6 +46,7 @@ struct CapturedEvent: Identifiable, Hashable {
     ) {
         self.id = id
         self.time = time
+        self.isoTime = isoTime
         self.source = source
         self.text = text
         self.aiSummary = aiSummary
