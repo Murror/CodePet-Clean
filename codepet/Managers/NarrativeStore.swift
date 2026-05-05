@@ -1,0 +1,163 @@
+import Foundation
+import Combine
+import os
+
+/// Polls narratives.jsonl (written by NarrativeEnricher) and exposes
+/// narratives keyed by turn_id. Mirrors ReflectionEventStore polling pattern.
+@MainActor
+final class NarrativeStore: ObservableObject {
+
+    @Published private(set) var narratives: [String: Narrative] = [:]
+
+    private let fileURL: URL
+    private let pollInterval: TimeInterval
+    private var pollTimer: Timer?
+    private var readOffset: UInt64 = 0
+    private var lineBuffer = ""
+    private let logger = Logger(subsystem: "app.murror.codepet", category: "NarrativeStore")
+    private let decoder = JSONDecoder()
+
+    init(
+        fileURL: URL = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent(".codepet/narratives.jsonl"),
+        pollInterval: TimeInterval = 1.5
+    ) {
+        self.fileURL = fileURL
+        self.pollInterval = pollInterval
+        self.decoder.dateDecodingStrategy = .iso8601
+    }
+
+    func start() {
+        ensureFileExists()
+        readOffset = 0
+        readNewLines()
+        pollTimer?.invalidate()
+        pollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.readNewLines() }
+        }
+    }
+
+    /// Test helper: deterministic prime + start
+    func startForTesting() {
+        start()
+    }
+
+    func stop() {
+        pollTimer?.invalidate()
+        pollTimer = nil
+    }
+
+    /// Append a narrative line. Used by NarrativeEnricher.
+    func appendNarrative(turnId: String, sessionId: String, narrative: Narrative) throws {
+        ensureFileExists()
+        let payload = try encodeLine(turnId: turnId, sessionId: sessionId, narrative: narrative)
+        let data = (payload + "\n").data(using: .utf8)!
+        let handle = try FileHandle(forWritingTo: fileURL)
+        defer { try? handle.close() }
+        try handle.seekToEnd()
+        try handle.write(contentsOf: data)
+        // Update in-memory immediately; poll will see same line and overwrite (last-write-wins).
+        narratives[turnId] = narrative
+    }
+
+    private func encodeLine(turnId: String, sessionId: String, narrative: Narrative) throws -> String {
+        let dict: [String: Any] = [
+            "turn_id": turnId,
+            "session_id": sessionId,
+            "generated_at": ISO8601DateFormatter.shared.string(from: narrative.generatedAt),
+            "title": narrative.title,
+            "what_you_wanted": narrative.whatYouWanted,
+            "what_happened": narrative.whatHappened,
+            "lesson": narrative.lesson,
+            "model": narrative.model,
+            "schema_version": narrative.schemaVersion
+        ]
+        let data = try JSONSerialization.data(withJSONObject: dict, options: [])
+        return String(data: data, encoding: .utf8)!
+    }
+
+    // MARK: - File I/O
+
+    private func ensureFileExists() {
+        let dir = fileURL.deletingLastPathComponent()
+        if !FileManager.default.fileExists(atPath: dir.path) {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
+        if !FileManager.default.fileExists(atPath: fileURL.path) {
+            FileManager.default.createFile(atPath: fileURL.path, contents: nil)
+        }
+    }
+
+    private func currentFileSize() -> UInt64 {
+        let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path)
+        return (attrs?[.size] as? UInt64) ?? 0
+    }
+
+    private func readNewLines() {
+        ensureFileExists()
+        let size = currentFileSize()
+        if size < readOffset {
+            readOffset = 0
+            lineBuffer = ""
+        }
+        guard size > readOffset else { return }
+
+        guard let handle = try? FileHandle(forReadingFrom: fileURL) else { return }
+        defer { try? handle.close() }
+        do { try handle.seek(toOffset: readOffset) } catch {
+            logger.warning("seek failed: \(error.localizedDescription)")
+            return
+        }
+        guard let chunk = try? handle.readToEnd(), !chunk.isEmpty else { return }
+        readOffset += UInt64(chunk.count)
+        guard let text = String(data: chunk, encoding: .utf8) else { return }
+        lineBuffer.append(text)
+
+        var lines = lineBuffer.components(separatedBy: "\n")
+        let trailing = lines.removeLast()
+        lineBuffer = trailing
+
+        for line in lines where !line.isEmpty {
+            guard let data = line.data(using: .utf8) else { continue }
+            do {
+                let row = try decoder.decode(NarrativeLine.self, from: data)
+                narratives[row.turn_id] = row.toNarrative()
+            } catch {
+                logger.warning("skipping malformed narrative line")
+            }
+        }
+    }
+}
+
+private extension ISO8601DateFormatter {
+    static let shared: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+}
+
+private struct NarrativeLine: Decodable {
+    let turn_id: String
+    let session_id: String
+    let generated_at: String
+    let title: String
+    let what_you_wanted: String
+    let what_happened: String
+    let lesson: String
+    let model: String
+    let schema_version: Int
+
+    func toNarrative() -> Narrative {
+        let date = ISO8601DateFormatter.shared.date(from: generated_at) ?? Date()
+        return Narrative(
+            title: title,
+            whatYouWanted: what_you_wanted,
+            whatHappened: what_happened,
+            lesson: lesson,
+            model: model,
+            generatedAt: date,
+            schemaVersion: schema_version
+        )
+    }
+}
