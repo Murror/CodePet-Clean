@@ -8,6 +8,9 @@ struct NarrativeChatTurnView: View {
     @EnvironmentObject var appState: AppState
     let narrative: Narrative
 
+    @State private var isBreathing = false
+    @State private var aiRotation: Double = 0
+
     private var pet: PetCharacter? {
         PetCharacter.all[appState.activeChar]
     }
@@ -16,6 +19,14 @@ struct NarrativeChatTurnView: View {
         VStack(alignment: .leading, spacing: 18) {
             userBubble
             aiBubble
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
+                isBreathing = true
+            }
+            withAnimation(.linear(duration: 12).repeatForever(autoreverses: false)) {
+                aiRotation = 360
+            }
         }
     }
 
@@ -59,6 +70,8 @@ struct NarrativeChatTurnView: View {
                     )
                     .clipShape(Circle())
                     .overlay(Circle().stroke(pet.color.opacity(0.6), lineWidth: 1.5))
+                    .scaleEffect(isBreathing ? 1.04 : 0.96)
+                    .offset(y: isBreathing ? -1 : 1)
             } else {
                 Circle()
                     .fill(ReflectionTheme.accent.opacity(0.2))
@@ -105,6 +118,7 @@ struct NarrativeChatTurnView: View {
                 .resizable()
                 .scaledToFit()
                 .frame(width: size * 0.7, height: size * 0.7)
+                .rotationEffect(.degrees(aiRotation))
         }
         .frame(width: size, height: size)
     }
