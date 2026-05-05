@@ -99,17 +99,12 @@ struct NarrativeChatTurnView: View {
     private func aiAvatar(size: CGFloat) -> some View {
         ZStack {
             Circle()
-                .fill(ReflectionTheme.background)
-                .overlay(Circle().stroke(ReflectionTheme.borderLight, lineWidth: 1))
-            Image(systemName: "sparkles")
-                .font(.system(size: size * 0.5, weight: .medium))
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [ReflectionTheme.accent, ReflectionTheme.accent.opacity(0.7)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(Color(red: 0xFD/255.0, green: 0xF6/255.0, blue: 0xF1/255.0))
+                .overlay(Circle().stroke(Color(red: 0xE3/255.0, green: 0x9A/255.0, blue: 0x7B/255.0).opacity(0.4), lineWidth: 1))
+            Image("claude-icon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: size * 0.7, height: size * 0.7)
         }
         .frame(width: size, height: size)
     }
