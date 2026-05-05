@@ -327,7 +327,7 @@ struct ReflectionTab: View {
 
             // Narrative or loading state
             if let narrative = turn.narrative {
-                NarrativeBodyView(narrative: narrative)
+                NarrativeChatView(narrative: narrative)
             } else {
                 TurnLoadingStates(state: turn.state, onRetry: {
                     Task { await enricher.enrich(turn: turn) }
