@@ -41,6 +41,12 @@ final class ReflectionEventStore: ObservableObject {
         pollTimer = nil
     }
 
+    /// Inject mock events for UI testing — appends to in-memory rawJSONLEvents
+    /// without touching the events.jsonl file. Cleared on app relaunch.
+    func seedMockEvents(_ entries: [(type: String, isoTime: String, sessionId: String, text: String)]) {
+        rawJSONLEvents.append(contentsOf: entries)
+    }
+
     /// Live events grouped into a `ReflectionSession` for the sidebar.
     /// Returns nil until at least one event has been captured this app session.
     var liveSession: ReflectionSession? {

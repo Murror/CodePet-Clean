@@ -21,5 +21,8 @@ final class ReflectionComposition: ObservableObject {
     func start() {
         eventStore.start()
         narrativeStore.start()
+        #if DEBUG
+        ReflectionMockSeeder.seed(into: self)
+        #endif
     }
 }

@@ -42,6 +42,11 @@ final class NarrativeStore: ObservableObject {
         pollTimer = nil
     }
 
+    /// Inject a mock narrative for UI testing — in-memory only, doesn't touch the file.
+    func seedMockNarrative(turnId: String, narrative: Narrative) {
+        narratives[turnId] = narrative
+    }
+
     /// Append a narrative line. Used by NarrativeEnricher.
     func appendNarrative(turnId: String, sessionId: String, narrative: Narrative) throws {
         ensureFileExists()
