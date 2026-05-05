@@ -46,7 +46,7 @@ final class NarrativeStoreTests: XCTestCase {
         append(sampleLine(turnId: "t2", title: "Second"))
 
         let store = NarrativeStore(fileURL: tmpURL, pollInterval: 0.1)
-        store.startForTesting()
+        store.start()
         try? await Task.sleep(nanoseconds: 200_000_000)
 
         XCTAssertEqual(store.narratives.count, 2)
@@ -57,7 +57,7 @@ final class NarrativeStoreTests: XCTestCase {
 
     func testIncrementalReadOnNewLines() async {
         let store = NarrativeStore(fileURL: tmpURL, pollInterval: 0.1)
-        store.startForTesting()
+        store.start()
         try? await Task.sleep(nanoseconds: 150_000_000)
 
         XCTAssertEqual(store.narratives.count, 0)
@@ -75,7 +75,7 @@ final class NarrativeStoreTests: XCTestCase {
         append(sampleLine(turnId: "t2", title: "AlsoGood"))
 
         let store = NarrativeStore(fileURL: tmpURL, pollInterval: 0.1)
-        store.startForTesting()
+        store.start()
         try? await Task.sleep(nanoseconds: 200_000_000)
 
         XCTAssertEqual(store.narratives.count, 2)
@@ -87,7 +87,7 @@ final class NarrativeStoreTests: XCTestCase {
         append(sampleLine(turnId: "t1", title: "Second"))
 
         let store = NarrativeStore(fileURL: tmpURL, pollInterval: 0.1)
-        store.startForTesting()
+        store.start()
         try? await Task.sleep(nanoseconds: 200_000_000)
 
         XCTAssertEqual(store.narratives.count, 1)
@@ -99,7 +99,7 @@ final class NarrativeStoreTests: XCTestCase {
         try? FileManager.default.removeItem(at: tmpURL)
 
         let store = NarrativeStore(fileURL: tmpURL, pollInterval: 0.1)
-        store.startForTesting()
+        store.start()
         try? await Task.sleep(nanoseconds: 200_000_000)
 
         XCTAssertTrue(FileManager.default.fileExists(atPath: tmpURL.path))
@@ -110,7 +110,7 @@ final class NarrativeStoreTests: XCTestCase {
         append(sampleLine(turnId: "t1", title: "Early"))
 
         let store = NarrativeStore(fileURL: tmpURL, pollInterval: 0.1)
-        store.startForTesting()
+        store.start()
         try? await Task.sleep(nanoseconds: 200_000_000)
         XCTAssertEqual(store.narratives.count, 1)
 

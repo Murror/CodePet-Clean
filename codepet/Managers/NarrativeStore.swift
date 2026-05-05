@@ -37,11 +37,6 @@ final class NarrativeStore: ObservableObject {
         }
     }
 
-    /// Test helper: deterministic prime + start
-    func startForTesting() {
-        start()
-    }
-
     func stop() {
         pollTimer?.invalidate()
         pollTimer = nil
@@ -61,19 +56,16 @@ final class NarrativeStore: ObservableObject {
     }
 
     private func encodeLine(turnId: String, sessionId: String, narrative: Narrative) throws -> String {
-        let dict: [String: Any] = [
-            "turn_id": turnId,
-            "session_id": sessionId,
-            "generated_at": ISO8601DateFormatter.shared.string(from: narrative.generatedAt),
-            "title": narrative.title,
-            "what_you_wanted": narrative.whatYouWanted,
-            "what_happened": narrative.whatHappened,
-            "lesson": narrative.lesson,
-            "model": narrative.model,
-            "schema_version": narrative.schemaVersion
-        ]
-        let data = try JSONSerialization.data(withJSONObject: dict, options: [])
-        return String(data: data, encoding: .utf8)!
+        let line = NarrativeLine(turnId: turnId, sessionId: sessionId, narrative: narrative)
+        let data = try JSONEncoder().encode(line)
+        guard let string = String(data: data, encoding: .utf8) else {
+            throw NSError(
+                domain: "NarrativeStore",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "Failed to encode narrative line as UTF-8"]
+            )
+        }
+        return string
     }
 
     // MARK: - File I/O
@@ -123,7 +115,7 @@ final class NarrativeStore: ObservableObject {
                 let row = try decoder.decode(NarrativeLine.self, from: data)
                 narratives[row.turn_id] = row.toNarrative()
             } catch {
-                logger.warning("skipping malformed narrative line")
+                logger.warning("skipping malformed narrative line: \(error.localizedDescription)")
             }
         }
     }
@@ -137,7 +129,7 @@ private extension ISO8601DateFormatter {
     }()
 }
 
-private struct NarrativeLine: Decodable {
+private struct NarrativeLine: Codable {
     let turn_id: String
     let session_id: String
     let generated_at: String
@@ -147,6 +139,18 @@ private struct NarrativeLine: Decodable {
     let lesson: String
     let model: String
     let schema_version: Int
+
+    init(turnId: String, sessionId: String, narrative: Narrative) {
+        self.turn_id = turnId
+        self.session_id = sessionId
+        self.generated_at = ISO8601DateFormatter.shared.string(from: narrative.generatedAt)
+        self.title = narrative.title
+        self.what_you_wanted = narrative.whatYouWanted
+        self.what_happened = narrative.whatHappened
+        self.lesson = narrative.lesson
+        self.model = narrative.model
+        self.schema_version = narrative.schemaVersion
+    }
 
     func toNarrative() -> Narrative {
         let date = ISO8601DateFormatter.shared.date(from: generated_at) ?? Date()
