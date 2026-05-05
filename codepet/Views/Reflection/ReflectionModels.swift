@@ -29,6 +29,7 @@ struct CapturedEvent: Identifiable, Hashable {
     let trigger: TriggerTag?
     let context: String?      // pet's narrative observation — shown on expand
     let isManualLog: Bool
+    let sessionId: String?    // Claude Code session that produced this event
 
     init(
         id: UUID = UUID(),
@@ -38,7 +39,8 @@ struct CapturedEvent: Identifiable, Hashable {
         aiSummary: String? = nil,
         trigger: TriggerTag? = nil,
         context: String? = nil,
-        isManualLog: Bool = false
+        isManualLog: Bool = false,
+        sessionId: String? = nil
     ) {
         self.id = id
         self.time = time
@@ -48,6 +50,7 @@ struct CapturedEvent: Identifiable, Hashable {
         self.trigger = trigger
         self.context = context
         self.isManualLog = isManualLog
+        self.sessionId = sessionId
     }
 }
 
