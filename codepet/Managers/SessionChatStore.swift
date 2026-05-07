@@ -66,8 +66,9 @@ final class SessionChatStore: ObservableObject {
     func flushForTests() {
         saveWork?.cancel()
         saveWork = nil
+        let snapshot = threads
         SessionChatStore.ioQueue.sync {
-            self.writeSnapshot(self.threads)
+            self.writeSnapshot(snapshot)
         }
     }
 
@@ -119,7 +120,7 @@ final class SessionChatStore: ObservableObject {
             )
             let tmp = fileURL.appendingPathExtension("tmp")
             let data = try encoder.encode(snapshot)
-            try data.write(to: tmp, options: .atomic)
+            try data.write(to: tmp)
             _ = try FileManager.default.replaceItemAt(fileURL, withItemAt: tmp)
         } catch {
             logger.error("Failed to save chat threads: \(String(describing: error))")
