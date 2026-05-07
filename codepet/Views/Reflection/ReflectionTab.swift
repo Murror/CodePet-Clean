@@ -8,9 +8,12 @@ struct ReflectionTab: View {
     @EnvironmentObject var enricher: NarrativeEnricher
     @EnvironmentObject var endStore: SessionEndStore
     @EnvironmentObject var sessionEnricher: SessionSummaryEnricher
+    @EnvironmentObject var chatStore: SessionChatStore
+    @EnvironmentObject var chatController: SessionChatController
 
     @State private var selectedSessionId: String? = nil
     @State private var hoveredSessionId: String? = nil
+    @State private var chatExpanded = false
 
     // MARK: - Pet name
 
@@ -80,6 +83,38 @@ struct ReflectionTab: View {
             .frame(maxWidth: .infinity)
         }
         .background(ReflectionTheme.background)
+        .overlay(alignment: .bottomTrailing) {
+            if let session = selectedSession, !session.isWelcome {
+                ZStack(alignment: .bottomTrailing) {
+                    if chatExpanded {
+                        SessionChatPanel(
+                            session: session,
+                            onClose: {
+                                chatController.cancel()
+                                chatExpanded = false
+                            },
+                            onSend: { text in
+                                let request = makeChatRequest(for: session, userMessage: text)
+                                Task {
+                                    await chatController.send(
+                                        userText: text,
+                                        sessionId: session.id,
+                                        request: request
+                                    )
+                                }
+                            }
+                        )
+                        .padding(16)
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    } else {
+                        SessionChatBubble(onTap: { chatExpanded = true })
+                            .padding(16)
+                            .transition(.opacity.combined(with: .scale))
+                    }
+                }
+                .animation(.easeOut(duration: 0.18), value: chatExpanded)
+            }
+        }
         .onChange(of: allSessions) { sessions in
             let persona = currentPetPersona()
             for session in sessions {
@@ -111,6 +146,24 @@ struct ReflectionTab: View {
             name: pet.name,
             personality: pet.personality,
             domain: pet.domain
+        )
+    }
+
+    private func makeChatRequest(for session: Session, userMessage: String) -> ChatSessionRequest {
+        let history = chatStore.historySnapshot(for: session.id, lastN: 10)
+            .map { ChatSessionRequest.ChatMessageDTO(role: $0.role.rawValue, text: $0.text) }
+        let context = ReflectionComposition.makeChatContext(
+            for: session,
+            userBrief: nil  // TODO: wire userBrief once appState exposes it
+        )
+        let language = Locale.current.identifier.hasPrefix("vi") ? "vi" : "en"
+        return ChatSessionRequest(
+            sessionId: session.id,
+            language: language,
+            petPersona: currentPetPersona(),
+            sessionContext: context,
+            history: history,
+            userMessage: userMessage
         )
     }
 
@@ -420,6 +473,10 @@ struct ReflectionTab: View {
 #Preview {
     let summaryStore = SessionSummaryStore()
     let api = ReflectionAPIClient()
+    let chatStore = SessionChatStore(
+        fileURL: FileManager.default.temporaryDirectory.appendingPathComponent("preview-chat.json")
+    )
+    let chatController = SessionChatController(api: api, store: chatStore)
     return ReflectionTab()
         .environmentObject(AppState())
         .environmentObject(ReflectionEventStore())
@@ -436,5 +493,7 @@ struct ReflectionTab: View {
             store: summaryStore,
             language: "vi"
         ))
+        .environmentObject(chatStore)
+        .environmentObject(chatController)
         .frame(width: 900, height: 800)
 }
