@@ -43,15 +43,19 @@ struct ReflectionTab: View {
     }
 
     private var allSessions: [Session] {
-        TurnAssembler.assembleSessions(
+        let real = TurnAssembler.assembleSessions(
             turns: allTurns,
             summaries: summaryStore.summaries
         )
+        return [Session.makeWelcome()] + real
     }
 
     private var selectedSession: Session? {
-        guard let id = selectedSessionId else { return allSessions.first }
-        return allSessions.first(where: { $0.id == id }) ?? allSessions.first
+        if let id = selectedSessionId,
+           let match = allSessions.first(where: { $0.id == id }) {
+            return match
+        }
+        return allSessions.first  // first is welcome by construction
     }
 
     // MARK: - Body
@@ -68,9 +72,13 @@ struct ReflectionTab: View {
                 if let session = selectedSession {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 36) {
-                            petHeader(for: session)
-                            sessionBody(for: session)
-                            footer
+                            if session.isWelcome {
+                                WelcomeSessionView()
+                            } else {
+                                petHeader(for: session)
+                                sessionBody(for: session)
+                                footer
+                            }
                         }
                         .padding(.horizontal, 40)
                         .padding(.vertical, 32)
@@ -90,7 +98,9 @@ struct ReflectionTab: View {
                         SessionChatPanel(
                             session: session,
                             onClose: {
-                                chatController.cancel()
+                                if chatController.inFlightSessionId == session.id {
+                                    chatController.cancel()
+                                }
                                 chatExpanded = false
                             },
                             onSend: { text in
@@ -196,6 +206,7 @@ struct ReflectionTab: View {
     }
 
     /// Group sessions into day buckets. Sessions sorted newest-first within each bucket.
+    /// The welcome session is excluded here — it's rendered separately in the sidebar.
     private func groupedSessions() -> [DayGroup] {
         let cal = Calendar.current
         let today = cal.startOfDay(for: Date())
@@ -205,7 +216,7 @@ struct ReflectionTab: View {
         var bucketed: [String: [Session]] = [
             "TODAY": [], "YESTERDAY": [], "THIS WEEK": [], "EARLIER": []
         ]
-        for session in allSessions {
+        for session in allSessions where !session.isWelcome {
             let day = cal.startOfDay(for: session.startedAt)
             let key: String
             if day == today { key = "TODAY" }
@@ -262,14 +273,19 @@ struct ReflectionTab: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    let groups = groupedSessions()
-                    if groups.isEmpty {
-                        Text("No sessions yet.")
-                            .font(ReflectionTheme.sans(11))
+                    // Welcome group — always pinned at top
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("WELCOME")
+                            .font(ReflectionTheme.sans(10, weight: .semibold))
+                            .tracking(1.2)
                             .foregroundColor(ReflectionTheme.mutedText)
                             .padding(.horizontal, 16)
-                            .padding(.top, 4)
+                            .padding(.bottom, 2)
+                        welcomeSidebarRow(Session.makeWelcome())
                     }
+
+                    // Day-bucket groups
+                    let groups = groupedSessions()
                     ForEach(groups) { group in
                         VStack(alignment: .leading, spacing: 10) {
                             Text(group.label)
@@ -290,6 +306,42 @@ struct ReflectionTab: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Color(red: 0xFD / 255.0, green: 0xFC / 255.0, blue: 0xF8 / 255.0))
+    }
+
+    private func welcomeSidebarRow(_ session: Session) -> some View {
+        let isSelected = session.id == selectedSessionId
+        return Button {
+            selectedSessionId = session.id
+        } label: {
+            HStack(alignment: .center, spacing: 10) {
+                Image(systemName: "sparkle")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundColor(ReflectionTheme.accent)
+                    .frame(width: 22, height: 22)
+                    .background(
+                        Circle().fill(ReflectionTheme.accent.opacity(0.12))
+                    )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Get started")
+                        .font(ReflectionTheme.sans(12.5, weight: .semibold))
+                        .foregroundColor(ReflectionTheme.primaryText)
+                    Text("Connect Claude Code to begin")
+                        .font(ReflectionTheme.sans(10.5))
+                        .foregroundColor(ReflectionTheme.mutedText)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isSelected
+                          ? LinearGradient(colors: [ReflectionTheme.accent.opacity(0.18), ReflectionTheme.accent.opacity(0.08)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                          : LinearGradient(colors: [Color.clear, Color.clear], startPoint: .topLeading, endPoint: .bottomTrailing))
+            )
+            .padding(.horizontal, 8)
+        }
+        .buttonStyle(.plain)
     }
 
     private func sidebarSessionRow(_ session: Session) -> some View {
@@ -378,15 +430,15 @@ struct ReflectionTab: View {
             // Session header strip
             sessionHeaderStrip(for: session)
 
-            // Per-turn rendering (chronological, oldest first)
-            ForEach(session.turns) { turn in
-                turnSection(for: turn)
-            }
-
-            // Session summary card at the bottom
+            // Pet recap up top — high-level voice before the turn-by-turn detail
             SessionSummaryView(summary: session.summary) {
                 let persona = currentPetPersona()
                 Task { await sessionEnricher.enrich(session: session, petPersona: persona) }
+            }
+
+            // Per-turn rendering (chronological, oldest first)
+            ForEach(session.turns) { turn in
+                turnSection(for: turn)
             }
         }
     }

@@ -11,6 +11,7 @@ struct SessionChatPanel: View {
 
     @State private var draft: String = ""
     @FocusState private var inputFocused: Bool
+    @State private var atBottom = true
 
     private var pet: PetCharacter? { PetCharacter.all[appState.activeChar] }
     private var petName: String { pet?.name ?? "Pet" }
@@ -89,20 +90,38 @@ struct SessionChatPanel: View {
                     if let error = controller.error {
                         errorRow(error)
                     }
+                    // Sentinel: emits true to BottomVisibilityKey when this view
+                    // is within 40pt of the scroll container's bottom edge.
+                    Color.clear
+                        .frame(height: 1)
+                        .id("bottomSentinel")
+                        .background(
+                            GeometryReader { geo in
+                                Color.clear.preference(
+                                    key: BottomVisibilityKey.self,
+                                    value: geo.frame(in: .named("chatScroll")).maxY
+                                            <= geo.frame(in: .named("chatScroll")).size.height + 40
+                                )
+                            }
+                        )
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
             }
+            .coordinateSpace(name: "chatScroll")
+            .onPreferenceChange(BottomVisibilityKey.self) { atBottom = $0 }
             .onChange(of: messages.count) { _ in
-                if let last = messages.last {
+                if atBottom, let last = messages.last {
                     withAnimation(.easeOut(duration: 0.2)) {
                         proxy.scrollTo(last.id, anchor: .bottom)
                     }
                 }
             }
             .onChange(of: controller.streamingText) { _ in
-                withAnimation(.easeOut(duration: 0.1)) {
-                    proxy.scrollTo("streaming", anchor: .bottom)
+                if atBottom {
+                    withAnimation(.easeOut(duration: 0.1)) {
+                        proxy.scrollTo("streaming", anchor: .bottom)
+                    }
                 }
             }
         }
@@ -226,5 +245,14 @@ struct SessionChatPanel: View {
         let text = draft
         draft = ""
         onSend(text)
+    }
+}
+
+// MARK: - Preference key for bottom-proximity auto-scroll guard
+
+private struct BottomVisibilityKey: PreferenceKey {
+    static var defaultValue: Bool = true
+    static func reduce(value: inout Bool, nextValue: () -> Bool) {
+        value = nextValue()
     }
 }
