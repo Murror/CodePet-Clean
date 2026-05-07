@@ -26,6 +26,10 @@ final class MockSessionAPIClient: ReflectionAPIClientProtocol {
             model: "claude-haiku-4-5-20251001"
         )
     }
+
+    func chatSessionStream(_ request: ChatSessionRequest) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        AsyncThrowingStream { $0.finish() }
+    }
 }
 
 // MARK: - Tests
