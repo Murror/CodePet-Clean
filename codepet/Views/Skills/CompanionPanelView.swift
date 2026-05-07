@@ -1,8 +1,8 @@
 import SwiftUI
 
-// MARK: - Chat Message Model
+// MARK: - Companion Chat Message Model (local to CompanionPanelView; distinct from ReflectionChat.ChatMessage)
 
-struct ChatMessage: Identifiable {
+struct CompanionChatMessage: Identifiable {
     let id = UUID()
     let text: String
     let isUser: Bool
@@ -137,21 +137,6 @@ struct CompanionRoles {
             fallbacks: ["The conventional answer would be boring. Here's the unconventional one: do the opposite of what feels safe. That's where the real learning lives.", "You know what? Let's approach this sideways. What would happen if you did the WORST possible version of what you're trying to do? Sometimes that reveals the best path.", "Interesting. Most people wouldn't even think to ask that. That tells me you're the kind of coder who finds the edges. Good. The edges are where the interesting stuff lives."]
         ),
 
-        "zero": CompanionRole(
-            title: "The Optimizer",
-            statusMessages: ["...", "Calculating efficiency", "Minimal input. Maximum output."],
-            quickActions: ["Optimize my workflow", "What's unnecessary?", "Fastest path to ship", "Reduce my prompt count"],
-            greetingBubble: { state in
-                return "Efficiency. Let's begin."
-            },
-            responseBank: [
-                "optimize": ["Remove one tool from your stack. Whichever you used least this week — cut it. Depth in fewer tools beats shallow knowledge of many.", "Three rules: 1) Never repeat a prompt. Save good ones. 2) Never fix manually what AI can fix. 3) Never learn what you can look up. Apply these."],
-                "unnecessary": ["Most of what you think is necessary isn't. README? Necessary. Perfect folder structure before writing code? Unnecessary. Tests for a prototype? Unnecessary. Ship first. Organize later.", "Your last session probably had 40% redundant prompts. Next time: write one detailed prompt instead of five vague ones. Quality over quantity."],
-                "fastest": ["Fastest path: 1) Describe the end state in one sentence. 2) Ask AI to scaffold. 3) Run. 4) Fix the one worst bug. 5) Ship. Everything else is procrastination.", "Ship in 3 steps. Describe. Generate. Deploy. Everything between is overhead."],
-                "reduce": ["Your prompt count is probably 3x what it needs to be. Fix: spend 30 more seconds writing each prompt. Add context, examples, constraints. One great prompt > five mediocre ones."],
-            ],
-            fallbacks: [".", "Less is more. Apply that to your question and you'll find your answer.", "Noted. My advice: simplify. Whatever you're thinking about, there's a simpler version. Do that one first."]
-        ),
 
         "null": CompanionRole(
             title: "Chaos Gremlin",
@@ -184,7 +169,7 @@ struct CompanionPanelView: View {
     @EnvironmentObject var appState: AppState
     @State private var chatInput = ""
     @State private var showSwitchSheet = false
-    @State private var messages: [ChatMessage] = []
+    @State private var messages: [CompanionChatMessage] = []
     @State private var isTyping = false
     var onClose: () -> Void = {}
 
@@ -372,7 +357,7 @@ struct CompanionPanelView: View {
         let userText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !userText.isEmpty else { return }
 
-        messages.append(ChatMessage(text: userText, isUser: true))
+        messages.append(CompanionChatMessage(text: userText, isUser: true))
         chatInput = ""
         SoundManager.shared.playTap()
 
@@ -381,7 +366,7 @@ struct CompanionPanelView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             isTyping = false
             let response = generateResponse(for: userText)
-            messages.append(ChatMessage(text: response, isUser: false))
+            messages.append(CompanionChatMessage(text: response, isUser: false))
         }
     }
 
