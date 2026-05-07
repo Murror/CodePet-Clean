@@ -1,13 +1,13 @@
-// TODO (Task 4-5): uncomment these imports when the handler is implemented
+// TODO (Task 5): uncomment these imports when the handler is implemented
 // import { Request } from "firebase-functions/v2/https";
 // import { Response } from "express";
 // import Anthropic from "@anthropic-ai/sdk";
 // import * as logger from "firebase-functions/logger";
 // import { verifyAuth } from "./auth";
 // import { checkAndIncrement } from "./rateLimit";
-// import { MODEL, PERSONA_BLOCK_TEMPLATE, renderPersonaBlock } from "./anthropic";
+// import { MODEL } from "./anthropic";
 
-import { PetPersonaInput } from "./anthropic";
+import { PetPersonaInput, renderPersonaBlock } from "./anthropic";
 
 export interface ChatTurnContext {
   prompt: string;
@@ -89,4 +89,106 @@ export function validateChatPayload(body: any): string | null {
   }
 
   return null;
+}
+
+// ─── Chat system prompt + message builders ────────────────────────────────────
+
+const MAX_BRIEF_CHARS = 1200;
+const MAX_PROMPT_CHARS_PER_TURN = 600;
+const MAX_NARRATIVE_CHARS_PER_FIELD = 300;
+const MAX_EVENTS_PER_TURN = 30;
+const MAX_TURNS = 30;
+
+export const CHAT_SYSTEM_PROMPT = `You are the user's coding companion — a pet character who watched a coding session unfold and is now chatting with the user about it.
+
+There is no separate "AI" or "assistant" in the story. You are the sole voice talking directly to the user (the developer / "you" / "bạn") about THEIR session.
+
+Voice rules (must follow):
+1. Single-voice narration. You (the pet) are the only speaker. NEVER mention an "AI", "assistant", "Claude", "the model", or any third party.
+2. Address the user in second person ("you" / "bạn"). First person ("I" / "mình") is fine when YOU (the pet) reflect on what you noticed.
+3. DO NOT use file names, function names, class names, or CLI commands. Express the MEANING instead — e.g. "you adjusted how the journal page looks", not "Edit ReflectionTab.swift". Even if the user asks about a specific file in their question, answer in meaning rather than naming files back.
+4. Tone: warm, concise, conversational — a small friend curled up beside the user. No emoji. No headings or bullet lists; chat replies are plain prose.
+5. Stay grounded in the SESSION CONTEXT below. If the user asks something the session doesn't cover, say you don't see it in this session rather than inventing.
+6. Replies are short by default — usually 1-3 sentences. Go longer only if the user explicitly asks for more detail.
+
+<persona_block>
+
+Output language: <language>
+
+SESSION CONTEXT (this is the only knowledge you have about the user's session):
+<session_context>`;
+
+interface BuildSystemArgs {
+  language: "vi" | "en";
+  petPersona?: PetPersonaInput;
+  sessionContext: ChatSessionContext;
+}
+
+export function buildChatSystemPrompt(args: BuildSystemArgs): string {
+  return CHAT_SYSTEM_PROMPT
+    .replace("<language>", args.language === "vi" ? "Tiếng Việt" : "English")
+    .replace("<persona_block>", renderPersonaBlock(args.petPersona).trim())
+    .replace("<session_context>", renderSessionContext(args.sessionContext));
+}
+
+function renderSessionContext(ctx: ChatSessionContext): string {
+  const parts: string[] = [];
+
+  const brief = (ctx.user_brief ?? "").trim();
+  if (brief) {
+    parts.push(`Project context the user shared with you:\n"""\n${brief.slice(0, MAX_BRIEF_CHARS)}\n"""`);
+  }
+
+  if (ctx.summary) {
+    parts.push(
+      `Session arc (your earlier recap to the user):\n` +
+        `Summary: ${ctx.summary.summary}\n` +
+        `Lesson: ${ctx.summary.lesson}`
+    );
+  }
+
+  const turns = ctx.turns.slice(0, MAX_TURNS);
+  const turnLines = turns.map((t, i) => {
+    const dur = t.duration_minutes ? ` (~${t.duration_minutes}m)` : "";
+    const what = t.what_happened
+      ? `\n   What happened: ${t.what_happened.slice(0, MAX_NARRATIVE_CHARS_PER_FIELD)}`
+      : "";
+    const wanted = t.what_you_wanted
+      ? `\n   What was wanted: ${t.what_you_wanted.slice(0, MAX_NARRATIVE_CHARS_PER_FIELD)}`
+      : "";
+    const lesson = t.lesson
+      ? `\n   Turn lesson: ${t.lesson.slice(0, MAX_NARRATIVE_CHARS_PER_FIELD)}`
+      : "";
+    const events = t.events.slice(0, MAX_EVENTS_PER_TURN);
+    const eventBlock = events.length === 0
+      ? ""
+      : "\n   Actions: " + events.map((e) => `${e.time} ${e.tool} ${e.path ?? e.text ?? ""}`.trim()).join("; ");
+    return `${i + 1}. User asked: "${t.prompt.slice(0, MAX_PROMPT_CHARS_PER_TURN)}"${dur}${wanted}${what}${lesson}${eventBlock}`;
+  });
+
+  parts.push(`Turns in chronological order:\n${turnLines.join("\n\n")}`);
+  return parts.join("\n\n");
+}
+
+interface BuildMessagesArgs {
+  history: ChatHistoryMessage[];
+  userMessage: string;
+}
+
+export interface AnthropicChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
+export function buildChatMessages(args: BuildMessagesArgs): AnthropicChatMessage[] {
+  const mapped: AnthropicChatMessage[] = args.history.map((m) => ({
+    role: m.role === "user" ? "user" : "assistant",
+    content: m.text
+  }));
+  mapped.push({ role: "user", content: args.userMessage });
+  return mapped;
+}
+
+export function buildChatUserMessage(args: BuildMessagesArgs): string {
+  return args.userMessage;
 }

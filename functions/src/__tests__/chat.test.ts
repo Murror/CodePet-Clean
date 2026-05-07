@@ -79,3 +79,98 @@ describe("validateChatPayload", () => {
     expect(validateChatPayload(minimal)).toBeNull();
   });
 });
+
+import { buildChatSystemPrompt, buildChatUserMessage, buildChatMessages, CHAT_SYSTEM_PROMPT } from "../chat";
+
+describe("buildChatSystemPrompt", () => {
+  test("substitutes language and persona", () => {
+    const prompt = buildChatSystemPrompt({
+      language: "vi",
+      petPersona: { id: "byte", name: "Byte", personality: "glitchy", domain: "Data" },
+      sessionContext: { turns: [{ prompt: "fix", events: [] }] }
+    });
+    expect(prompt).toContain("Tiếng Việt");
+    expect(prompt).toContain("Byte");
+    expect(prompt).toContain("glitchy");
+    expect(prompt).not.toContain("<language>");
+    expect(prompt).not.toContain("<persona_block>");
+  });
+
+  test("renders user_brief when present", () => {
+    const prompt = buildChatSystemPrompt({
+      language: "en",
+      sessionContext: {
+        user_brief: "shipping a journaling app",
+        turns: [{ prompt: "x", events: [] }]
+      }
+    });
+    expect(prompt).toContain("shipping a journaling app");
+  });
+
+  test("renders session summary when present", () => {
+    const prompt = buildChatSystemPrompt({
+      language: "en",
+      sessionContext: {
+        summary: { summary: "We refactored auth.", lesson: "Small steps." },
+        turns: [{ prompt: "x", events: [] }]
+      }
+    });
+    expect(prompt).toContain("We refactored auth.");
+    expect(prompt).toContain("Small steps.");
+  });
+
+  test("renders each turn with its narrative and events", () => {
+    const prompt = buildChatSystemPrompt({
+      language: "en",
+      sessionContext: {
+        turns: [
+          {
+            prompt: "fix the layout",
+            what_you_wanted: "you wanted clean rows",
+            what_happened: "we tried twice",
+            lesson: "isolate the layout first",
+            duration_minutes: 12,
+            events: [
+              { time: "09:00", tool: "Edit", path: "ReflectionTab.swift" },
+              { time: "09:05", tool: "Bash", text: "swift test" }
+            ]
+          }
+        ]
+      }
+    });
+    expect(prompt).toContain("fix the layout");
+    expect(prompt).toContain("you wanted clean rows");
+    expect(prompt).toContain("we tried twice");
+    expect(prompt).toContain("isolate the layout first");
+    expect(prompt).toContain("ReflectionTab.swift");
+    expect(prompt).toContain("swift test");
+  });
+
+  test("forbids file/jargon rules are present", () => {
+    expect(CHAT_SYSTEM_PROMPT).toMatch(/file name/i);
+    expect(CHAT_SYSTEM_PROMPT).toMatch(/AI|assistant/);
+    expect(CHAT_SYSTEM_PROMPT).toMatch(/second person|"you"|bạn/);
+  });
+});
+
+describe("buildChatMessages", () => {
+  test("maps history roles and appends user_message as final user turn", () => {
+    const messages = buildChatMessages({
+      history: [
+        { role: "user", text: "what was tricky?" },
+        { role: "pet", text: "Together we kept circling…" }
+      ],
+      userMessage: "tell me more"
+    });
+    expect(messages).toEqual([
+      { role: "user", content: "what was tricky?" },
+      { role: "assistant", content: "Together we kept circling…" },
+      { role: "user", content: "tell me more" }
+    ]);
+  });
+
+  test("handles empty history", () => {
+    const messages = buildChatMessages({ history: [], userMessage: "hi" });
+    expect(messages).toEqual([{ role: "user", content: "hi" }]);
+  });
+});
