@@ -126,6 +126,71 @@ struct SummarizeSessionResponse: Codable {
     }
 }
 
+// MARK: - Chat DTOs
+
+struct ChatSessionRequest: Codable {
+    let sessionId: String
+    let language: String
+    let petPersona: SummarizeTurnRequest.PetPersonaDTO?
+    let sessionContext: SessionContextDTO
+    let history: [ChatMessageDTO]
+    let userMessage: String
+
+    struct SessionContextDTO: Codable {
+        let userBrief: String?
+        let summary: SummaryDTO?
+        let turns: [TurnDTO]
+
+        struct SummaryDTO: Codable {
+            let summary: String
+            let lesson: String
+        }
+
+        struct TurnDTO: Codable {
+            let prompt: String
+            let whatYouWanted: String?
+            let whatHappened: String?
+            let lesson: String?
+            let durationMinutes: Int?
+            let events: [SummarizeTurnRequest.EventDTO]
+
+            enum CodingKeys: String, CodingKey {
+                case prompt
+                case whatYouWanted = "what_you_wanted"
+                case whatHappened = "what_happened"
+                case lesson
+                case durationMinutes = "duration_minutes"
+                case events
+            }
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case userBrief = "user_brief"
+            case summary
+            case turns
+        }
+    }
+
+    struct ChatMessageDTO: Codable {
+        let role: String   // "user" | "pet"
+        let text: String
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case sessionId = "session_id"
+        case language
+        case petPersona = "pet_persona"
+        case sessionContext = "session_context"
+        case history
+        case userMessage = "user_message"
+    }
+}
+
+enum ChatStreamEvent: Equatable {
+    case delta(String)
+    case done(model: String, cacheHit: Bool)
+}
+
 // MARK: - Client
 
 protocol ReflectionAPIClientProtocol {
