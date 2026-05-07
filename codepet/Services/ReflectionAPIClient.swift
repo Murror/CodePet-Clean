@@ -196,6 +196,7 @@ enum ChatStreamEvent: Equatable {
 protocol ReflectionAPIClientProtocol {
     func summarizeTurn(_ request: SummarizeTurnRequest) async throws -> SummarizeTurnResponse
     func summarizeSession(_ request: SummarizeSessionRequest) async throws -> SummarizeSessionResponse
+    func chatSessionStream(_ request: ChatSessionRequest) -> AsyncThrowingStream<ChatStreamEvent, Error>
 }
 
 enum ReflectionAPIError: Error {
@@ -212,24 +213,30 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
     static let endpoint = URL(string: "https://summarizeturn-REPLACE_ME-uc.a.run.app")!
 
     private static let sessionEndpoint = URL(string: "https://summarizesession-REPLACE_ME-uc.a.run.app")!
+    private static let chatEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/chatSession")!
 
     private let session: URLSession
+    private let authTokenProvider: () async throws -> String
 
-    init(session: URLSession = .shared) {
+    init(
+        session: URLSession = .shared,
+        authTokenProvider: (() async throws -> String)? = nil
+    ) {
         self.session = session
+        self.authTokenProvider = authTokenProvider ?? {
+            guard let user = Auth.auth().currentUser else {
+                throw ReflectionAPIError.notSignedIn
+            }
+            do {
+                return try await user.getIDToken()
+            } catch {
+                throw ReflectionAPIError.network(error)
+            }
+        }
     }
 
     func summarizeTurn(_ request: SummarizeTurnRequest) async throws -> SummarizeTurnResponse {
-        guard let user = Auth.auth().currentUser else {
-            throw ReflectionAPIError.notSignedIn
-        }
-
-        let token: String
-        do {
-            token = try await user.getIDToken()
-        } catch {
-            throw ReflectionAPIError.network(error)
-        }
+        let token = try await authTokenProvider()
 
         var urlRequest = URLRequest(url: Self.endpoint)
         urlRequest.httpMethod = "POST"
@@ -255,11 +262,7 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
     }
 
     func summarizeSession(_ request: SummarizeSessionRequest) async throws -> SummarizeSessionResponse {
-        guard let user = Auth.auth().currentUser else {
-            throw ReflectionAPIError.notSignedIn
-        }
-        let token: String
-        do { token = try await user.getIDToken() } catch { throw ReflectionAPIError.network(error) }
+        let token = try await authTokenProvider()
 
         var urlRequest = URLRequest(url: Self.sessionEndpoint)
         urlRequest.httpMethod = "POST"
@@ -278,5 +281,80 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
 
         let parsed = try? JSONDecoder().decode(SummarizeTurnError.self, from: data)
         throw ReflectionAPIError.http(status: http.statusCode, body: parsed)
+    }
+
+    func chatSessionStream(_ request: ChatSessionRequest) -> AsyncThrowingStream<ChatStreamEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task { @MainActor in
+                do {
+                    let token = try await authTokenProvider()
+
+                    var urlRequest = URLRequest(url: Self.chatEndpoint)
+                    urlRequest.httpMethod = "POST"
+                    urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    urlRequest.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+                    urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+                    urlRequest.httpBody = try JSONEncoder().encode(request)
+
+                    let (bytes, response) = try await session.bytes(for: urlRequest)
+                    guard let http = response as? HTTPURLResponse else {
+                        throw ReflectionAPIError.malformedResponse
+                    }
+
+                    if http.statusCode != 200 {
+                        // Non-streaming error body. Read fully then throw.
+                        var data = Data()
+                        for try await byte in bytes {
+                            data.append(byte)
+                        }
+                        let parsed = try? JSONDecoder().decode(SummarizeTurnError.self, from: data)
+                        throw ReflectionAPIError.http(status: http.statusCode, body: parsed)
+                    }
+
+                    var parser = SSEParser()
+                    for try await line in bytes.lines {
+                        for frame in parser.feedLines([line]) {
+                            try Self.handle(frame: frame, continuation: continuation)
+                        }
+                    }
+                    // Flush any final frame (server should always end with blank line, but be safe).
+                    for frame in parser.feedLines([""]) {
+                        try Self.handle(frame: frame, continuation: continuation)
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    private static func handle(
+        frame: SSEFrame,
+        continuation: AsyncThrowingStream<ChatStreamEvent, Error>.Continuation
+    ) throws {
+        guard let payload = frame.data.data(using: .utf8) else { return }
+        switch frame.event {
+        case "delta":
+            struct DeltaPayload: Codable { let text: String }
+            if let d = try? JSONDecoder().decode(DeltaPayload.self, from: payload) {
+                continuation.yield(.delta(d.text))
+            }
+        case "done":
+            struct DonePayload: Codable {
+                let model: String
+                let cacheHit: Bool
+                enum CodingKeys: String, CodingKey { case model; case cacheHit = "cache_hit" }
+            }
+            if let d = try? JSONDecoder().decode(DonePayload.self, from: payload) {
+                continuation.yield(.done(model: d.model, cacheHit: d.cacheHit))
+            }
+        case "error":
+            let parsed = try? JSONDecoder().decode(SummarizeTurnError.self, from: payload)
+            throw ReflectionAPIError.http(status: 502, body: parsed)
+        default:
+            break
+        }
     }
 }

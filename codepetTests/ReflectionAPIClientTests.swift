@@ -107,4 +107,179 @@ final class ReflectionAPIClientTests: XCTestCase {
         let history = json["history"] as! [[String: Any]]
         XCTAssertEqual(history.first?["role"] as? String, "user")
     }
+
+    // MARK: - Streaming tests
+
+    @MainActor
+    func testChatStreamHappyPathEmitsDeltasAndDone() async throws {
+        MockURLProtocol.reset()
+        MockURLProtocol.responseChunks = [
+            "event: delta\ndata: {\"text\":\"Together \"}\n\n".data(using: .utf8)!,
+            "event: delta\ndata: {\"text\":\"we kept \"}\n\n".data(using: .utf8)!,
+            "event: done\ndata: {\"model\":\"claude-haiku-4-5-20251001\",\"cache_hit\":true}\n\n".data(using: .utf8)!
+        ]
+
+        let client = ReflectionAPIClient(session: mockedURLSession(), authTokenProvider: { "fake" })
+        let request = makeMinimalChatRequest()
+        var collected: [ChatStreamEvent] = []
+        for try await ev in client.chatSessionStream(request) {
+            collected.append(ev)
+        }
+        XCTAssertEqual(collected.count, 3)
+        XCTAssertEqual(collected[0], .delta("Together "))
+        XCTAssertEqual(collected[1], .delta("we kept "))
+        if case let .done(model, cacheHit) = collected[2] {
+            XCTAssertEqual(model, "claude-haiku-4-5-20251001")
+            XCTAssertTrue(cacheHit)
+        } else {
+            XCTFail("expected .done")
+        }
+    }
+
+    @MainActor
+    func testChatStreamSplitChunkParsesCorrectly() async throws {
+        MockURLProtocol.reset()
+        MockURLProtocol.responseChunks = [
+            "event: delta\ndata: {\"text\":\"He".data(using: .utf8)!,
+            "llo\"}\n\nevent: done\ndata: {\"model\":\"m\",\"cache_hit\":false}\n\n".data(using: .utf8)!
+        ]
+        let client = ReflectionAPIClient(session: mockedURLSession(), authTokenProvider: { "fake" })
+        var collected: [ChatStreamEvent] = []
+        for try await ev in client.chatSessionStream(makeMinimalChatRequest()) {
+            collected.append(ev)
+        }
+        XCTAssertEqual(collected.first, .delta("Hello"))
+    }
+
+    @MainActor
+    func testChatStream401Throws() async {
+        MockURLProtocol.reset()
+        MockURLProtocol.responseStatus = 401
+        MockURLProtocol.responseHeaders = ["Content-Type": "application/json"]
+        MockURLProtocol.responseChunks = ["{\"error\":\"invalid_token\"}".data(using: .utf8)!]
+
+        let client = ReflectionAPIClient(session: mockedURLSession(), authTokenProvider: { "fake" })
+        do {
+            for try await _ in client.chatSessionStream(makeMinimalChatRequest()) {}
+            XCTFail("expected error")
+        } catch ReflectionAPIError.http(let status, _) {
+            XCTAssertEqual(status, 401)
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+    }
+
+    @MainActor
+    func testChatStream429ThrowsWithBody() async {
+        MockURLProtocol.reset()
+        MockURLProtocol.responseStatus = 429
+        MockURLProtocol.responseHeaders = ["Content-Type": "application/json"]
+        MockURLProtocol.responseChunks = [
+            "{\"error\":\"daily_limit_reached\",\"reset_at\":\"2026-05-08T00:00:00Z\",\"limit\":50}".data(using: .utf8)!
+        ]
+
+        let client = ReflectionAPIClient(session: mockedURLSession(), authTokenProvider: { "fake" })
+        do {
+            for try await _ in client.chatSessionStream(makeMinimalChatRequest()) {}
+            XCTFail("expected error")
+        } catch ReflectionAPIError.http(let status, let body) {
+            XCTAssertEqual(status, 429)
+            XCTAssertEqual(body?.error, "daily_limit_reached")
+            XCTAssertEqual(body?.limit, 50)
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+    }
+
+    @MainActor
+    func testChatStreamMidStreamErrorThrows() async {
+        MockURLProtocol.reset()
+        MockURLProtocol.responseChunks = [
+            "event: delta\ndata: {\"text\":\"hi\"}\n\nevent: error\ndata: {\"error\":\"upstream_failure\"}\n\n".data(using: .utf8)!
+        ]
+        let client = ReflectionAPIClient(session: mockedURLSession(), authTokenProvider: { "fake" })
+        var collected: [ChatStreamEvent] = []
+        do {
+            for try await ev in client.chatSessionStream(makeMinimalChatRequest()) {
+                collected.append(ev)
+            }
+            XCTFail("expected error")
+        } catch ReflectionAPIError.http(let status, _) {
+            XCTAssertEqual(collected, [.delta("hi")])
+            XCTAssertEqual(status, 502)
+        } catch {
+            XCTFail("unexpected error: \(error)")
+        }
+    }
+
+    private func makeMinimalChatRequest() -> ChatSessionRequest {
+        ChatSessionRequest(
+            sessionId: "s1",
+            language: "en",
+            petPersona: nil,
+            sessionContext: ChatSessionRequest.SessionContextDTO(
+                userBrief: nil,
+                summary: nil,
+                turns: [
+                    ChatSessionRequest.SessionContextDTO.TurnDTO(
+                        prompt: "hi",
+                        whatYouWanted: nil,
+                        whatHappened: nil,
+                        lesson: nil,
+                        durationMinutes: nil,
+                        events: []
+                    )
+                ]
+            ),
+            history: [],
+            userMessage: "what?"
+        )
+    }
 }
+
+// MARK: - URLProtocol mock for SSE
+
+final class MockURLProtocol: URLProtocol {
+    static var responseStatus: Int = 200
+    static var responseHeaders: [String: String] = ["Content-Type": "text/event-stream"]
+    /// Each entry is a chunk delivered to the consumer. Useful for testing split-frame parsing.
+    static var responseChunks: [Data] = []
+    static var responseError: Error?
+
+    static func reset() {
+        responseStatus = 200
+        responseHeaders = ["Content-Type": "text/event-stream"]
+        responseChunks = []
+        responseError = nil
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        if let err = MockURLProtocol.responseError {
+            client?.urlProtocol(self, didFailWithError: err)
+            return
+        }
+        let response = HTTPURLResponse(
+            url: request.url!,
+            statusCode: MockURLProtocol.responseStatus,
+            httpVersion: "HTTP/1.1",
+            headerFields: MockURLProtocol.responseHeaders
+        )!
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        for chunk in MockURLProtocol.responseChunks {
+            client?.urlProtocol(self, didLoad: chunk)
+        }
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
+private func mockedURLSession() -> URLSession {
+    let config = URLSessionConfiguration.ephemeral
+    config.protocolClasses = [MockURLProtocol.self]
+    return URLSession(configuration: config)
+}
+
