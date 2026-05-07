@@ -3,6 +3,7 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import * as admin from "firebase-admin";
 import { handleSummarizeTurn } from "./summarizeTurn";
 import { handleSummarizeSession } from "./summarizeSession";
+import { handleChatSession } from "./chat";
 
 admin.initializeApp();
 setGlobalOptions({ region: "us-central1", maxInstances: 10 });
@@ -21,4 +22,12 @@ export const summarizeSession = onRequest(
     secrets: ["ANTHROPIC_API_KEY"]
   },
   handleSummarizeSession
+);
+
+export const chatSession = onRequest(
+  {
+    cors: false,
+    secrets: ["ANTHROPIC_API_KEY"]
+  },
+  handleChatSession
 );
