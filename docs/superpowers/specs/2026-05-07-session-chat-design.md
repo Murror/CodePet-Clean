@@ -117,9 +117,14 @@ struct SessionChatThread: Codable {
     — used to build the request payload.
   - `clear(_ sessionId: String)` (not exposed in UI for v1, but available).
 - Disk format: a single JSON file at
-  `~/Library/Application Support/CodePet/session_chats.json`. Save is
-  debounced (200 ms) and runs on a background queue, mirroring
-  `NarrativeStore`. Load happens once on init, synchronously.
+  `~/.codepet/session_chats.json` — matches the existing convention used
+  by `NarrativeStore` / `SessionSummaryStore` (which use the same
+  directory for their JSONL files). Unlike those stores, this file has
+  no external writer (no Claude Code hook produces it), so we use a
+  single rewriteable JSON object rather than JSONL polling.
+- Save is debounced (200 ms) and runs synchronously on the main actor
+  with file I/O dispatched to a background `DispatchQueue`.
+- Load happens once on init, synchronously.
 - Atomic writes (write to `*.tmp`, then `rename`).
 
 ## Backend — `chatSession` Cloud Function
