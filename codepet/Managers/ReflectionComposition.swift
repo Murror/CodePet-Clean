@@ -80,6 +80,7 @@ final class ReflectionComposition: ObservableObject {
     let endStore: SessionEndStore
     let enricher: NarrativeEnricher
     let sessionEnricher: SessionSummaryEnricher
+    let api: ReflectionAPIClient
 
     init(language: String = "en") {
         let events = ReflectionEventStore()
@@ -91,6 +92,7 @@ final class ReflectionComposition: ObservableObject {
         self.narrativeStore = narratives
         self.summaryStore = summaries
         self.endStore = ends
+        self.api = api
         self.enricher = NarrativeEnricher(api: api, store: narratives, language: language)
         self.sessionEnricher = SessionSummaryEnricher(api: api, store: summaries, language: language)
     }

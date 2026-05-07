@@ -7,12 +7,21 @@ struct CodePetApp: App {
     @StateObject private var authManager = AuthManager()
     @StateObject private var gameState = GameState()
     @StateObject private var mcpBridge = MCPBridgeService.shared
-    @StateObject private var reflectionComposition = ReflectionComposition()
+    @StateObject private var reflectionComposition: ReflectionComposition
+    @StateObject private var chatStore: SessionChatStore
+    @StateObject private var chatController: SessionChatController
     private var notificationManager = NotificationManager()
 
     init() {
         FirebaseApp.configure()
         print("[Firebase] Configured successfully")
+
+        let composition = ReflectionComposition()
+        let chatStore = SessionChatStore()
+        let chatController = SessionChatController(api: composition.api, store: chatStore)
+        _reflectionComposition = StateObject(wrappedValue: composition)
+        _chatStore = StateObject(wrappedValue: chatStore)
+        _chatController = StateObject(wrappedValue: chatController)
     }
 
     var body: some Scene {
@@ -28,6 +37,8 @@ struct CodePetApp: App {
                 .environmentObject(reflectionComposition.enricher)
                 .environmentObject(reflectionComposition.endStore)
                 .environmentObject(reflectionComposition.sessionEnricher)
+                .environmentObject(chatStore)
+                .environmentObject(chatController)
                 .frame(minWidth: 400, minHeight: 700)
                 .themed(isDark: appState.isDarkMode)
                 .task { reflectionComposition.start() }
