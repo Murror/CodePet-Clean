@@ -107,24 +107,22 @@ final class SessionChatStore: ObservableObject {
         }
     }
 
-    private func writeSnapshot(_ snapshot: [String: SessionChatThread]) {
+    private nonisolated func writeSnapshot(_ snapshot: [String: SessionChatThread]) {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let url = fileURL
-        let log = logger
         do {
-            let directory = url.deletingLastPathComponent()
+            let directory = fileURL.deletingLastPathComponent()
             try FileManager.default.createDirectory(
                 at: directory,
                 withIntermediateDirectories: true
             )
-            let tmp = url.appendingPathExtension("tmp")
+            let tmp = fileURL.appendingPathExtension("tmp")
             let data = try encoder.encode(snapshot)
             try data.write(to: tmp, options: .atomic)
-            _ = try FileManager.default.replaceItemAt(url, withItemAt: tmp)
+            _ = try FileManager.default.replaceItemAt(fileURL, withItemAt: tmp)
         } catch {
-            log.error("Failed to save chat threads: \(String(describing: error))")
+            logger.error("Failed to save chat threads: \(String(describing: error))")
         }
     }
 }
