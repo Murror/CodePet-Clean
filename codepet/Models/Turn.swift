@@ -27,6 +27,21 @@ struct Session: Identifiable, Hashable {
     let summary: SessionSummary?
 }
 
+extension Session {
+    static let welcomeSessionId = "welcome-onboarding"
+    var isWelcome: Bool { id == Self.welcomeSessionId }
+
+    static func makeWelcome() -> Session {
+        Session(
+            id: welcomeSessionId,
+            turns: [],
+            startedAt: Date(),
+            endedAt: nil,
+            summary: nil
+        )
+    }
+}
+
 struct Narrative: Codable, Hashable {
     let title: String          // ≤60 chars
     let whatYouWanted: String  // ≤240 chars
@@ -77,3 +92,67 @@ struct Turn: Identifiable, Hashable {
         "\(sessionId):\(promptISO)"
     }
 }
+
+#if DEBUG
+extension Turn {
+    /// Convenience factory for unit tests. Fills required fields with neutral defaults.
+    static func makeForTesting(
+        id: String = "test-turn-id",
+        sessionId: String = "test-session",
+        prompt: String,
+        startedAt: Date,
+        endedAt: Date?,
+        narrative: Narrative?,
+        rawEvents: [CapturedEvent]
+    ) -> Turn {
+        Turn(
+            id: id,
+            sessionId: sessionId,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            prompt: prompt,
+            rawEvents: rawEvents,
+            narrative: narrative,
+            state: .ready
+        )
+    }
+}
+
+extension Session {
+    /// Convenience factory for unit tests.
+    static func makeForTesting(
+        id: String,
+        startedAt: Date,
+        endedAt: Date?,
+        turns: [Turn],
+        summary: SessionSummary?
+    ) -> Session {
+        Session(
+            id: id,
+            turns: turns,
+            startedAt: startedAt,
+            endedAt: endedAt,
+            summary: summary
+        )
+    }
+}
+
+extension SessionSummary {
+    /// Convenience factory for unit tests that mirrors the test call-site signature.
+    static func makeForTesting(
+        sessionId: String,
+        summary: String,
+        lesson: String,
+        createdAt: Date
+    ) -> SessionSummary {
+        SessionSummary(
+            sessionId: sessionId,
+            summary: summary,
+            lesson: lesson,
+            generatedAt: createdAt,
+            model: "test-model",
+            schemaVersion: 1
+        )
+    }
+}
+#endif
