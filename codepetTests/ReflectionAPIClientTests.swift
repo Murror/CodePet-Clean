@@ -13,7 +13,8 @@ final class ReflectionAPIClientTests: XCTestCase {
                 .init(time: "09:00", tool: "Edit", path: "foo.swift", text: nil)
             ],
             rawSummary: "Edit foo.swift",
-            petPersona: nil
+            petPersona: nil,
+            userBrief: nil
         )
         let data = try JSONEncoder().encode(payload)
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]
@@ -125,7 +126,8 @@ final class ReflectionAPIClientTests: XCTestCase {
         for try await ev in client.chatSessionStream(request) {
             collected.append(ev)
         }
-        XCTAssertEqual(collected.count, 3)
+        XCTAssertEqual(collected.count, 3, "expected 3 stream events, got \(collected.count)")
+        guard collected.count == 3 else { return }
         XCTAssertEqual(collected[0], .delta("Together "))
         XCTAssertEqual(collected[1], .delta("we kept "))
         if case let .done(model, cacheHit) = collected[2] {
@@ -257,6 +259,8 @@ final class MockURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
+        let client = self.client
+        let request = self.request
         if let err = MockURLProtocol.responseError {
             client?.urlProtocol(self, didFailWithError: err)
             return
@@ -267,11 +271,17 @@ final class MockURLProtocol: URLProtocol {
             httpVersion: "HTTP/1.1",
             headerFields: MockURLProtocol.responseHeaders
         )!
+        let chunks = MockURLProtocol.responseChunks
+        // Deliver response headers synchronously, then deliver body chunks
+        // asynchronously so URLSession's internal byte-stream iterator has a
+        // chance to attach before data (and didFinishLoading) arrive.
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        for chunk in MockURLProtocol.responseChunks {
-            client?.urlProtocol(self, didLoad: chunk)
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.01) {
+            for chunk in chunks {
+                client?.urlProtocol(self, didLoad: chunk)
+            }
+            client?.urlProtocolDidFinishLoading(self)
         }
-        client?.urlProtocolDidFinishLoading(self)
     }
 
     override func stopLoading() {}
@@ -282,4 +292,3 @@ private func mockedURLSession() -> URLSession {
     config.protocolClasses = [MockURLProtocol.self]
     return URLSession(configuration: config)
 }
-

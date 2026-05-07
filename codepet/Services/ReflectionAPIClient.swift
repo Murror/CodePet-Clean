@@ -11,6 +11,7 @@ struct SummarizeTurnRequest: Codable {
     let events: [EventDTO]
     let rawSummary: String
     let petPersona: PetPersonaDTO?
+    let userBrief: String?     // user's project brief from welcome screen
 
     struct EventDTO: Codable {
         let time: String       // "HH:mm"
@@ -34,6 +35,7 @@ struct SummarizeTurnRequest: Codable {
         case events
         case rawSummary = "raw_summary"
         case petPersona = "pet_persona"
+        case userBrief = "user_brief"
     }
 }
 
@@ -86,6 +88,7 @@ struct SummarizeSessionRequest: Codable {
     let language: String
     let turns: [TurnDTO]
     let petPersona: SummarizeTurnRequest.PetPersonaDTO?
+    let userBrief: String?
 
     struct TurnDTO: Codable {
         let prompt: String
@@ -106,6 +109,7 @@ struct SummarizeSessionRequest: Codable {
         case language
         case turns
         case petPersona = "pet_persona"
+        case userBrief = "user_brief"
     }
 }
 
@@ -209,10 +213,8 @@ enum ReflectionAPIError: Error {
 @MainActor
 final class ReflectionAPIClient: ReflectionAPIClientProtocol {
 
-    /// Replace with the deployed Cloud Function URL after Task 10.
-    static let endpoint = URL(string: "https://summarizeturn-REPLACE_ME-uc.a.run.app")!
-
-    private static let sessionEndpoint = URL(string: "https://summarizesession-REPLACE_ME-uc.a.run.app")!
+    static let endpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/summarizeTurn")!
+    private static let sessionEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/summarizeSession")!
     private static let chatEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/chatSession")!
 
     private let session: URLSession
@@ -284,19 +286,26 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
     }
 
     func chatSessionStream(_ request: ChatSessionRequest) -> AsyncThrowingStream<ChatStreamEvent, Error> {
-        AsyncThrowingStream { continuation in
-            let task = Task { @MainActor in
-                do {
-                    let token = try await authTokenProvider()
+        // Capture actor-isolated values before entering the Task, so the Task
+        // can run detached (off MainActor) and freely use URLSession.bytes without
+        // risking a deadlock on the main actor while waiting for streaming data.
+        let capturedSession = session
+        let capturedAuthTokenProvider = authTokenProvider
+        let chatEndpoint = Self.chatEndpoint
 
-                    var urlRequest = URLRequest(url: Self.chatEndpoint)
+        return AsyncThrowingStream { continuation in
+            let task = Task.detached {
+                do {
+                    let token = try await capturedAuthTokenProvider()
+
+                    var urlRequest = URLRequest(url: chatEndpoint)
                     urlRequest.httpMethod = "POST"
                     urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
                     urlRequest.setValue("text/event-stream", forHTTPHeaderField: "Accept")
                     urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
                     urlRequest.httpBody = try JSONEncoder().encode(request)
 
-                    let (bytes, response) = try await session.bytes(for: urlRequest)
+                    let (bytes, response) = try await capturedSession.bytes(for: urlRequest)
                     guard let http = response as? HTTPURLResponse else {
                         throw ReflectionAPIError.malformedResponse
                     }
@@ -312,7 +321,21 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
                     }
 
                     var parser = SSEParser()
-                    for try await line in bytes.lines {
+                    var lineBuffer: [UInt8] = []
+                    for try await byte in bytes {
+                        if byte == UInt8(ascii: "\n") {
+                            let line = String(bytes: lineBuffer, encoding: .utf8) ?? ""
+                            lineBuffer.removeAll(keepingCapacity: true)
+                            for frame in parser.feedLines([line]) {
+                                try Self.handle(frame: frame, continuation: continuation)
+                            }
+                        } else {
+                            lineBuffer.append(byte)
+                        }
+                    }
+                    // Flush leftover bytes (no trailing newline).
+                    if !lineBuffer.isEmpty {
+                        let line = String(bytes: lineBuffer, encoding: .utf8) ?? ""
                         for frame in parser.feedLines([line]) {
                             try Self.handle(frame: frame, continuation: continuation)
                         }
