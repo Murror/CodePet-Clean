@@ -15,6 +15,7 @@ struct SessionChatPanel: View {
 
     private var pet: PetCharacter? { PetCharacter.all[appState.activeChar] }
     private var petName: String { pet?.name ?? "Pet" }
+    private var petColor: Color { pet?.color ?? PixelTheme.outline }
 
     private var messages: [ChatMessage] { chatStore.messages(for: session.id) }
     private var isStreaming: Bool { controller.inFlightSessionId == session.id }
@@ -22,21 +23,19 @@ struct SessionChatPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider().background(ReflectionTheme.borderLight)
+            Rectangle().fill(PixelTheme.outline).frame(height: PixelTheme.borderWidth)
             messageList
-            Divider().background(ReflectionTheme.borderLight)
+            Rectangle().fill(PixelTheme.outline).frame(height: PixelTheme.borderWidth)
             inputRow
         }
         .frame(width: 360, height: 480)
-        .background(ReflectionTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(ReflectionTheme.borderLight, lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 8)
+        .background(Rectangle().fill(PixelTheme.panelFill))
+        .pixelBorder()
+        .pixelShadow(petColor)
         .onAppear { inputFocused = true }
     }
+
+    // MARK: - Header
 
     private var header: some View {
         HStack(spacing: 10) {
@@ -46,12 +45,13 @@ struct SessionChatPanel: View {
                     .interpolation(.none)
                     .scaledToFit()
                     .frame(width: 28, height: 28)
-                    .background(Circle().fill(pet.color.opacity(0.18)))
-                    .clipShape(Circle())
+                    .background(Rectangle().fill(pet.color.opacity(0.20)))
+                    .pixelBorder()
             }
             VStack(alignment: .leading, spacing: 1) {
-                Text(petName)
-                    .font(ReflectionTheme.serif(14, weight: .medium))
+                Text(petName.uppercased())
+                    .font(ReflectionTheme.sans(12, weight: .bold))
+                    .tracking(0.8)
                     .foregroundColor(ReflectionTheme.primaryText)
                 Text("Ask about this session.")
                     .font(ReflectionTheme.sans(11))
@@ -60,16 +60,15 @@ struct SessionChatPanel: View {
             Spacer()
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(ReflectionTheme.mutedText)
-                    .padding(6)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PixelIconButtonStyle(size: 22, fill: PixelTheme.panelFill))
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(Rectangle().fill(petColor.opacity(0.10)))
     }
+
+    // MARK: - Message list
 
     @ViewBuilder
     private var messageList: some View {
@@ -147,43 +146,44 @@ struct SessionChatPanel: View {
 
     @ViewBuilder
     private func bubble(role: ChatMessage.Role, text: String, isStreaming: Bool) -> some View {
-        let alignment: HorizontalAlignment = role == .user ? .trailing : .leading
-        let bg: Color = role == .user
-            ? Color.black.opacity(0.06)
-            : ReflectionTheme.accent.opacity(0.12)
+        let isUser = role == .user
+        let bubbleFill: Color = isUser
+            ? Color(white: 0.96)
+            : petColor.opacity(0.18)
         HStack {
-            if role == .user { Spacer(minLength: 32) }
-            VStack(alignment: alignment, spacing: 0) {
+            if isUser { Spacer(minLength: 28) }
+            VStack(alignment: isUser ? .trailing : .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     Text(text)
-                        .font(role == .user
+                        .font(isUser
                               ? ReflectionTheme.sans(13)
                               : ReflectionTheme.serif(13.5))
                         .foregroundColor(ReflectionTheme.primaryText)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                     if isStreaming {
-                        Text("▎")
-                            .font(.system(size: 13))
-                            .foregroundColor(ReflectionTheme.accent)
-                            .opacity(0.7)
+                        Text("█")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(petColor)
+                            .padding(.leading, 1)
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(bg)
-                )
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(Rectangle().fill(bubbleFill))
+                .pixelBorder(PixelTheme.outline, width: PixelTheme.borderWidth)
+                .pixelShadow(PixelTheme.outline.opacity(isUser ? 0.4 : 0.5), offset: 2)
             }
-            if role == .pet { Spacer(minLength: 32) }
+            if !isUser { Spacer(minLength: 28) }
         }
-        .frame(maxWidth: .infinity, alignment: role == .user ? .trailing : .leading)
+        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
     }
+
+    // MARK: - Error row
 
     private func errorRow(_ error: SessionChatController.ChatError) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: "exclamationmark.triangle.fill")
+            Image(systemName: "exclamationmark.square.fill")
                 .font(.system(size: 11))
                 .foregroundColor(ReflectionTheme.moodAlert)
             Text(errorText(error))
@@ -191,7 +191,9 @@ struct SessionChatPanel: View {
                 .foregroundColor(ReflectionTheme.mutedText)
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
+        .background(Rectangle().fill(ReflectionTheme.moodAlert.opacity(0.12)))
+        .pixelBorder(ReflectionTheme.moodAlert)
     }
 
     private func errorText(_ error: SessionChatController.ChatError) -> String {
@@ -208,6 +210,8 @@ struct SessionChatPanel: View {
         }
     }
 
+    // MARK: - Input row
+
     private var inputRow: some View {
         HStack(alignment: .bottom, spacing: 8) {
             TextField("Type a question…", text: $draft, axis: .vertical)
@@ -215,25 +219,25 @@ struct SessionChatPanel: View {
                 .lineLimit(1...8)
                 .focused($inputFocused)
                 .font(ReflectionTheme.sans(13))
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color.black.opacity(0.04))
-                )
+                .pixelTextField()
                 .onSubmit { submit() }
 
             Button(action: submit) {
-                Image(systemName: "arrow.up.circle.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(canSubmit ? ReflectionTheme.accent : ReflectionTheme.mutedText.opacity(0.5))
+                Image(systemName: "arrow.up")
+                    .font(.system(size: 13, weight: .bold))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PixelButtonStyle(
+                fill: canSubmit ? petColor : Color(white: 0.92),
+                foreground: canSubmit ? .white : ReflectionTheme.mutedText,
+                paddingH: 10,
+                paddingV: 8
+            ))
             .disabled(!canSubmit)
             .keyboardShortcut(.return, modifiers: [])
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+        .background(Rectangle().fill(Color(white: 0.98)))
     }
 
     private var canSubmit: Bool {

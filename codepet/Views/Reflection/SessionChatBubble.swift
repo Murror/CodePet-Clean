@@ -6,52 +6,44 @@ struct SessionChatBubble: View {
     let onTap: () -> Void
 
     @State private var float = false
-    @State private var glow: CGFloat = 0
 
     private var pet: PetCharacter? { PetCharacter.all[appState.activeChar] }
+    private var petColor: Color { pet?.color ?? PixelTheme.outline }
 
     var body: some View {
         Button(action: onTap) {
             ZStack {
                 if let pet = pet {
-                    Circle()
-                        .stroke(pet.color.opacity(0.35), lineWidth: 1.5)
-                        .scaleEffect(1.0 + glow * 0.18)
-                        .opacity(1.0 - glow * 0.7)
-                        .frame(width: 56, height: 56)
-
                     Image(pet.imageName)
                         .resizable()
                         .interpolation(.none)
                         .scaledToFit()
+                        .padding(4)
                         .frame(width: 56, height: 56)
-                        .background(Circle().fill(pet.color.opacity(0.18)))
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(pet.color.opacity(0.55), lineWidth: 1.5))
-                        .scaleEffect(float ? 1.02 : 0.98)
-                        .offset(y: float ? -2 : 2)
-                        .shadow(
-                            color: pet.color.opacity(float ? 0.45 : 0.3),
-                            radius: float ? 10 : 6,
-                            x: 0, y: float ? 5 : 3
-                        )
+                        .background(Rectangle().fill(pet.color.opacity(0.20)))
                 } else {
-                    Circle()
-                        .fill(ReflectionTheme.accent.opacity(0.2))
+                    Rectangle()
+                        .fill(petColor.opacity(0.30))
                         .frame(width: 56, height: 56)
                 }
             }
+            .pixelBorder()
+            .pixelShadow(petColor, offset: float ? 5 : 3)
+            .offset(y: float ? -2 : 0)
         }
         .buttonStyle(.plain)
         .onAppear { startAnimations() }
     }
 
     private func startAnimations() {
-        withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) {
+        // 2-frame stepped float — snaps between positions instead of easing,
+        // matching the discrete feel of pixel art.
+        withAnimation(
+            .linear(duration: 0.001)
+                .repeatForever(autoreverses: true)
+                .delay(1.4)
+        ) {
             float = true
-        }
-        withAnimation(.easeInOut(duration: 2.8).repeatForever(autoreverses: true)) {
-            glow = 1.0
         }
     }
 }
