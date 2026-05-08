@@ -93,7 +93,10 @@ enum CodepetTheme {
     ///
     /// Falls back to monospaced system if the font hasn't been registered.
     static func pixel(_ size: CGFloat) -> Font {
-        Font.custom("Minecraft", size: size, relativeTo: .body)
+        // Trigger one-shot font registration even in contexts that bypass
+        // App.init (SwiftUI Previews, unit tests).
+        _ = FontRegistrar.autoRegister
+        return Font.custom("Minecraft", size: size, relativeTo: .body)
     }
 }
 

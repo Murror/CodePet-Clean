@@ -10,6 +10,13 @@ enum FontRegistrar {
 
     private static let logger = Logger(subsystem: "app.murror.codepet", category: "FontRegistrar")
 
+    /// Triggered on first access (e.g. when `CodepetTheme.pixel(_:)` is
+    /// first called). Ensures fonts are available even in SwiftUI Previews,
+    /// which bypass `App.init()`.
+    static let autoRegister: Void = {
+        registerBundledFonts()
+    }()
+
     /// Idempotent: safe to call multiple times. The font URLs are looked up
     /// in `Bundle.main`, so any .ttf/.otf placed under `codepet/Resources/`
     /// will be picked up by the synchronized-folder build.
@@ -26,15 +33,18 @@ enum FontRegistrar {
                 }
                 var error: Unmanaged<CFError>?
                 if CTFontManagerRegisterFontsForURL(url as CFURL, .process, &error) {
-                    logger.info("Registered bundled font: \(name).\(ext)")
+                    logger.info("Registered bundled font: \(name).\(ext) at \(url.path)")
+                    print("[FontRegistrar] ✓ registered \(name).\(ext)")
                 } else {
                     let cf = error?.takeRetainedValue()
                     let code = (cf as Error?).map { ($0 as NSError).code } ?? 0
                     // 105 = "already registered" in CTFontManagerErrorDomain. Harmless.
                     if code == 105 {
                         logger.debug("Font already registered: \(name)")
+                        print("[FontRegistrar] (already registered: \(name))")
                     } else {
                         logger.error("Failed to register font \(name).\(ext): \(String(describing: cf))")
+                        print("[FontRegistrar] ✗ failed to register \(name).\(ext): \(String(describing: cf))")
                     }
                 }
                 registered = true
