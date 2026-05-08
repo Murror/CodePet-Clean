@@ -9,7 +9,6 @@ struct ContentView: View {
     @EnvironmentObject var authManager: AuthManager
     @State private var isLoadingCloudData = false
     @State private var showSplash = true
-    @State private var isOnboarding = false
 
     private let cloudSync = CloudSyncService()
 
@@ -22,19 +21,15 @@ struct ContentView: View {
                         showSplash = false
                     }
                 })
-            } else if !isOnboarding && (authManager.isLoading || isLoadingCloudData) {
-                // Still checking auth state or loading cloud data (not during onboarding)
+            } else if authManager.isLoading || isLoadingCloudData {
+                // Still checking auth state or loading cloud data
                 SplashView()
-            } else if appState.onboardingComplete && authManager.currentUser == nil && !authManager.isGuestMode {
-                // Returning user who already onboarded but signed out — show simple sign-in
+            } else if authManager.currentUser == nil && !authManager.isGuestMode {
+                // Not signed in — show sign-in (Google + email). Skip the
+                // multi-step onboarding entirely.
                 ReturningSignInView()
-            } else if !appState.onboardingComplete {
-                // Brand new user — full onboarding flow
-                OnboardingFlow()
-                    .onAppear { isOnboarding = true }
-                    .onDisappear { isOnboarding = false }
             } else {
-                // Authenticated + onboarded — main app
+                // Authenticated (or guest) — main app
                 MainTabView()
             }
         }
@@ -48,12 +43,12 @@ struct ContentView: View {
                 return
             }
 
-            // Don't try to load cloud data while onboarding is in progress —
-            // it would tear down OnboardingFlow and reset the user to step 1
-            guard !isOnboarding else {
-                logger.info("User signed in during onboarding — skipping cloud load")
-                PersistenceManager.shared.currentUserId = user.uid
-                return
+            // Onboarding flow has been removed; mark the legacy flag so
+            // any code that still reads `appState.onboardingComplete`
+            // (e.g. AppState mirroring, cloud sync diff logic) sees the
+            // user as fully onboarded the moment they sign in.
+            if !appState.onboardingComplete {
+                appState.onboardingComplete = true
             }
 
             let storedUID = PersistenceManager.shared.currentUserId
@@ -89,7 +84,7 @@ struct ContentView: View {
                     if hasData {
                         logger.info("Restored cloud data for \(user.uid, privacy: .private)")
                     } else {
-                        logger.info("No cloud data for \(user.uid, privacy: .private) — showing onboarding")
+                        logger.info("No cloud data for \(user.uid, privacy: .private) — using defaults")
                     }
                 }
             }
