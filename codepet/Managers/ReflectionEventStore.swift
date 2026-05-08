@@ -5,8 +5,9 @@ import os
 /// Polls ~/.codepet/events.jsonl (written by Claude Code hooks) and exposes
 /// captured decision moments to the Reflection tab.
 ///
-/// On app launch the store seeks to end-of-file so events from past sessions
-/// don't replay. Anything appended after `start()` is parsed and surfaced.
+/// On app launch the store reads from the start of the file so prior
+/// sessions remain visible across restarts. The in-memory list is capped at
+/// `maxRetainedEvents` so very large historical files don't bloat memory.
 ///
 /// Spec: docs/superpowers/specs/2026-05-04-claude-code-reflection-logging-design.md
 @MainActor
@@ -29,8 +30,17 @@ final class ReflectionEventStore: ObservableObject {
 
     func start() {
         ensureFileExists()
-        readOffset = currentFileSize()  // skip backlog — only new events
+        // Read from offset 0 so historical events (sessions, turns, summaries)
+        // from prior app launches are restored. NarrativeStore /
+        // SessionSummaryStore / SessionEndStore all do the same. The
+        // `maxRetainedEvents` cap below trims the in-memory window if the
+        // file is very large.
+        readOffset = 0
+        events.removeAll()
+        rawJSONLEvents.removeAll()
+        lineBuffer = ""
         pollTimer?.invalidate()
+        readNewLines()  // ingest the existing backlog synchronously on launch
         pollTimer = Timer.scheduledTimer(withTimeInterval: pollInterval, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.readNewLines() }
         }
