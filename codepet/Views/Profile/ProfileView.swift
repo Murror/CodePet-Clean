@@ -1,4 +1,5 @@
 import SwiftUI
+import FirebaseAuth
 
 struct ProfileView: View {
     @EnvironmentObject var appState: AppState
@@ -10,6 +11,8 @@ struct ProfileView: View {
                     .font(.pixelSystem(size: 24, weight: .bold))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
+                AccountSection()
+
                 YourPetSection()
 
                 LanguageStyleSection()
@@ -17,6 +20,148 @@ struct ProfileView: View {
             .padding(20)
         }
         .background(Color(hex: "#F7F5FC"))
+    }
+}
+
+// MARK: - Account Section
+
+struct AccountSection: View {
+    @EnvironmentObject var authManager: AuthManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Account")
+                .font(.pixelSystem(size: 14, weight: .semibold, design: .default))
+
+            VStack(alignment: .leading, spacing: 14) {
+                if let user = authManager.currentUser, !user.isAnonymous {
+                    signedInBody(user)
+                } else if authManager.isGuestMode {
+                    guestBody
+                } else {
+                    notSignedInBody
+                }
+            }
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E0DBEF"), lineWidth: 1))
+        }
+    }
+
+    // MARK: signed in
+
+    @ViewBuilder
+    private func signedInBody(_ user: User) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            // Live "online" status dot — pulsing green ring drawn manually.
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "#5DCAA5").opacity(0.20))
+                    .frame(width: 16, height: 16)
+                Circle()
+                    .fill(Color(hex: "#5DCAA5"))
+                    .frame(width: 8, height: 8)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Signed in")
+                    .font(.pixelSystem(size: 10, weight: .semibold))
+                    .foregroundColor(Color(hex: "#3F8B6E"))
+                    .tracking(0.6)
+                Text(displayLabel(for: user))
+                    .font(.pixelSystem(size: 13, weight: .medium))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+                    .lineLimit(1)
+                if let method = methodLabel() {
+                    Text(method)
+                        .font(.pixelSystem(size: 10))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Button(action: { authManager.signOut() }) {
+                Text("Sign out")
+                    .font(.pixelSystem(size: 11, weight: .semibold))
+                    .foregroundColor(Color(hex: "#C04040"))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule().fill(Color(hex: "#E04040").opacity(0.10))
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func displayLabel(for user: User) -> String {
+        if let email = user.email, !email.isEmpty { return email }
+        if let name = user.displayName, !name.isEmpty { return name }
+        return "Anonymous"
+    }
+
+    private func methodLabel() -> String? {
+        switch authManager.authMethod {
+        case "google": return "via Google"
+        case "email":  return "via Email"
+        case "pin":    return "via PIN"
+        default:       return nil
+        }
+    }
+
+    // MARK: guest
+
+    private var guestBody: some View {
+        HStack(alignment: .center, spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color(hex: "#FCDE5A").opacity(0.30))
+                    .frame(width: 16, height: 16)
+                Circle()
+                    .fill(Color(hex: "#FCDE5A"))
+                    .frame(width: 8, height: 8)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Guest mode")
+                    .font(.pixelSystem(size: 10, weight: .semibold))
+                    .foregroundColor(Color(hex: "#A37B0A"))
+                    .tracking(0.6)
+                Text("Sign in to sync progress and chat")
+                    .font(.pixelSystem(size: 12))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+                    .lineLimit(2)
+            }
+
+            Spacer()
+
+            Button(action: { authManager.isGuestMode = false }) {
+                Text("Sign in")
+                    .font(.pixelSystem(size: 11, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(
+                        Capsule().fill(Color(hex: "#7B6BD8"))
+                    )
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    // MARK: signed out (edge case — routing usually keeps user on sign-in screen)
+
+    private var notSignedInBody: some View {
+        HStack(alignment: .center, spacing: 12) {
+            Circle()
+                .stroke(Color.secondary, lineWidth: 1.5)
+                .frame(width: 8, height: 8)
+            Text("Not signed in")
+                .font(.pixelSystem(size: 12, weight: .medium))
+                .foregroundColor(.secondary)
+            Spacer()
+        }
     }
 }
 
