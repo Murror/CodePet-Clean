@@ -13,6 +13,7 @@ struct CodePetApp: App {
     private var notificationManager = NotificationManager()
 
     init() {
+        FontRegistrar.registerBundledFonts()
         FirebaseApp.configure()
         print("[Firebase] Configured successfully")
 

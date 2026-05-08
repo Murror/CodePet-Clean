@@ -50,10 +50,11 @@ struct SessionChatPanel: View {
                         Circle().fill(pet.color.opacity(0.18))
                     )
             }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(petName)
-                    .font(CodepetTheme.body(14, weight: .semibold))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(petName.uppercased())
+                    .font(CodepetTheme.pixel(15))
                     .foregroundColor(CodepetTheme.primaryText)
+                    .tracking(0.5)
                 Text("Ask about this session.")
                     .font(CodepetTheme.body(11))
                     .foregroundColor(CodepetTheme.mutedText)

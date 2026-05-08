@@ -85,6 +85,16 @@ enum CodepetTheme {
     static func body(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         Font.system(size: size, weight: weight, design: .default)
     }
+
+    /// Bundled bitmap pixel font ("Minecraft.ttf"). Use sparingly for accents
+    /// — labels, eyebrows, badges, the streaming cursor — where a pixel
+    /// flavor pairs nicely with the pet sprites. Body text and AI replies
+    /// should stay on `body(_:weight:)` for readability.
+    ///
+    /// Falls back to monospaced system if the font hasn't been registered.
+    static func pixel(_ size: CGFloat) -> Font {
+        Font.custom("Minecraft", size: size, relativeTo: .body)
+    }
 }
 
 // MARK: - Soft drop-shadow modifier
