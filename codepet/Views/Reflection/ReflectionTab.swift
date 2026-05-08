@@ -276,8 +276,8 @@ struct ReflectionTab: View {
                     // Welcome group — always pinned at top
                     VStack(alignment: .leading, spacing: 10) {
                         Text("WELCOME")
-                            .font(ReflectionTheme.sans(10, weight: .semibold))
-                            .tracking(1.2)
+                            .font(CodepetTheme.pixel(12))
+                            .tracking(1.0)
                             .foregroundColor(ReflectionTheme.mutedText)
                             .padding(.horizontal, 16)
                             .padding(.bottom, 2)
@@ -289,8 +289,8 @@ struct ReflectionTab: View {
                     ForEach(groups) { group in
                         VStack(alignment: .leading, spacing: 10) {
                             Text(group.label)
-                                .font(ReflectionTheme.sans(10, weight: .semibold))
-                                .tracking(1.2)
+                                .font(CodepetTheme.pixel(12))
+                                .tracking(1.0)
                                 .foregroundColor(ReflectionTheme.mutedText)
                                 .padding(.horizontal, 16)
                                 .padding(.bottom, 2)

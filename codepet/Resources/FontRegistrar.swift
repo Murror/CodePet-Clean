@@ -1,6 +1,9 @@
 import Foundation
 import CoreText
 import os
+#if canImport(AppKit)
+import AppKit
+#endif
 
 /// Registers any .ttf/.otf fonts bundled in the app's Resources at app launch
 /// so they're usable from `Font.custom(...)` without an Info.plist entry.
@@ -52,7 +55,19 @@ enum FontRegistrar {
             }
             if !registered {
                 logger.error("Bundled font not found in Bundle.main: \(name)")
+                print("[FontRegistrar] ✗ \(name).ttf not in Bundle.main")
             }
+        }
+
+        // Diagnostic: confirm the registered font is now resolvable by name.
+        for name in names {
+            #if canImport(AppKit)
+            if NSFont(name: name, size: 13) != nil {
+                print("[FontRegistrar] NSFont(name: \"\(name)\") resolves ✓")
+            } else {
+                print("[FontRegistrar] NSFont(name: \"\(name)\") returned nil ✗")
+            }
+            #endif
         }
     }
 }
