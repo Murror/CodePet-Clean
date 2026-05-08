@@ -16,9 +16,9 @@ struct MenuBarView: View {
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(character.name)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.pixelSystem(size: 13, weight: .bold))
                     Text(character.badge)
-                        .font(.system(size: 9, design: .monospaced))
+                        .font(.pixelSystem(size: 9, design: .monospaced))
                         .foregroundColor(.gray)
                 }
             }
@@ -30,45 +30,45 @@ struct MenuBarView: View {
                 HStack {
                     Image(systemName: "bolt.fill")
                         .foregroundColor(Color(hex: "#7B6BD8"))
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                     Text("Energy")
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                     Spacer()
                     Text("\(appState.petEnergy)/100")
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.pixelSystem(size: 11, design: .monospaced))
                 }
 
                 HStack {
                     Image(systemName: "flame.fill")
                         .foregroundColor(Color(hex: "#7B6BD8"))
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                     Text("Streak")
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                     Spacer()
                     Text("\(appState.streak) days")
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.pixelSystem(size: 11, design: .monospaced))
                 }
 
                 HStack {
                     Image(systemName: "star.fill")
                         .foregroundColor(Color(hex: "#7B6BD8"))
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                     Text("XP")
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                     Spacer()
                     Text("\(appState.totalXP)")
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.pixelSystem(size: 11, design: .monospaced))
                 }
 
                 HStack {
                     Image(systemName: "medal.fill")
                         .foregroundColor(Color(hex: "#7B6BD8"))
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                     Text("Level")
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                     Spacer()
                     Text("\(appState.userLevel)")
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.pixelSystem(size: 11, design: .monospaced))
                 }
             }
 
@@ -98,11 +98,6 @@ struct MenuBarView: View {
                     Spacer()
                 }
             }
-
-            Divider()
-
-            // Reflection feature — shows today's captured/decisions/risks and opens the Reflection tab
-            ReflectionSummaryBlock()
 
             Divider()
 

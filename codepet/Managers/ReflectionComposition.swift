@@ -102,8 +102,5 @@ final class ReflectionComposition: ObservableObject {
         narrativeStore.start()
         summaryStore.start()
         endStore.start()
-        #if DEBUG
-        ReflectionMockSeeder.seed(into: self)
-        #endif
     }
 }

@@ -51,34 +51,6 @@ final class ReflectionEventStore: ObservableObject {
         pollTimer = nil
     }
 
-    /// Inject mock events for UI testing — appends to in-memory rawJSONLEvents
-    /// without touching the events.jsonl file. Cleared on app relaunch.
-    func seedMockEvents(_ entries: [(type: String, isoTime: String, sessionId: String, text: String)]) {
-        rawJSONLEvents.append(contentsOf: entries)
-    }
-
-    /// Live events grouped into a `ReflectionSession` for the sidebar.
-    /// Returns nil until at least one event has been captured this app session.
-    var liveSession: ReflectionSession? {
-        guard !events.isEmpty else { return nil }
-        let day = ReflectionDay(
-            label: "Live",
-            dateDisplay: liveDateDisplay(),
-            captured: events.count,
-            decisions: events.count,
-            risks: 0,
-            events: events.reversed(),  // most recent first
-            patterns: [],
-            prompt: ReflectionPrompt(
-                headline: "Live capture from Claude Code.",
-                body: "Decision moments from your current session land here as you work. Patterns and reflection text fill in over time.",
-                probe: "Notice anything in this list you'd revisit later?",
-                sourceCitation: "Based on \(events.count) captures · live"
-            )
-        )
-        return ReflectionSession(day: day, dateGroup: "Today (live)", source: .claudeCode)
-    }
-
     // MARK: - File I/O
 
     private func ensureFileExists() {
@@ -148,11 +120,6 @@ final class ReflectionEventStore: ObservableObject {
         }
     }
 
-    private func liveDateDisplay() -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "EEEE · MMMM d"
-        return fmt.string(from: Date())
-    }
 }
 
 // MARK: - JSONL line schema
