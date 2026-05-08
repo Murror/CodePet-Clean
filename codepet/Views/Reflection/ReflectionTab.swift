@@ -126,24 +126,15 @@ struct ReflectionTab: View {
             }
         }
         .onChange(of: allSessions) { sessions in
+            // Per-turn narrative is still auto-generated when a turn closes —
+            // it fires once per turn and the UI shows a loading bubble in the
+            // meantime. Session-level summary is intentionally NOT
+            // auto-fired any more; the user opts in by tapping "Summarize
+            // now" inside SessionSummaryView's loading bubble.
             let persona = currentPetPersona()
             for session in sessions {
                 for turn in session.turns where turn.state == .summarizing && turn.narrative == nil {
                     Task { await enricher.enrich(turn: turn, petPersona: persona) }
-                }
-            }
-            for session in sessions {
-                if sessionEnricher.shouldAutoSummarize(session: session, endedSessionIds: endStore.endedSessionIds) {
-                    Task { await sessionEnricher.enrich(session: session, petPersona: persona) }
-                }
-            }
-        }
-        .onChange(of: endStore.endedSessionIds) { _ in
-            let sessions = allSessions
-            let persona = currentPetPersona()
-            for session in sessions {
-                if sessionEnricher.shouldAutoSummarize(session: session, endedSessionIds: endStore.endedSessionIds) {
-                    Task { await sessionEnricher.enrich(session: session, petPersona: persona) }
                 }
             }
         }
