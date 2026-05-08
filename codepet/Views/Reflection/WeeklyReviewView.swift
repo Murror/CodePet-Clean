@@ -79,7 +79,7 @@ struct WeeklyReviewView: View {
 
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.pixelSystem(size: 13, weight: .medium))
                     .foregroundColor(ReflectionTheme.secondaryText)
                     .padding(8)
                     .background(
@@ -124,7 +124,7 @@ struct WeeklyReviewView: View {
 
             HStack(spacing: 4) {
                 Image(systemName: delta > 0 ? "arrow.up" : delta < 0 ? "arrow.down" : "minus")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.pixelSystem(size: 9, weight: .semibold))
                 Text(delta > 0 ? "+\(delta)" : "\(delta)")
                     .font(ReflectionTheme.mono(11, weight: .medium))
                 Text("vs last week")
@@ -343,7 +343,7 @@ struct WeeklyReviewView: View {
                     } label: {
                         HStack(spacing: 8) {
                             Image(systemName: weekMarkedReviewed ? "checkmark.seal.fill" : "seal")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.pixelSystem(size: 13, weight: .semibold))
                             Text(weekMarkedReviewed ? "Week archived" : "Mark week as reviewed")
                                 .font(ReflectionTheme.sans(13, weight: .semibold))
                         }

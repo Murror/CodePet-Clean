@@ -88,11 +88,11 @@ struct SplashView: View {
 
                     // Taglines
                     Text("Your AI coding companions are waiting.")
-                        .font(.system(size: taglineFont))
+                        .font(.pixelSystem(size: taglineFont))
                         .foregroundColor(.secondary)
 
                     Text("8 characters. 16 skills. One journey.")
-                        .font(.system(size: subTaglineFont))
+                        .font(.pixelSystem(size: subTaglineFont))
                         .foregroundColor(.secondary.opacity(0.7))
                         .padding(.top, 2)
                         .padding(.bottom, h * 0.035)
@@ -102,9 +102,9 @@ struct SplashView: View {
                         Button(action: onContinue) {
                             HStack(spacing: 6) {
                                 Text("Meet Your Pet")
-                                    .font(.system(size: buttonFont, weight: .semibold))
+                                    .font(.pixelSystem(size: buttonFont, weight: .semibold))
                                 Text("→")
-                                    .font(.system(size: buttonFont, weight: .semibold))
+                                    .font(.pixelSystem(size: buttonFont, weight: .semibold))
                             }
                             .foregroundColor(.white)
                             .frame(maxWidth: buttonWidth)
@@ -136,7 +136,7 @@ struct SplashView: View {
                         .opacity(0.4)
 
                         Text("v1.0 · made with vibes")
-                            .font(.system(size: 10))
+                            .font(.pixelSystem(size: 10))
                             .foregroundColor(.secondary.opacity(0.5))
                             .padding(.bottom, 8)
                     }
@@ -177,7 +177,7 @@ struct SplashView: View {
 
     private func speechBubble(_ text: String, fontSize: CGFloat = 11) -> some View {
         Text(text)
-            .font(.system(size: fontSize, design: .monospaced))
+            .font(.pixelSystem(size: fontSize, design: .monospaced))
             .foregroundColor(Color(hex: "#2D2B26"))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)

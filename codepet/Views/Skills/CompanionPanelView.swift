@@ -193,10 +193,10 @@ struct CompanionPanelView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(character.name)
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.pixelSystem(size: 14, weight: .bold))
                                 .foregroundColor(Color(hex: "#2D2B26"))
                             Text(role.title)
-                                .font(.system(size: 9, design: .monospaced))
+                                .font(.pixelSystem(size: 9, design: .monospaced))
                                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                         }
                     }
@@ -206,7 +206,7 @@ struct CompanionPanelView: View {
                     Button("Switch") {
                         showSwitchSheet = true
                     }
-                    .font(.system(size: 10, weight: .medium))
+                    .font(.pixelSystem(size: 10, weight: .medium))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
@@ -218,7 +218,7 @@ struct CompanionPanelView: View {
 
                     Button(action: { onClose() }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.pixelSystem(size: 12, weight: .semibold))
                             .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
                             .frame(width: 28, height: 28)
                             .background(
@@ -236,7 +236,7 @@ struct CompanionPanelView: View {
                         .fill(character.color)
                         .frame(width: 6, height: 6)
                     Text(isTyping ? "\(character.name) is typing..." : (role.statusMessages.randomElement() ?? "Ready."))
-                        .font(.system(size: 10))
+                        .font(.pixelSystem(size: 10))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -316,7 +316,7 @@ struct CompanionPanelView: View {
             HStack(spacing: 8) {
                 TextField("Ask \(character.name)...", text: $chatInput)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12))
+                    .font(.pixelSystem(size: 12))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
@@ -331,7 +331,7 @@ struct CompanionPanelView: View {
                     if !chatInput.isEmpty { sendMessage(chatInput) }
                 }) {
                     Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 24))
+                        .font(.pixelSystem(size: 24))
                         .foregroundColor(chatInput.isEmpty ? Color(hex: "#D0D0CC") : character.color)
                 }
                 .buttonStyle(.plain)
@@ -423,7 +423,7 @@ struct UserBubble: View {
         HStack {
             Spacer()
             Text(message)
-                .font(.system(size: 12))
+                .font(.pixelSystem(size: 12))
                 .foregroundColor(.white)
                 .lineSpacing(4)
                 .padding(12)
@@ -447,7 +447,7 @@ struct CompanionBubble: View {
                 .petBreathing()
 
             Text(message)
-                .font(.system(size: 12))
+                .font(.pixelSystem(size: 12))
                 .foregroundColor(Color(hex: "#2D2B26"))
                 .lineSpacing(4)
                 .padding(12)
@@ -477,7 +477,7 @@ struct QuickActionsGrid: View {
                     ForEach(pair, id: \.self) { action in
                         Button(action: { onAction?(action) }) {
                             Text(action)
-                                .font(.system(size: 10))
+                                .font(.pixelSystem(size: 10))
                                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 7)
@@ -506,7 +506,7 @@ struct CharacterSwitchSheet: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("Switch Companion")
-                .font(.system(size: 16, weight: .bold))
+                .font(.pixelSystem(size: 16, weight: .bold))
                 .foregroundColor(Color(hex: "#2D2B26"))
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 12) {
@@ -519,11 +519,11 @@ struct CharacterSwitchSheet: View {
                                     .charIdle(charId)
 
                                 Text(char.name)
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(.pixelSystem(size: 11, weight: .semibold))
                                     .foregroundColor(char.color)
 
                                 Text(role.title)
-                                    .font(.system(size: 7, design: .monospaced))
+                                    .font(.pixelSystem(size: 7, design: .monospaced))
                                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                             }
                             .padding(8)

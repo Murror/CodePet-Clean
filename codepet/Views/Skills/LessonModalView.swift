@@ -38,14 +38,14 @@ struct LessonModalView: View {
                                 .charIdle(t.id)
                                 .petBreathing()
                             Text(t.name)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.pixelSystem(size: 12, weight: .semibold))
                                 .foregroundColor(t.color)
                         }
                     }
 
                     // Title
                     Text(step.title)
-                        .font(.system(size: 22, weight: .bold))
+                        .font(.pixelSystem(size: 22, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26"))
                         .multilineTextAlignment(.center)
 
@@ -96,7 +96,7 @@ struct LessonModalView: View {
                 Divider()
                 Button(action: { advance() }) {
                     Text(buttonLabel)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.pixelSystem(size: 14, weight: .bold))
                         .foregroundColor(canAdvance ? .white : Color(hex: "#B0A898"))
                         .frame(maxWidth: 280)
                         .padding(.vertical, 12)
@@ -192,16 +192,16 @@ struct LessonTopBar: View {
                 }
 
                 Text("+\(xpEarned)")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#D4960A"))
 
                 Text("...")
-                    .font(.system(size: 12))
+                    .font(.pixelSystem(size: 12))
                     .foregroundColor(.gray)
 
                 Button(action: onClose) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.pixelSystem(size: 12, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                         .frame(width: 28, height: 28)
                         .background(Color(hex: "#F0F0EC"))
@@ -213,7 +213,7 @@ struct LessonTopBar: View {
             HStack(spacing: 6) {
                 Text(stepIcon)
                 Text(stepLabel)
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                     .foregroundColor(stepColor)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -270,7 +270,7 @@ struct BriefingContent: View {
                     .frame(width: 3)
                     .padding(.trailing, 12)
                 Text(intro)
-                    .font(.system(size: 13))
+                    .font(.pixelSystem(size: 13))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
                     .italic()
                     .lineSpacing(4)
@@ -282,12 +282,12 @@ struct BriefingContent: View {
             )
 
             Text(bodyText)
-                .font(.system(size: 14))
+                .font(.pixelSystem(size: 14))
                 .foregroundColor(Color(hex: "#2D2B26"))
                 .lineSpacing(5)
 
             Text("✦ \(hook)")
-                .font(.system(size: 13, weight: .medium))
+                .font(.pixelSystem(size: 13, weight: .medium))
                 .foregroundColor(Color(hex: "#D4960A"))
                 .italic()
                 .lineSpacing(4)
@@ -309,10 +309,10 @@ struct LearnContent: View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(concept)
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#D4960A"))
                 Text(explanation)
-                    .font(.system(size: 14))
+                    .font(.pixelSystem(size: 14))
                     .foregroundColor(Color(hex: "#2D2B26"))
                     .lineSpacing(4)
             }
@@ -343,7 +343,7 @@ struct LearnContent: View {
                     .frame(width: 3)
                     .padding(.trailing, 12)
                 Text(insight)
-                    .font(.system(size: 13))
+                    .font(.pixelSystem(size: 13))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
                     .italic()
                     .lineSpacing(4)
@@ -367,10 +367,10 @@ struct ExampleCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                 .foregroundColor(color)
             Text(text)
-                .font(.system(size: 12, design: .monospaced))
+                .font(.pixelSystem(size: 12, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B26"))
                 .lineSpacing(3)
         }
@@ -404,16 +404,16 @@ struct ApplyItContent: View {
         VStack(alignment: .leading, spacing: 16) {
             // Instruction
             Text(instruction)
-                .font(.system(size: 13))
+                .font(.pixelSystem(size: 13))
                 .foregroundColor(Color(hex: "#888888"))
 
             // Original prompt card
             VStack(alignment: .leading, spacing: 6) {
                 Text("ORIGINAL PROMPT")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#D4960A"))
                 Text(originalPrompt)
-                    .font(.system(size: 13, design: .monospaced))
+                    .font(.pixelSystem(size: 13, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B26"))
                     .lineSpacing(4)
             }
@@ -488,10 +488,10 @@ struct FieldMissionContent: View {
             // Scenario card
             VStack(alignment: .leading, spacing: 8) {
                 Text("🌍 SCENARIO")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#E0508C"))
                 Text(scenario)
-                    .font(.system(size: 13))
+                    .font(.pixelSystem(size: 13))
                     .foregroundColor(Color(hex: "#2D2B26"))
                     .lineSpacing(4)
             }
@@ -508,7 +508,7 @@ struct FieldMissionContent: View {
 
             // Task
             Text(task)
-                .font(.system(size: 14, weight: .bold))
+                .font(.pixelSystem(size: 14, weight: .bold))
                 .foregroundColor(Color(hex: "#2D2B26"))
 
             // Options
@@ -600,17 +600,17 @@ struct QuizOptionRow: View {
                         .frame(width: 28, height: 28)
                     if answerSubmitted && isSelected {
                         Image(systemName: option.correct ? "checkmark" : "xmark")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.pixelSystem(size: 11, weight: .bold))
                             .foregroundColor(letterColor)
                     } else {
                         Text(option.id.uppercased())
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.pixelSystem(size: 12, weight: .bold))
                             .foregroundColor(letterColor)
                     }
                 }
 
                 Text(option.text)
-                    .font(.system(size: 12))
+                    .font(.pixelSystem(size: 12))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(answerSubmitted && !isSelected && !option.correct ? 0.4 : 1))
                     .lineSpacing(3)
                     .multilineTextAlignment(.leading)
@@ -645,7 +645,7 @@ struct FeedbackBubble: View {
                 .frame(width: 3)
                 .padding(.trailing, 12)
             Text(text)
-                .font(.system(size: 12, weight: .medium))
+                .font(.pixelSystem(size: 12, weight: .medium))
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.8))
                 .lineSpacing(4)
                 .italic()
@@ -686,12 +686,12 @@ struct SummaryContent: View {
 
                     VStack(spacing: 4) {
                         Text("+\(xpReward) XP")
-                            .font(.system(size: 28, weight: .black, design: .monospaced))
+                            .font(.pixelSystem(size: 28, weight: .black, design: .monospaced))
                             .foregroundColor(Color(hex: "#D4960A"))
                             .scaleEffect(xpScale)
                         if let badge = badge {
                             Text("🏅 \(badge)")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.pixelSystem(size: 14, weight: .bold))
                                 .foregroundColor(teacherColor)
                         }
                     }
@@ -699,16 +699,16 @@ struct SummaryContent: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("WHAT YOU LEARNED")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
 
                     ForEach(Array(recap.enumerated()), id: \.offset) { i, item in
                         HStack(alignment: .top, spacing: 10) {
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 14))
+                                .font(.pixelSystem(size: 14))
                                 .foregroundColor(Color(hex: "#6BCB77"))
                             Text(item)
-                                .font(.system(size: 13))
+                                .font(.pixelSystem(size: 13))
                                 .foregroundColor(Color(hex: "#2D2B26"))
                         }
                         .opacity(showCelebration ? 1 : 0)

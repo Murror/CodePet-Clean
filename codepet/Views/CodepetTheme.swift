@@ -110,6 +110,26 @@ enum CodepetTheme {
     }
 }
 
+// MARK: - Drop-in `.font(.pixelSystem(size:))` replacement
+
+extension Font {
+    /// Drop-in for `Font.system(size:weight:design:)` that respects
+    /// `CodepetTheme.usePixelFontGlobally` — returns the Minecraft pixel font
+    /// when the flag is on, falls through to the native system font when off.
+    /// Used to flip ad-hoc `.font(.pixelSystem(size:))` callsites without touching
+    /// each one individually.
+    static func pixelSystem(
+        size: CGFloat,
+        weight: Font.Weight = .regular,
+        design: Font.Design = .default
+    ) -> Font {
+        if CodepetTheme.usePixelFontGlobally {
+            return CodepetTheme.pixel(size)
+        }
+        return .system(size: size, weight: weight, design: design)
+    }
+}
+
 // MARK: - Soft drop-shadow modifier
 
 extension View {

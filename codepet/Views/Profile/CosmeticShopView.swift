@@ -29,7 +29,7 @@ struct CosmeticShopView: View {
                 HStack(alignment: .center, spacing: 16) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Pet Shop")
-                            .font(.system(size: 28, weight: .bold))
+                            .font(.pixelSystem(size: 28, weight: .bold))
                             .foregroundColor(theme.textPrimary)
                     }
 
@@ -37,9 +37,9 @@ struct CosmeticShopView: View {
 
                     HStack(spacing: 8) {
                         Text("🪙")
-                            .font(.system(size: 20))
+                            .font(.pixelSystem(size: 20))
                         Text("\(gameState.coins)")
-                            .font(.system(size: 16, weight: .bold))
+                            .font(.pixelSystem(size: 16, weight: .bold))
                             .foregroundColor(theme.textPrimary)
                     }
                     .padding(.horizontal, 12)
@@ -52,7 +52,7 @@ struct CosmeticShopView: View {
                 // Character preview area
                 VStack(spacing: 12) {
                     Text("Your Pet")
-                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 12, weight: .bold, design: .monospaced))
                         .foregroundColor(theme.textSecondary)
 
                     Image(currentCharacter.imageName)
@@ -76,7 +76,7 @@ struct CosmeticShopView: View {
                                 HStack(spacing: 4) {
                                     Text(category.emoji)
                                     Text(category.rawValue)
-                                        .font(.system(size: 12, weight: .semibold))
+                                        .font(.pixelSystem(size: 12, weight: .semibold))
                                 }
                                 .foregroundColor(selectedCategory == category ? .white : theme.textPrimary)
                                 .padding(.horizontal, 12)
@@ -159,18 +159,18 @@ private struct CosmeticItemCard: View {
                 VStack(spacing: 12) {
                     // Item emoji
                     Text(item.emoji)
-                        .font(.system(size: 40))
+                        .font(.pixelSystem(size: 40))
 
                     // Name
                     Text(item.name)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.pixelSystem(size: 11, weight: .semibold))
                         .foregroundColor(theme.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
 
                     // Rarity
                     Text(item.rarity.rawValue)
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.pixelSystem(size: 9, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
@@ -185,25 +185,25 @@ private struct CosmeticItemCard: View {
                             Image(systemName: "checkmark.circle.fill")
                             Text("Equipped")
                         }
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.pixelSystem(size: 9, weight: .bold))
                         .foregroundColor(.white)
                         .padding(4)
                         .background(Color(hex: "#7B6BD8"))
                         .cornerRadius(4)
                     } else if isOwned {
                         Text("Owned")
-                            .font(.system(size: 9, weight: .bold))
+                            .font(.pixelSystem(size: 9, weight: .bold))
                             .foregroundColor(theme.textSecondary)
                     } else if let coinCost = item.coinCost {
                         HStack(spacing: 4) {
                             Text("🪙")
                             Text("\(coinCost)")
                         }
-                        .font(.system(size: 10, weight: .bold))
+                        .font(.pixelSystem(size: 10, weight: .bold))
                         .foregroundColor(theme.textPrimary)
                     } else if item.unlockedBy != nil {
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 10))
+                            .font(.pixelSystem(size: 10))
                             .foregroundColor(theme.textMuted)
                     }
                 }
@@ -245,12 +245,12 @@ struct CosmeticDetailSheet: View {
             // Header
             HStack {
                 Text("Item Details")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.pixelSystem(size: 18, weight: .bold))
                     .foregroundColor(theme.textPrimary)
                 Spacer()
                 Button(action: { isPresented = false }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
+                        .font(.pixelSystem(size: 18))
                         .foregroundColor(theme.textMuted)
                 }
             }
@@ -261,10 +261,10 @@ struct CosmeticDetailSheet: View {
                     // Large emoji and name
                     VStack(spacing: 12) {
                         Text(item.emoji)
-                            .font(.system(size: 64))
+                            .font(.pixelSystem(size: 64))
 
                         Text(item.name)
-                            .font(.system(size: 20, weight: .bold))
+                            .font(.pixelSystem(size: 20, weight: .bold))
                             .foregroundColor(theme.textPrimary)
 
                         // Rarity badge
@@ -274,7 +274,7 @@ struct CosmeticDetailSheet: View {
                                 .frame(width: 8, height: 8)
 
                             Text(item.rarity.rawValue)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.pixelSystem(size: 12, weight: .semibold))
                         }
                         .foregroundColor(.white)
                         .padding(.horizontal, 10)
@@ -287,11 +287,11 @@ struct CosmeticDetailSheet: View {
                     // Description
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Description")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.pixelSystem(size: 12, weight: .bold))
                             .foregroundColor(theme.textSecondary)
 
                         Text("A cosmetic item for your pet. Equip it to show off your collection!")
-                            .font(.system(size: 13))
+                            .font(.pixelSystem(size: 13))
                             .foregroundColor(theme.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -302,11 +302,11 @@ struct CosmeticDetailSheet: View {
                     // Category
                     HStack(spacing: 8) {
                         Text("Category")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.pixelSystem(size: 12, weight: .bold))
                             .foregroundColor(theme.textSecondary)
                         Text(item.category.emoji)
                         Text(item.category.rawValue)
-                            .font(.system(size: 12))
+                            .font(.pixelSystem(size: 12))
                             .foregroundColor(theme.textPrimary)
                         Spacer()
                     }
@@ -318,15 +318,15 @@ struct CosmeticDetailSheet: View {
                     if isEquipped {
                         VStack(spacing: 8) {
                             Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 32))
+                                .font(.pixelSystem(size: 32))
                                 .foregroundColor(theme.accentGreen)
 
                             Text("Currently Equipped")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.pixelSystem(size: 14, weight: .semibold))
                                 .foregroundColor(theme.accentGreen)
 
                             Text("This cosmetic is currently displayed on your pet.")
-                                .font(.system(size: 12))
+                                .font(.pixelSystem(size: 12))
                                 .foregroundColor(theme.textSecondary)
                                 .multilineTextAlignment(.center)
                         }
@@ -337,7 +337,7 @@ struct CosmeticDetailSheet: View {
                     } else if isOwned {
                         Button(action: equipAction) {
                             Text("Equip")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.pixelSystem(size: 14, weight: .semibold))
                                 .frame(maxWidth: .infinity)
                                 .padding(12)
                                 .background(Color(hex: "#7B6BD8"))
@@ -350,7 +350,7 @@ struct CosmeticDetailSheet: View {
                             HStack(spacing: 8) {
                                 Text("🪙")
                                 Text("Buy for \(coinCost) coins")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.pixelSystem(size: 14, weight: .semibold))
                             }
                             .frame(maxWidth: .infinity)
                             .padding(12)
@@ -362,18 +362,18 @@ struct CosmeticDetailSheet: View {
                         // Achievement-only
                         VStack(spacing: 8) {
                             Image(systemName: "lock.circle.fill")
-                                .font(.system(size: 32))
+                                .font(.pixelSystem(size: 32))
                                 .foregroundColor(theme.textMuted)
 
                             Text("Achievement Only")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(.pixelSystem(size: 14, weight: .semibold))
                                 .foregroundColor(theme.textPrimary)
 
                             HStack(spacing: 4) {
                                 Image(systemName: "star.fill")
                                     .foregroundColor(Color(hex: "#D4960A"))
                                 Text("Earn: \(unlockedBy)")
-                                    .font(.system(size: 12))
+                                    .font(.pixelSystem(size: 12))
                                     .foregroundColor(theme.textSecondary)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -391,7 +391,7 @@ struct CosmeticDetailSheet: View {
             // Close button
             Button(action: { isPresented = false }) {
                 Text("Done")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.pixelSystem(size: 14, weight: .semibold))
                     .frame(maxWidth: .infinity)
                     .padding(12)
                     .background(Color(hex: "#7B6BD8"))

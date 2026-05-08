@@ -79,10 +79,10 @@ struct PromptPlaygroundView: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
                     Text("MISSION")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                         .foregroundColor(scenario.difficulty.color)
                     Text(scenario.difficulty.rawValue.uppercased())
-                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
@@ -90,7 +90,7 @@ struct PromptPlaygroundView: View {
                         .cornerRadius(3)
                 }
                 Text(scenario.mission)
-                    .font(.system(size: 12))
+                    .font(.pixelSystem(size: 12))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
                     .lineSpacing(3)
             }
@@ -113,10 +113,10 @@ struct PromptPlaygroundView: View {
                     .padding(.trailing, 10)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("CONTEXT")
-                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.3))
                     Text(scenario.context)
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
                         .lineSpacing(2)
                 }
@@ -130,11 +130,11 @@ struct PromptPlaygroundView: View {
             // Text editor
             VStack(alignment: .leading, spacing: 4) {
                 Text("YOUR PROMPT")
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.3))
 
                 TextEditor(text: $promptText)
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(.pixelSystem(size: 12, design: .monospaced))
                     .scrollContentBackground(.hidden)
                     .padding(10)
                     .frame(minHeight: 140)
@@ -156,7 +156,7 @@ struct PromptPlaygroundView: View {
 
                 HStack {
                     Text("\(wordCount) words")
-                        .font(.system(size: 9, design: .monospaced))
+                        .font(.pixelSystem(size: 9, design: .monospaced))
                         .foregroundColor(wordCount < 15 ? Color(hex: "#E06050") : Color(hex: "#6BCB77"))
 
                     Spacer()
@@ -165,9 +165,9 @@ struct PromptPlaygroundView: View {
                     Button(action: { withAnimation { showHints.toggle() } }) {
                         HStack(spacing: 3) {
                             Image(systemName: "lightbulb")
-                                .font(.system(size: 9))
+                                .font(.pixelSystem(size: 9))
                             Text("Hint")
-                                .font(.system(size: 9, weight: .semibold))
+                                .font(.pixelSystem(size: 9, weight: .semibold))
                         }
                         .foregroundColor(Color(hex: "#D4960A"))
                         .padding(.horizontal, 8)
@@ -180,7 +180,7 @@ struct PromptPlaygroundView: View {
                     // Submit
                     Button(action: submitPrompt) {
                         Text("Evaluate")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.pixelSystem(size: 11, weight: .bold))
                             .foregroundColor(wordCount >= 15 ? .white : Color(hex: "#B0A898"))
                             .padding(.horizontal, 16)
                             .padding(.vertical, 6)
@@ -198,9 +198,9 @@ struct PromptPlaygroundView: View {
                     ForEach(0...min(currentHint, scenario.hints.count - 1), id: \.self) { i in
                         HStack(alignment: .top, spacing: 6) {
                             Text("💡")
-                                .font(.system(size: 10))
+                                .font(.pixelSystem(size: 10))
                             Text(scenario.hints[i])
-                                .font(.system(size: 11))
+                                .font(.pixelSystem(size: 11))
                                 .foregroundColor(Color(hex: "#D4960A"))
                         }
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -209,7 +209,7 @@ struct PromptPlaygroundView: View {
                         Button("Show next hint") {
                             withAnimation { currentHint += 1 }
                         }
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.pixelSystem(size: 10, weight: .semibold))
                         .foregroundColor(Color(hex: "#D4960A").opacity(0.6))
                         .buttonStyle(.plain)
                     }
@@ -242,10 +242,10 @@ struct PromptPlaygroundView: View {
                         .charIdle(t.id)
                         .petBreathing()
                     Text(t.name)
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.pixelSystem(size: 10, weight: .semibold))
                         .foregroundColor(t.color)
                     Text("is watching...")
-                        .font(.system(size: 8))
+                        .font(.pixelSystem(size: 8))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.3))
                 }
             }
@@ -255,19 +255,19 @@ struct PromptPlaygroundView: View {
             // Required elements checklist
             VStack(alignment: .leading, spacing: 8) {
                 Text("ELEMENTS")
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.3))
 
                 ForEach(scenario.requiredElements) { element in
                     let score = analysis?.scores[element.id] ?? 0
                     HStack(spacing: 6) {
                         Image(systemName: score >= 0.6 ? "checkmark.circle.fill" : "circle")
-                            .font(.system(size: 11))
+                            .font(.pixelSystem(size: 11))
                             .foregroundColor(score >= 0.6 ? Color(hex: "#6BCB77") : Color(hex: "#E8E6E0"))
 
                         VStack(alignment: .leading, spacing: 1) {
                             Text(element.name)
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.pixelSystem(size: 10, weight: .semibold))
                                 .foregroundColor(Color(hex: "#2D2B26"))
                             // Score bar
                             GeometryReader { geo in
@@ -290,17 +290,17 @@ struct PromptPlaygroundView: View {
             if !scenario.bonusElements.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("BONUS")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#D4960A").opacity(0.5))
 
                     ForEach(scenario.bonusElements) { element in
                         let score = analysis?.scores[element.id] ?? 0
                         HStack(spacing: 6) {
                             Image(systemName: score >= 0.6 ? "star.fill" : "star")
-                                .font(.system(size: 9))
+                                .font(.pixelSystem(size: 9))
                                 .foregroundColor(score >= 0.6 ? Color(hex: "#D4960A") : Color(hex: "#E8E6E0"))
                             Text(element.name)
-                                .font(.system(size: 9))
+                                .font(.pixelSystem(size: 9))
                                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
                         }
                     }
@@ -313,18 +313,18 @@ struct PromptPlaygroundView: View {
             if let result = analysis {
                 VStack(spacing: 4) {
                     Text(result.grade.rawValue)
-                        .font(.system(size: 28, weight: .black, design: .monospaced))
+                        .font(.pixelSystem(size: 28, weight: .black, design: .monospaced))
                         .foregroundColor(result.grade.color)
                     Text("\(result.overallScore)%")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 11, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                     Text("Live Score")
-                        .font(.system(size: 8, design: .monospaced))
+                        .font(.pixelSystem(size: 8, design: .monospaced))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.3))
                 }
             } else {
                 Text("Start typing...")
-                    .font(.system(size: 10))
+                    .font(.pixelSystem(size: 10))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.3))
             }
 
@@ -364,12 +364,12 @@ struct PlaygroundTopBar: View {
             HStack {
                 HStack(spacing: 6) {
                     Text("PROMPT PLAYGROUND")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                         .foregroundColor(scenario.difficulty.color)
                     Text("•")
                         .foregroundColor(Color(hex: "#E8E6E0"))
                     Text(scenario.title)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.pixelSystem(size: 11, weight: .semibold))
                         .foregroundColor(Color(hex: "#2D2B26"))
                 }
 
@@ -377,7 +377,7 @@ struct PlaygroundTopBar: View {
 
                 Button(action: onClose) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.pixelSystem(size: 11, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                         .frame(width: 24, height: 24)
                         .background(Color(hex: "#F0F0EC"))
@@ -416,13 +416,13 @@ struct PlaygroundResultView: View {
                     }
                     VStack(spacing: 6) {
                         Text(analysis.grade.rawValue)
-                            .font(.system(size: 48, weight: .black, design: .monospaced))
+                            .font(.pixelSystem(size: 48, weight: .black, design: .monospaced))
                             .foregroundColor(analysis.grade.color)
                         Text(analysis.grade.label)
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.pixelSystem(size: 14, weight: .bold))
                             .foregroundColor(Color(hex: "#2D2B26"))
                         Text("\(analysis.overallScore)% score")
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(.pixelSystem(size: 11, design: .monospaced))
                             .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                     }
                 }
@@ -436,10 +436,10 @@ struct PlaygroundResultView: View {
                             .charIdle(t.id)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(t.name)
-                                .font(.system(size: 10, weight: .bold))
+                                .font(.pixelSystem(size: 10, weight: .bold))
                                 .foregroundColor(t.color)
                             Text(teacherFeedback)
-                                .font(.system(size: 12))
+                                .font(.pixelSystem(size: 12))
                                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
                                 .italic()
                                 .lineSpacing(3)
@@ -455,21 +455,21 @@ struct PlaygroundResultView: View {
                 // Element breakdown
                 VStack(alignment: .leading, spacing: 8) {
                     Text("BREAKDOWN")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.3))
 
                     ForEach(analysis.feedback) { item in
                         HStack(spacing: 8) {
                             Image(systemName: item.passed ? "checkmark.circle.fill" : "xmark.circle.fill")
-                                .font(.system(size: 13))
+                                .font(.pixelSystem(size: 13))
                                 .foregroundColor(item.passed ? Color(hex: "#6BCB77") : Color(hex: "#E06050"))
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(item.element)
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(.pixelSystem(size: 11, weight: .semibold))
                                     .foregroundColor(Color(hex: "#2D2B26"))
                                 if !item.passed {
                                     Text(item.message)
-                                        .font(.system(size: 9))
+                                        .font(.pixelSystem(size: 9))
                                         .foregroundColor(Color(hex: "#E06050").opacity(0.7))
                                 }
                             }
@@ -492,15 +492,15 @@ struct PlaygroundResultView: View {
                     if !analysis.strengths.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("STRENGTHS")
-                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                                 .foregroundColor(Color(hex: "#6BCB77"))
                             ForEach(analysis.strengths, id: \.self) { s in
                                 HStack(spacing: 4) {
                                     Text("✓")
-                                        .font(.system(size: 9, weight: .bold))
+                                        .font(.pixelSystem(size: 9, weight: .bold))
                                         .foregroundColor(Color(hex: "#6BCB77"))
                                     Text(s)
-                                        .font(.system(size: 10))
+                                        .font(.pixelSystem(size: 10))
                                         .foregroundColor(Color(hex: "#2D2B26"))
                                 }
                             }
@@ -513,15 +513,15 @@ struct PlaygroundResultView: View {
                     if !analysis.improvements.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("IMPROVE")
-                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                                 .foregroundColor(Color(hex: "#E06050"))
                             ForEach(analysis.improvements, id: \.self) { s in
                                 HStack(spacing: 4) {
                                     Text("→")
-                                        .font(.system(size: 9, weight: .bold))
+                                        .font(.pixelSystem(size: 9, weight: .bold))
                                         .foregroundColor(Color(hex: "#E06050"))
                                     Text(s)
-                                        .font(.system(size: 10))
+                                        .font(.pixelSystem(size: 10))
                                         .foregroundColor(Color(hex: "#2D2B26"))
                                 }
                             }
@@ -536,7 +536,7 @@ struct PlaygroundResultView: View {
                 HStack(spacing: 12) {
                     Button(action: onRetry) {
                         Text("Try Again")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.pixelSystem(size: 12, weight: .semibold))
                             .foregroundColor(Color(hex: "#2D2B26"))
                             .padding(.horizontal, 20)
                             .padding(.vertical, 10)
@@ -551,9 +551,9 @@ struct PlaygroundResultView: View {
                         Button(action: onComplete) {
                             HStack(spacing: 4) {
                                 Text("Claim \(earnedXP) XP")
-                                    .font(.system(size: 12, weight: .bold))
+                                    .font(.pixelSystem(size: 12, weight: .bold))
                                 Image(systemName: "arrow.right")
-                                    .font(.system(size: 10))
+                                    .font(.pixelSystem(size: 10))
                             }
                             .foregroundColor(.white)
                             .padding(.horizontal, 20)

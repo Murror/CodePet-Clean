@@ -199,7 +199,9 @@ struct NavButton: View {
                     }
 
                     Text(tab.rawValue)
-                        .font(.system(size: 8, weight: isSelected ? .semibold : .regular, design: .monospaced))
+                        .font(CodepetTheme.usePixelFontGlobally
+                              ? CodepetTheme.pixel(9)
+                              : .system(size: 8, weight: isSelected ? .semibold : .regular, design: .monospaced))
                         .foregroundColor(isSelected ? Color(hex: "#2D2B26") : Color(hex: "#B0A898"))
                 }
                 .frame(width: 56, height: 52)
@@ -237,16 +239,16 @@ struct NavIconView: View {
             case .reflection:
                 // TODO: replace with pixel-art Canvas icon matching other 4 after feature validation
                 Image(systemName: "quote.opening")
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.pixelSystem(size: 15, weight: .medium))
                     .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
             case .tips:
                 // TODO: replace with pixel-art Canvas icon — mockup only
                 Image(systemName: "lightbulb.fill")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.pixelSystem(size: 14, weight: .medium))
                     .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
             case .profile:
                 Image(systemName: "person.fill")
-                    .font(.system(size: 14))
+                    .font(.pixelSystem(size: 14))
                     .foregroundColor(isActive ? Color(hex: "#2D2B26") : Color(hex: "#B0A898"))
             }
         }

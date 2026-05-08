@@ -215,14 +215,14 @@ struct SessionsView: View {
                 // Kingdom title at top
                 VStack(spacing: 6) {
                     Text(kingdom.name)
-                        .font(.system(size: 18, weight: .black, design: .monospaced))
+                        .font(.pixelSystem(size: 18, weight: .black, design: .monospaced))
                         .foregroundColor(.white)
                         .shadow(color: kingdom.accentColor.opacity(0.8), radius: 24)
                         .shadow(color: kingdom.accentColor.opacity(0.4), radius: 48)
                         .tracking(4)
 
                     Text(kingdom.subtitle)
-                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .semibold, design: .monospaced))
                         .foregroundColor(kingdom.accentColor.opacity(0.9))
                         .tracking(2)
                 }
@@ -568,7 +568,7 @@ struct SessionsView: View {
         return VStack(spacing: 10) {
             // Type badge above node
             Text(typeBadgeText(skill.nodeType))
-                .font(.system(size: 7, weight: .black, design: .monospaced))
+                .font(.pixelSystem(size: 7, weight: .black, design: .monospaced))
                 .foregroundColor(.white)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
@@ -620,25 +620,25 @@ struct SessionsView: View {
                 // Icon
                 if state == .completed {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 34, weight: .bold))
+                        .font(.pixelSystem(size: 34, weight: .bold))
                         .foregroundColor(.white)
                         .shadow(color: .white.opacity(0.5), radius: 4)
                 } else if isActive {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 30))
+                        .font(.pixelSystem(size: 30))
                         .foregroundColor(.white)
                         .shadow(color: .white.opacity(0.3), radius: 6)
                         .scaleEffect(pulsePhase ? 1.1 : 0.95)
                 } else {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 24))
+                        .font(.pixelSystem(size: 24))
                         .foregroundColor(.white.opacity(0.35))
                 }
             }
 
             // Skill name
             Text(PersonaContent.resolve(PersonaContent.skillName, id: skill.id, persona: appState.languagePersona, fallback: skill.name))
-                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 11, weight: .bold, design: .monospaced))
                 .foregroundColor(state == .locked ? Color(hex: "#E0D0FF").opacity(0.35) : .white)
                 .multilineTextAlignment(.center)
                 .lineLimit(2)
@@ -663,32 +663,32 @@ struct SessionsView: View {
             if state == .completed {
                 HStack(spacing: 4) {
                     Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 8))
+                        .font(.pixelSystem(size: 8))
                     Text("\(xp) XP earned")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                 }
                 .foregroundColor(Color(hex: "#6BCB77"))
             } else if state == .active {
                 HStack(spacing: 4) {
                     Text("\(xp) XP")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#FFD700"))
                     Text("+")
-                        .font(.system(size: 8, weight: .bold))
+                        .font(.pixelSystem(size: 8, weight: .bold))
                         .foregroundColor(Color(hex: "#FFD700").opacity(0.6))
                     Text("\(coins)")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#FFD700"))
                     Text("🪙")
-                        .font(.system(size: 8))
+                        .font(.pixelSystem(size: 8))
                 }
                 .shadow(color: Color(hex: "#FFD700").opacity(0.4), radius: 6)
             } else {
                 HStack(spacing: 4) {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 7))
+                        .font(.pixelSystem(size: 7))
                     Text("\(xp) XP + \(coins) 🪙")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                 }
                 .foregroundColor(Color(hex: "#FFD700").opacity(0.3))
             }
@@ -704,7 +704,7 @@ struct SessionsView: View {
                 VStack(spacing: 8) {
                     // Speech bubble with bounce
                     Text(speechText(for: character))
-                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .semibold, design: .monospaced))
                         .foregroundColor(Color(hex: "#E0D0FF"))
                         .padding(.horizontal, 12)
                         .padding(.vertical, 7)
@@ -801,16 +801,16 @@ struct SessionsView: View {
                             .fill(typeBadgeColor(skill.nodeType).opacity(0.2))
                             .frame(width: 48, height: 48)
                         Text(skill.icon)
-                            .font(.system(size: 24))
+                            .font(.pixelSystem(size: 24))
                     }
 
                     VStack(alignment: .leading, spacing: 4) {
                         Text(skill.nodeType.rawValue.uppercased())
-                            .font(.system(size: 7, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
                             .foregroundColor(typeBadgeColor(skill.nodeType))
                             .tracking(1.5)
                         Text(PersonaContent.resolve(PersonaContent.skillName, id: skill.id, persona: appState.languagePersona, fallback: skill.name))
-                            .font(.system(size: 13, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 13, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                     }
 
@@ -822,7 +822,7 @@ struct SessionsView: View {
                         }
                     }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.pixelSystem(size: 12, weight: .medium))
                             .foregroundColor(Color(hex: "#A89BF2"))
                             .padding(8)
                             .background(
@@ -842,7 +842,7 @@ struct SessionsView: View {
                 // Body
                 VStack(spacing: 16) {
                     Text(PersonaContent.resolve(PersonaContent.skillDesc, id: skill.id, persona: appState.languagePersona, fallback: skill.desc))
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .font(.pixelSystem(size: 10, weight: .medium, design: .monospaced))
                         .foregroundColor(Color(hex: "#C0B0E0"))
                         .lineSpacing(4)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -866,7 +866,7 @@ struct SessionsView: View {
                         }
                     }) {
                         Text("START \(skill.nodeType.rawValue.uppercased()) →")
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 12, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
@@ -925,7 +925,7 @@ struct SessionsView: View {
                         .shadow(color: index == currentKingdom ? kingdom.accentColor.opacity(0.7) : .clear, radius: index == currentKingdom ? 10 : 0)
 
                     Text(shortName(kingdom.name))
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                         .foregroundColor(index == currentKingdom ? .white : Color(hex: "#A89BF2"))
                 }
                 .onTapGesture {
@@ -950,7 +950,7 @@ struct SessionsView: View {
 
     private func arrowButton(systemName: String) -> some View {
         Image(systemName: systemName)
-            .font(.system(size: 18, weight: .medium))
+            .font(.pixelSystem(size: 18, weight: .medium))
             .foregroundColor(Color(hex: "#A89BF2"))
             .frame(width: 52, height: 52)
             .background(
@@ -968,10 +968,10 @@ struct SessionsView: View {
     private func metaChip(label: String, value: String) -> some View {
         HStack(spacing: 4) {
             Text(label)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "#A89BF2"))
             Text(value)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "#FFD700"))
         }
         .padding(.horizontal, 10)
@@ -1148,24 +1148,24 @@ struct ChallengeOverlayView: View {
 
             HStack {
                 HStack(spacing: 4) {
-                    Text("🎯").font(.system(size: 10))
+                    Text("🎯").font(.pixelSystem(size: 10))
                     Text(stageLabels[stage].uppercased())
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                         .foregroundColor(teacherColor)
                     if attempt > 1 {
                         Text("· Attempt \(attempt)")
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .font(.pixelSystem(size: 9, weight: .medium, design: .monospaced))
                             .foregroundColor(Color(hex: "#A09B8E"))
                     }
                 }
                 Spacer()
                 HStack(spacing: 8) {
                     Text("+\(earnedXP) XP")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#D89840"))
                     Button(action: onClose) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.pixelSystem(size: 12, weight: .medium))
                             .foregroundColor(Color(hex: "#B0A898"))
                     }
                     .buttonStyle(.plain)
@@ -1174,10 +1174,10 @@ struct ChallengeOverlayView: View {
             .padding(.horizontal, 20).padding(.top, 10)
 
             VStack(spacing: 4) {
-                Text(challenge.badge.icon).font(.system(size: 32))
+                Text(challenge.badge.icon).font(.pixelSystem(size: 32))
                 if let t = teacher {
                     Text(t.name)
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                         .foregroundColor(teacherColor)
                 }
             }.padding(.top, 8)
@@ -1203,24 +1203,24 @@ struct ChallengeOverlayView: View {
     // MARK: - Stage 0: Brief
     private var briefStage: some View {
         VStack(spacing: 14) {
-            Text("\(challenge.skillName) Challenge").font(.system(size: 18, weight: .bold)).multilineTextAlignment(.center)
-            Text(difficultyBadge).font(.system(size: 11, weight: .bold, design: .monospaced)).foregroundColor(difficultyColor)
+            Text("\(challenge.skillName) Challenge").font(.pixelSystem(size: 18, weight: .bold)).multilineTextAlignment(.center)
+            Text(difficultyBadge).font(.pixelSystem(size: 11, weight: .bold, design: .monospaced)).foregroundColor(difficultyColor)
                 .padding(.horizontal, 14).padding(.vertical, 6)
                 .background(RoundedRectangle(cornerRadius: 8).fill(difficultyColor.opacity(0.1)))
             VStack(alignment: .leading, spacing: 8) {
-                Text("🎯 YOUR MISSION").font(.system(size: 9, weight: .bold, design: .monospaced)).foregroundColor(teacherColor)
-                Text(PersonaContent.resolve(PersonaContent.challengeBrief, id: challenge.id, persona: appState.languagePersona, fallback: challenge.brief)).font(.system(size: 12)).foregroundColor(Color(hex: "#444444")).lineSpacing(4)
+                Text("🎯 YOUR MISSION").font(.pixelSystem(size: 9, weight: .bold, design: .monospaced)).foregroundColor(teacherColor)
+                Text(PersonaContent.resolve(PersonaContent.challengeBrief, id: challenge.id, persona: appState.languagePersona, fallback: challenge.brief)).font(.pixelSystem(size: 12)).foregroundColor(Color(hex: "#444444")).lineSpacing(4)
             }
             .padding(16).frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 14).fill(Color(hex: "#F7F5FC")).overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "#E0DBEF"), lineWidth: 1)))
             HStack(spacing: 8) {
-                Text("\(challenge.xpReward) XP").font(.system(size: 10, weight: .bold)).foregroundColor(Color(hex: "#B8860B"))
+                Text("\(challenge.xpReward) XP").font(.pixelSystem(size: 10, weight: .bold)).foregroundColor(Color(hex: "#B8860B"))
                     .padding(.horizontal, 10).padding(.vertical, 4).background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "#FFF8E8")))
-                Text("\(challenge.badge.icon) \(challenge.badge.name)").font(.system(size: 10, weight: .bold)).foregroundColor(Color(hex: "#2E7D32"))
+                Text("\(challenge.badge.icon) \(challenge.badge.name)").font(.pixelSystem(size: 10, weight: .bold)).foregroundColor(Color(hex: "#2E7D32"))
                     .padding(.horizontal, 10).padding(.vertical, 4).background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "#EDEBF7")))
             }
             Button(action: { withAnimation { stage = 1 } }) {
-                Text("Accept Challenge →").font(.system(size: 13, weight: .bold)).foregroundColor(.white)
+                Text("Accept Challenge →").font(.pixelSystem(size: 13, weight: .bold)).foregroundColor(.white)
                     .frame(maxWidth: .infinity).padding(.vertical, 12).background(Color(hex: "#2D2B26")).cornerRadius(12)
             }.buttonStyle(.plain)
         }.padding(.top, 12)
@@ -1229,27 +1229,27 @@ struct ChallengeOverlayView: View {
     // MARK: - Stage 1: Pick Tool
     private var pickToolStage: some View {
         VStack(spacing: 14) {
-            Text("Pick Your Tool").font(.system(size: 18, weight: .bold))
-            Text("Which AI tool will you use for this challenge?").font(.system(size: 11)).foregroundColor(Color(hex: "#888888"))
+            Text("Pick Your Tool").font(.pixelSystem(size: 18, weight: .bold))
+            Text("Which AI tool will you use for this challenge?").font(.pixelSystem(size: 11)).foregroundColor(Color(hex: "#888888"))
             ForEach(ChallengeTool.all) { tool in
                 let isSelected = selectedTool?.id == tool.id
                 HStack(spacing: 12) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 8).fill(tool.color.opacity(0.1)).frame(width: 32, height: 32)
-                        Text(tool.icon).font(.system(size: 12, weight: .bold)).foregroundColor(tool.color)
+                        Text(tool.icon).font(.pixelSystem(size: 12, weight: .bold)).foregroundColor(tool.color)
                     }
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 6) {
-                            Text(tool.name).font(.system(size: 12, weight: .semibold)).foregroundColor(Color(hex: "#2D2B26"))
+                            Text(tool.name).font(.pixelSystem(size: 12, weight: .semibold)).foregroundColor(Color(hex: "#2D2B26"))
                             if tool.recommended {
-                                Text("RECOMMENDED").font(.system(size: 7, weight: .bold)).foregroundColor(.white)
+                                Text("RECOMMENDED").font(.pixelSystem(size: 7, weight: .bold)).foregroundColor(.white)
                                     .padding(.horizontal, 6).padding(.vertical, 2).background(Color(hex: "#D97706")).cornerRadius(4)
                             }
                         }
-                        Text(tool.desc).font(.system(size: 10)).foregroundColor(Color(hex: "#888888"))
+                        Text(tool.desc).font(.pixelSystem(size: 10)).foregroundColor(Color(hex: "#888888"))
                     }
                     Spacer()
-                    if isSelected { Image(systemName: "checkmark").font(.system(size: 12, weight: .bold)).foregroundColor(tool.color) }
+                    if isSelected { Image(systemName: "checkmark").font(.pixelSystem(size: 12, weight: .bold)).foregroundColor(tool.color) }
                 }
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 12).fill(isSelected ? tool.color.opacity(0.06) : Color.white)
@@ -1257,7 +1257,7 @@ struct ChallengeOverlayView: View {
                 .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { selectedTool = tool }; SoundManager.shared.playTap() }
             }
             Button(action: { withAnimation { stage = 2 } }) {
-                Text("Continue →").font(.system(size: 13, weight: .bold))
+                Text("Continue →").font(.pixelSystem(size: 13, weight: .bold))
                     .foregroundColor(selectedTool != nil ? .white : Color(hex: "#B0A898"))
                     .frame(maxWidth: .infinity).padding(.vertical, 12)
                     .background(selectedTool != nil ? Color(hex: "#2D2B26") : Color(hex: "#E0DDD6")).cornerRadius(12)
@@ -1268,31 +1268,31 @@ struct ChallengeOverlayView: View {
     // MARK: - Stage 2: Guidelines
     private var guidelinesStage: some View {
         VStack(spacing: 14) {
-            Text("How to Approach This").font(.system(size: 18, weight: .bold))
-            Text("\(teacher?.name ?? "Teacher") prepared building blocks to guide you:").font(.system(size: 11)).foregroundColor(Color(hex: "#888888"))
+            Text("How to Approach This").font(.pixelSystem(size: 18, weight: .bold))
+            Text("\(teacher?.name ?? "Teacher") prepared building blocks to guide you:").font(.pixelSystem(size: 11)).foregroundColor(Color(hex: "#888888"))
             ForEach(Array(challenge.promptBlocks.enumerated()), id: \.offset) { i, block in
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) { Text(block.emoji).font(.system(size: 16)); Text("Step \(i + 1): \(block.title)").font(.system(size: 12, weight: .bold)).foregroundColor(Color(hex: "#2D2B26")) }
-                    Text(block.hint).font(.system(size: 11)).foregroundColor(Color(hex: "#555555")).padding(.leading, 28).lineSpacing(3)
-                    Text(block.example).font(.system(size: 10)).foregroundColor(Color(hex: "#999999")).italic().padding(.leading, 28)
+                    HStack(spacing: 8) { Text(block.emoji).font(.pixelSystem(size: 16)); Text("Step \(i + 1): \(block.title)").font(.pixelSystem(size: 12, weight: .bold)).foregroundColor(Color(hex: "#2D2B26")) }
+                    Text(block.hint).font(.pixelSystem(size: 11)).foregroundColor(Color(hex: "#555555")).padding(.leading, 28).lineSpacing(3)
+                    Text(block.example).font(.pixelSystem(size: 10)).foregroundColor(Color(hex: "#999999")).italic().padding(.leading, 28)
                 }
                 .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: 12).fill(Color(hex: "#F7F5FC")).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E0DBEF"), lineWidth: 1)))
             }
             HStack(spacing: 8) {
-                Text("✍️").font(.system(size: 14))
-                Text("Use these steps as a guide, but write everything in your own words.").font(.system(size: 10, weight: .medium)).foregroundColor(Color(hex: "#166534")).lineSpacing(3)
+                Text("✍️").font(.pixelSystem(size: 14))
+                Text("Use these steps as a guide, but write everything in your own words.").font(.pixelSystem(size: 10, weight: .medium)).foregroundColor(Color(hex: "#166534")).lineSpacing(3)
             }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
             .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: "#F0FDF4")).overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(hex: "#BBF7D0"), lineWidth: 1)))
             HStack(spacing: 8) {
                 if let tool = selectedTool, let url = tool.url {
                     Link(destination: URL(string: url)!) {
-                        Text("Open \(tool.name) ↗").font(.system(size: 12, weight: .bold)).foregroundColor(.white)
+                        Text("Open \(tool.name) ↗").font(.pixelSystem(size: 12, weight: .bold)).foregroundColor(.white)
                             .frame(maxWidth: .infinity).padding(.vertical, 12).background(tool.color).cornerRadius(12)
                     }
                 }
                 Button(action: { withAnimation { stage = 3 } }) {
-                    Text("I'm Done → Submit").font(.system(size: 12, weight: .bold)).foregroundColor(.white)
+                    Text("I'm Done → Submit").font(.pixelSystem(size: 12, weight: .bold)).foregroundColor(.white)
                         .frame(maxWidth: .infinity).padding(.vertical, 12).background(Color(hex: "#2D2B26")).cornerRadius(12)
                 }.buttonStyle(.plain)
             }
@@ -1302,15 +1302,15 @@ struct ChallengeOverlayView: View {
     // MARK: - Stage 3: Submit
     private var submitStage: some View {
         VStack(spacing: 14) {
-            Text("Submit Your Work").font(.system(size: 18, weight: .bold))
-            Text("Paste your work below. \(teacher?.name ?? "Teacher") will review it.").font(.system(size: 11)).foregroundColor(Color(hex: "#888888"))
+            Text("Submit Your Work").font(.pixelSystem(size: 18, weight: .bold))
+            Text("Paste your work below. \(teacher?.name ?? "Teacher") will review it.").font(.pixelSystem(size: 11)).foregroundColor(Color(hex: "#888888"))
             if let sample = challenge.sampleAnswer {
                 Button(action: { withAnimation { showSampleAnswer.toggle() } }) {
                     HStack(spacing: 8) {
-                        Text("📝").font(.system(size: 14))
-                        Text("Stuck? See a sample answer").font(.system(size: 11, weight: .semibold)).foregroundColor(showSampleAnswer ? teacherColor : Color(hex: "#888888"))
+                        Text("📝").font(.pixelSystem(size: 14))
+                        Text("Stuck? See a sample answer").font(.pixelSystem(size: 11, weight: .semibold)).foregroundColor(showSampleAnswer ? teacherColor : Color(hex: "#888888"))
                         Spacer()
-                        Image(systemName: "chevron.down").font(.system(size: 10)).foregroundColor(Color(hex: "#B0A898")).rotationEffect(.degrees(showSampleAnswer ? 180 : 0))
+                        Image(systemName: "chevron.down").font(.pixelSystem(size: 10)).foregroundColor(Color(hex: "#B0A898")).rotationEffect(.degrees(showSampleAnswer ? 180 : 0))
                     }.padding(12)
                     .background(RoundedRectangle(cornerRadius: 12).fill(showSampleAnswer ? teacherColor.opacity(0.06) : Color.white)
                         .overlay(RoundedRectangle(cornerRadius: 12).stroke(showSampleAnswer ? teacherColor.opacity(0.3) : Color(hex: "#E0DBEF"), lineWidth: 1.5)))
@@ -1318,17 +1318,17 @@ struct ChallengeOverlayView: View {
                 if showSampleAnswer {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(spacing: 6) {
-                            Image(systemName: "lightbulb.fill").font(.system(size: 10)).foregroundColor(teacherColor)
-                            Text("SAMPLE ANSWER").font(.system(size: 8, weight: .bold, design: .monospaced)).foregroundColor(teacherColor)
+                            Image(systemName: "lightbulb.fill").font(.pixelSystem(size: 10)).foregroundColor(teacherColor)
+                            Text("SAMPLE ANSWER").font(.pixelSystem(size: 8, weight: .bold, design: .monospaced)).foregroundColor(teacherColor)
                         }
-                        Text(sample.text).font(.system(size: 10, design: .monospaced)).foregroundColor(Color(hex: "#555555")).lineSpacing(3)
+                        Text(sample.text).font(.pixelSystem(size: 10, design: .monospaced)).foregroundColor(Color(hex: "#555555")).lineSpacing(3)
                     }
                     .padding(12).frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: 12).fill(teacherColor.opacity(0.04)).overlay(RoundedRectangle(cornerRadius: 12).stroke(teacherColor.opacity(0.15), lineWidth: 1)))
                 }
             }
             TextEditor(text: $submissionText)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.pixelSystem(size: 11, design: .monospaced))
                 .frame(minHeight: 120)
                 .padding(8)
                 .background(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E0DBEF"), lineWidth: 1))
@@ -1347,7 +1347,7 @@ struct ChallengeOverlayView: View {
                     withAnimation { stage = 5 }
                 }
             }) {
-                Text("Submit for Review →").font(.system(size: 13, weight: .bold))
+                Text("Submit for Review →").font(.pixelSystem(size: 13, weight: .bold))
                     .foregroundColor(!submissionText.isEmpty ? .white : Color(hex: "#B0A898"))
                     .frame(maxWidth: .infinity).padding(.vertical, 12)
                     .background(!submissionText.isEmpty ? Color(hex: "#2D2B26") : Color(hex: "#E0DDD6")).cornerRadius(12)
@@ -1358,12 +1358,12 @@ struct ChallengeOverlayView: View {
     // MARK: - Stage 4: Review (loading)
     private var reviewStage: some View {
         VStack(spacing: 20) {
-            Text("Reviewing...").font(.system(size: 18, weight: .bold))
+            Text("Reviewing...").font(.pixelSystem(size: 18, weight: .bold))
             if let t = teacher {
                 Image(t.imageName).resizable().interpolation(.none).scaledToFit().frame(width: 64, height: 64)
             }
             ProgressView().scaleEffect(1.2)
-            Text("\(teacher?.name ?? "Teacher") is reviewing your work...").font(.system(size: 11)).foregroundColor(Color(hex: "#888888"))
+            Text("\(teacher?.name ?? "Teacher") is reviewing your work...").font(.pixelSystem(size: 11)).foregroundColor(Color(hex: "#888888"))
         }.padding(.top, 40)
     }
 
@@ -1374,15 +1374,15 @@ struct ChallengeOverlayView: View {
                 let passed = results.checkpoints.filter(\.passed).count
                 let total = results.checkpoints.count
                 let allPassed = passed == total
-                Text(allPassed ? "Challenge Complete!" : "Almost There!").font(.system(size: 18, weight: .bold))
-                Text("\(passed)/\(total) checkpoints passed").font(.system(size: 12)).foregroundColor(Color(hex: "#888888"))
+                Text(allPassed ? "Challenge Complete!" : "Almost There!").font(.pixelSystem(size: 18, weight: .bold))
+                Text("\(passed)/\(total) checkpoints passed").font(.pixelSystem(size: 12)).foregroundColor(Color(hex: "#888888"))
                 ForEach(Array(results.checkpoints.enumerated()), id: \.offset) { _, check in
                     HStack(spacing: 8) {
                         Image(systemName: check.passed ? "checkmark.circle.fill" : "xmark.circle.fill")
                             .foregroundColor(check.passed ? Color(hex: "#4CC864") : Color(hex: "#E05050"))
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(check.name).font(.system(size: 11, weight: .semibold))
-                            Text(check.feedback).font(.system(size: 10)).foregroundColor(Color(hex: "#888888"))
+                            Text(check.name).font(.pixelSystem(size: 11, weight: .semibold))
+                            Text(check.feedback).font(.pixelSystem(size: 10)).foregroundColor(Color(hex: "#888888"))
                         }
                         Spacer()
                     }.padding(10)
@@ -1390,17 +1390,17 @@ struct ChallengeOverlayView: View {
                 }
                 if allPassed {
                     HStack(spacing: 8) {
-                        Text("🎉").font(.system(size: 20))
-                        Text("+\(earnedXP) XP earned!").font(.system(size: 14, weight: .bold)).foregroundColor(Color(hex: "#B8860B"))
+                        Text("🎉").font(.pixelSystem(size: 20))
+                        Text("+\(earnedXP) XP earned!").font(.pixelSystem(size: 14, weight: .bold)).foregroundColor(Color(hex: "#B8860B"))
                     }.padding(14)
                     .background(RoundedRectangle(cornerRadius: 12).fill(Color(hex: "#FFF8E8")).overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#F0E0B0"), lineWidth: 1)))
                     Button(action: { onComplete(earnedXP, attempt) }) {
-                        Text("Collect Reward →").font(.system(size: 13, weight: .bold)).foregroundColor(.white)
+                        Text("Collect Reward →").font(.pixelSystem(size: 13, weight: .bold)).foregroundColor(.white)
                             .frame(maxWidth: .infinity).padding(.vertical, 12).background(Color(hex: "#4CC864")).cornerRadius(12)
                     }.buttonStyle(.plain)
                 } else {
                     Button(action: { withAnimation { stage = 3; attempt += 1 } }) {
-                        Text("Try Again →").font(.system(size: 13, weight: .bold)).foregroundColor(.white)
+                        Text("Try Again →").font(.pixelSystem(size: 13, weight: .bold)).foregroundColor(.white)
                             .frame(maxWidth: .infinity).padding(.vertical, 12).background(Color(hex: "#D89840")).cornerRadius(12)
                     }.buttonStyle(.plain)
                 }

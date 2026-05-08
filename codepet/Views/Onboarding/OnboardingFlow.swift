@@ -144,10 +144,10 @@ struct SplashPhase: View {
             // Tagline
             VStack(spacing: 4) {
                 Text("Your AI coding companions are waiting.")
-                    .font(.system(size: 15))
+                    .font(.pixelSystem(size: 15))
                     .foregroundColor(Color(hex: "#888888"))
                 Text("8 characters. 16 skills. One journey.")
-                    .font(.system(size: 13))
+                    .font(.pixelSystem(size: 13))
                     .foregroundColor(Color(hex: "#BBBBBB"))
             }
             .opacity(showTag ? 1 : 0)
@@ -157,7 +157,7 @@ struct SplashPhase: View {
             // "Meet Your Pet" button
             Button(action: onStart) {
                 Text("Meet Your Pet →")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.pixelSystem(size: 16, weight: .bold))
                     .foregroundColor(.white)
                     .padding(.horizontal, 52)
                     .padding(.vertical, 16)
@@ -185,7 +185,7 @@ struct SplashPhase: View {
             .opacity(showButton ? 1 : 0)
 
             Text("v1.0 · made with vibes")
-                .font(.system(size: 10))
+                .font(.pixelSystem(size: 10))
                 .foregroundColor(Color(hex: "#D0CCC4"))
                 .padding(.bottom, 12)
         }
@@ -211,7 +211,7 @@ struct SplashBubble: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 12, weight: .medium, design: .monospaced))
+            .font(.pixelSystem(size: 12, weight: .medium, design: .monospaced))
             .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
@@ -265,11 +265,11 @@ struct AgeGatePhase: View {
                 // Age selection
                 VStack(spacing: 24) {
                     Text("How old are you?")
-                        .font(.system(size: 32, weight: .bold))
+                        .font(.pixelSystem(size: 32, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26"))
 
                     Text("We personalize your experience based on your age.")
-                        .font(.system(size: 14))
+                        .font(.pixelSystem(size: 14))
                         .foregroundColor(Color(hex: "#666666"))
 
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
@@ -280,9 +280,9 @@ struct AgeGatePhase: View {
                                 appState.userAge = appState.userAge == age ? "" : age
                             } label: {
                                 VStack(spacing: 8) {
-                                    Text(icon).font(.system(size: 28))
+                                    Text(icon).font(.pixelSystem(size: 28))
                                     Text(age).fontWeight(.bold).foregroundColor(Color(hex: "#2D2B26"))
-                                    Text(label).font(.system(size: 12)).foregroundColor(Color(hex: "#888888"))
+                                    Text(label).font(.pixelSystem(size: 12)).foregroundColor(Color(hex: "#888888"))
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(20)
@@ -311,13 +311,13 @@ struct AgeGatePhase: View {
                 // Sign-in step
                 VStack(spacing: 16) {
                     Text(isYoung ? "Create your profile" : "Save your journey")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.pixelSystem(size: 28, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26"))
 
                     Text(isYoung
                          ? "No email needed! Your profile is saved on this device."
                          : "Sign in to sync your progress across devices.")
-                        .font(.system(size: 14))
+                        .font(.pixelSystem(size: 14))
                         .foregroundColor(Color(hex: "#666666"))
                         .multilineTextAlignment(.center)
 
@@ -327,11 +327,11 @@ struct AgeGatePhase: View {
                         // Young user: PIN-based local auth
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Create a 4-digit PIN")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.pixelSystem(size: 11, weight: .semibold))
                                 .foregroundColor(Color(hex: "#888888"))
                             SecureField("1234", text: $pin)
                                 .textFieldStyle(.roundedBorder)
-                                .font(.system(size: 14))
+                                .font(.pixelSystem(size: 14))
                                 .onChange(of: pin) { oldValue, newValue in
                                     // Limit to 4 digits
                                     pin = String(newValue.filter { $0.isNumber }.prefix(4))
@@ -359,9 +359,9 @@ struct AgeGatePhase: View {
                         }) {
                             HStack(spacing: 10) {
                                 Image(systemName: "g.circle.fill")
-                                    .font(.system(size: 16))
+                                    .font(.pixelSystem(size: 16))
                                 Text("Sign in with Google")
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(.pixelSystem(size: 15, weight: .semibold))
                             }
                             .frame(maxWidth: .infinity)
                             .padding(14)
@@ -379,7 +379,7 @@ struct AgeGatePhase: View {
                         HStack {
                             Rectangle().fill(Color(hex: "#E0DBEF")).frame(height: 1)
                             Text("or")
-                                .font(.system(size: 11))
+                                .font(.pixelSystem(size: 11))
                                 .foregroundColor(Color(hex: "#AAAAAA"))
                             Rectangle().fill(Color(hex: "#E0DBEF")).frame(height: 1)
                         }
@@ -388,22 +388,22 @@ struct AgeGatePhase: View {
                         // Email fields
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Email")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.pixelSystem(size: 11, weight: .semibold))
                                 .foregroundColor(Color(hex: "#888888"))
                             TextField("you@example.com", text: $email)
                                 .textFieldStyle(.roundedBorder)
-                                .font(.system(size: 14))
+                                .font(.pixelSystem(size: 14))
                                 .textContentType(.emailAddress)
                         }
                         .padding(.horizontal, 8)
 
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Password")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(.pixelSystem(size: 11, weight: .semibold))
                                 .foregroundColor(Color(hex: "#888888"))
                             SecureField("At least 6 characters", text: $password)
                                 .textFieldStyle(.roundedBorder)
-                                .font(.system(size: 14))
+                                .font(.pixelSystem(size: 14))
                         }
                         .padding(.horizontal, 8)
 
@@ -416,7 +416,7 @@ struct AgeGatePhase: View {
                                     authManager.authError = nil
                                 }
                             }
-                            .font(.system(size: 12))
+                            .font(.pixelSystem(size: 12))
                             .foregroundColor(Color(hex: "#7B6BD8"))
                             .buttonStyle(.plain)
 
@@ -430,7 +430,7 @@ struct AgeGatePhase: View {
                                     authManager.sendPasswordReset(email: email)
                                     resetSent = true
                                 }
-                                .font(.system(size: 12))
+                                .font(.pixelSystem(size: 12))
                                 .foregroundColor(Color(hex: "#B0A898"))
                                 .buttonStyle(.plain)
                             }
@@ -439,7 +439,7 @@ struct AgeGatePhase: View {
                         // Reset confirmation
                         if resetSent {
                             Text("Password reset email sent! Check your inbox.")
-                                .font(.system(size: 11))
+                                .font(.pixelSystem(size: 11))
                                 .foregroundColor(Color(hex: "#20B090"))
                                 .multilineTextAlignment(.center)
                         }
@@ -470,7 +470,7 @@ struct AgeGatePhase: View {
                                     Image(systemName: "envelope.fill")
                                 }
                                 Text(isAuthenticating ? "Signing in..." : (isSignUp ? "Create Account" : "Sign In with Email"))
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(.pixelSystem(size: 15, weight: .semibold))
                             }
                             .frame(maxWidth: .infinity)
                             .padding(14)
@@ -487,7 +487,7 @@ struct AgeGatePhase: View {
                     // Error message
                     if let error = authManager.authError {
                         Text(error)
-                            .font(.system(size: 11))
+                            .font(.pixelSystem(size: 11))
                             .foregroundColor(Color(hex: "#E04040"))
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 8)
@@ -498,7 +498,7 @@ struct AgeGatePhase: View {
                         SoundManager.shared.playNextStep()
                         onNext()
                     }
-                    .font(.system(size: 13))
+                    .font(.pixelSystem(size: 13))
                     .foregroundColor(Color(hex: "#B0A898"))
                     .buttonStyle(.plain)
                 }
@@ -785,7 +785,7 @@ struct RecommendationCard: View {
         OnboardingContainer {
             VStack(spacing: 20) {
                 Text("YOUR RECOMMENDED COMPANION")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.pixelSystem(size: 11, weight: .bold))
                     .foregroundColor(Color(hex: "#999999"))
                     .tracking(1.5)
 
@@ -813,21 +813,21 @@ struct RecommendationCard: View {
 
                     VStack(spacing: 6) {
                         Text(rec.why)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.pixelSystem(size: 12, weight: .bold))
                             .foregroundColor(Color(hex: "#7B6BD8"))
                             .textCase(.uppercase)
                             .tracking(1.2)
 
                         Text(char.name)
-                            .font(.system(size: 32, weight: .bold))
+                            .font(.pixelSystem(size: 32, weight: .bold))
                             .foregroundColor(char.color)
 
                         Text(char.badge)
-                            .font(.system(size: 13))
+                            .font(.pixelSystem(size: 13))
                             .foregroundColor(Color(hex: "#999999"))
 
                         Text(rec.reason)
-                            .font(.system(size: 14))
+                            .font(.pixelSystem(size: 14))
                             .foregroundColor(Color(hex: "#555555"))
                             .multilineTextAlignment(.center)
                             .lineSpacing(4)
@@ -854,7 +854,7 @@ struct RecommendationCard: View {
                 // "Choose different" toggle
                 Button(action: { withAnimation { showFullChooser.toggle() } }) {
                     Text("Choose a different companion")
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                         .foregroundColor(Color(hex: "#999999"))
                         .underline()
                 }
@@ -891,10 +891,10 @@ struct RecommendationCard: View {
 
                                         VStack(spacing: 3) {
                                             Text(c.name)
-                                                .font(.system(size: 17, weight: .bold))
+                                                .font(.pixelSystem(size: 17, weight: .bold))
                                                 .foregroundColor(c.color)
                                             Text(c.badge.replacingOccurrences(of: "The ", with: ""))
-                                                .font(.system(size: 10, weight: .semibold))
+                                                .font(.pixelSystem(size: 10, weight: .semibold))
                                                 .foregroundColor(Color(hex: "#999999"))
                                                 .textCase(.uppercase)
                                                 .tracking(0.8)
@@ -948,11 +948,11 @@ struct InterestsPhase: View {
             ScrollView {
                 VStack(spacing: 20) {
                     Text("What do you want to build?")
-                        .font(.system(size: 26, weight: .bold))
+                        .font(.pixelSystem(size: 26, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26"))
 
                     Text("Pick 2-3 topics that excite you. This helps us customize your challenges.")
-                        .font(.system(size: 14))
+                        .font(.pixelSystem(size: 14))
                         .foregroundColor(Color(hex: "#888888"))
                         .multilineTextAlignment(.center)
 
@@ -968,12 +968,12 @@ struct InterestsPhase: View {
                                 }
                             } label: {
                                 VStack(spacing: 8) {
-                                    Text(item.icon).font(.system(size: 28))
+                                    Text(item.icon).font(.pixelSystem(size: 28))
                                     Text(item.name)
-                                        .font(.system(size: 14, weight: .bold))
+                                        .font(.pixelSystem(size: 14, weight: .bold))
                                         .foregroundColor(Color(hex: "#2D2B26"))
                                     Text(item.desc)
-                                        .font(.system(size: 11))
+                                        .font(.pixelSystem(size: 11))
                                         .foregroundColor(Color(hex: "#999999"))
                                 }
                                 .frame(maxWidth: .infinity)
@@ -992,7 +992,7 @@ struct InterestsPhase: View {
                                         Circle()
                                             .fill(Color(hex: "#7B6BD8"))
                                             .frame(width: 24, height: 24)
-                                            .overlay(Text("✓").font(.system(size: 14, weight: .bold)).foregroundColor(.white))
+                                            .overlay(Text("✓").font(.pixelSystem(size: 14, weight: .bold)).foregroundColor(.white))
                                             .offset(x: -8, y: 8)
                                     }
                                 }
@@ -1054,17 +1054,17 @@ struct FirstWordsPhase: View {
                 .frame(height: 260)
 
                 Text(char.name)
-                    .font(.system(size: 30, weight: .bold))
+                    .font(.pixelSystem(size: 30, weight: .bold))
                     .foregroundColor(char.color)
 
                 Text(char.badge)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.pixelSystem(size: 12, weight: .semibold))
                     .foregroundColor(Color(hex: "#999999"))
                     .tracking(0.5)
 
                 // First words speech
                 Text(char.firstWords)
-                    .font(.system(size: 16, design: .default))
+                    .font(.pixelSystem(size: 16, design: .default))
                     .italic()
                     .foregroundColor(Color(hex: "#2D2B26"))
                     .lineSpacing(6)
@@ -1084,7 +1084,7 @@ struct FirstWordsPhase: View {
                 // Launch button
                 Button(action: onLaunch) {
                     Text("Let's go →")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.pixelSystem(size: 14, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 32)
                         .padding(.vertical, 12)
@@ -1096,7 +1096,7 @@ struct FirstWordsPhase: View {
                 // Back button
                 Button(action: onBack) {
                     Text("← Change companion")
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                         .foregroundColor(Color(hex: "#999999"))
                 }
                 .buttonStyle(.plain)
@@ -1146,7 +1146,7 @@ struct StepLabel: View {
 
     var body: some View {
         Text("STEP \(step) OF \(total)")
-            .font(.system(size: 11, weight: .bold))
+            .font(.pixelSystem(size: 11, weight: .bold))
             .foregroundColor(Color(hex: "#999999"))
             .tracking(1.5)
     }
@@ -1166,15 +1166,15 @@ struct ObTitle: View {
     var body: some View {
         HStack(spacing: 0) {
             Text(before)
-                .font(.system(size: 28, weight: .bold))
+                .font(.pixelSystem(size: 28, weight: .bold))
                 .foregroundColor(Color(hex: "#2D2B26"))
             Text(accent)
-                .font(.system(size: 28, weight: .bold))
+                .font(.pixelSystem(size: 28, weight: .bold))
                 .foregroundColor(Color(hex: "#7B6BD8"))
                 .italic()
             if !after.isEmpty {
                 Text(after)
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.pixelSystem(size: 28, weight: .bold))
                     .foregroundColor(Color(hex: "#2D2B26"))
             }
         }
@@ -1187,7 +1187,7 @@ struct ObSubtitle: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 13))
+            .font(.pixelSystem(size: 13))
             .foregroundColor(Color(hex: "#555555"))
             .multilineTextAlignment(.center)
     }
@@ -1204,7 +1204,7 @@ struct ObNextButton: View {
             action()
         }) {
             Text(label)
-                .font(.system(size: 14, weight: .bold))
+                .font(.pixelSystem(size: 14, weight: .bold))
                 .foregroundColor(ready ? .white : Color(hex: "#B0A898"))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
@@ -1229,12 +1229,12 @@ struct PersonaCard: View {
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
-                Text(icon).font(.system(size: 28))
+                Text(icon).font(.pixelSystem(size: 28))
                 Text(name)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.pixelSystem(size: 15, weight: .bold))
                     .foregroundColor(selected ? .white : Color(hex: "#2D2B26"))
                 Text(desc)
-                    .font(.system(size: 11))
+                    .font(.pixelSystem(size: 11))
                     .foregroundColor(selected ? .white.opacity(0.65) : Color(hex: "#888888"))
                     .lineSpacing(3)
             }
@@ -1264,14 +1264,14 @@ struct OptionTile: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 14) {
-                Text(icon).font(.system(size: 22))
+                Text(icon).font(.pixelSystem(size: 22))
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(text)
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.pixelSystem(size: 14, weight: .bold))
                         .foregroundColor(selected ? .white : Color(hex: "#2D2B26"))
                     Text(sub)
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                         .foregroundColor(selected ? .white.opacity(0.55) : Color(hex: "#999999"))
                 }
 

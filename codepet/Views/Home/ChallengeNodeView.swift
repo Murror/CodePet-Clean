@@ -58,28 +58,28 @@ struct ChallengeNodeView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 8) {
                         Text(nodeTypeLabel)
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                             .foregroundColor(challengeLabelColor)
 
                         if let lesson = LessonLibrary.all[skill.id] {
                             Text(lesson.duration)
-                                .font(.system(size: 9, design: .monospaced))
+                                .font(.pixelSystem(size: 9, design: .monospaced))
                                 .foregroundColor(.white.opacity(0.4))
                         }
 
                         if isCompleted {
                             Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 10))
+                                .font(.pixelSystem(size: 10))
                                 .foregroundColor(Color(hex: "#6BCB77"))
                         }
                     }
 
                     Text(skill.name)
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.pixelSystem(size: 15, weight: .bold))
                         .foregroundColor(isLocked ? .white.opacity(0.3) : .white)
 
                     Text(skill.desc)
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                         .foregroundColor(.white.opacity(isLocked ? 0.2 : 0.6))
                         .lineLimit(2)
 
@@ -89,7 +89,7 @@ struct ChallengeNodeView: View {
                             CharacterImage(t.id, size: 20)
                                 .charIdle(t.id)
                             Text("with \(t.name)")
-                                .font(.system(size: 10, weight: .medium))
+                                .font(.pixelSystem(size: 10, weight: .medium))
                                 .foregroundColor(t.color.opacity(0.8))
                         }
                         .padding(.top, 2)
@@ -99,9 +99,9 @@ struct ChallengeNodeView: View {
                     if isNext {
                         HStack(spacing: 6) {
                             Text("Enter Challenge")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.pixelSystem(size: 12, weight: .bold))
                             Image(systemName: "arrow.right")
-                                .font(.system(size: 10, weight: .bold))
+                                .font(.pixelSystem(size: 10, weight: .bold))
                         }
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
@@ -212,7 +212,7 @@ struct ChallengeNodeView: View {
 
             // Icon inside circle
             Image(systemName: nodeIcon)
-                .font(.system(size: skill.nodeType == .boss ? 20 : 16, weight: .bold))
+                .font(.pixelSystem(size: skill.nodeType == .boss ? 20 : 16, weight: .bold))
                 .foregroundColor(isLocked ? .white.opacity(0.3) : .white)
         }
     }

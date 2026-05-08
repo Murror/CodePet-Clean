@@ -145,7 +145,7 @@ struct WelcomeSessionView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Image(systemName: "pencil.line")
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.pixelSystem(size: 15, weight: .medium))
                     .foregroundColor(ReflectionTheme.accent)
                     .frame(width: 26, height: 26)
                 Text("Tell me about your project")
@@ -211,7 +211,7 @@ struct WelcomeSessionView: View {
     private var footer: some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "info.circle")
-                .font(.system(size: 12))
+                .font(.pixelSystem(size: 12))
                 .foregroundColor(ReflectionTheme.mutedText)
             Text("After Step 1 + 2, restart Claude Code. Your turns will start landing here automatically.")
                 .font(ReflectionTheme.sans(12))
@@ -251,7 +251,7 @@ private struct CopyButton: View {
     var body: some View {
         Button(action: copy) {
             Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                .font(.system(size: 11, weight: .medium))
+                .font(.pixelSystem(size: 11, weight: .medium))
                 .foregroundColor(copied ? ReflectionTheme.moodCalm : ReflectionTheme.mutedText)
                 .frame(width: 24, height: 24)
                 .background(

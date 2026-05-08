@@ -62,7 +62,7 @@ struct SessionChatPanel: View {
             Spacer()
             Button(action: onClose) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.pixelSystem(size: 11, weight: .semibold))
             }
             .buttonStyle(CodepetIconButtonStyle())
         }
@@ -174,7 +174,7 @@ struct SessionChatPanel: View {
                         .fixedSize(horizontal: false, vertical: true)
                     if isStreaming {
                         Text("▎")
-                            .font(.system(size: 13))
+                            .font(.pixelSystem(size: 13))
                             .foregroundColor(petColor)
                             .opacity(0.7)
                     }
@@ -196,7 +196,7 @@ struct SessionChatPanel: View {
     private func errorRow(_ error: SessionChatController.ChatError) -> some View {
         HStack(spacing: 6) {
             Image(systemName: "exclamationmark.circle.fill")
-                .font(.system(size: 11))
+                .font(.pixelSystem(size: 11))
                 .foregroundColor(CodepetTheme.accentOrange)
             Text(errorText(error))
                 .font(CodepetTheme.body(11))

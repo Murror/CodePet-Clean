@@ -38,11 +38,11 @@ struct WelcomeBackView: View {
                 // Welcome message
                 VStack(spacing: 8) {
                     Text("Welcome back!")
-                        .font(.system(size: 24, weight: .bold))
+                        .font(.pixelSystem(size: 24, weight: .bold))
                         .foregroundColor(theme.textPrimary)
 
                     Text("While you were away, \(currentCharacter.name) studied on their own...")
-                        .font(.system(size: 14))
+                        .font(.pixelSystem(size: 14))
                         .foregroundColor(theme.textSecondary)
                         .multilineTextAlignment(.center)
                 }
@@ -51,12 +51,12 @@ struct WelcomeBackView: View {
                 VStack(spacing: 12) {
                     ZStack {
                         Text("✨")
-                            .font(.system(size: 32))
+                            .font(.pixelSystem(size: 32))
                             .scaleEffect(sparkleScale)
                             .opacity(sparkleOpacity)
 
                         Text("+\(idleXP) XP")
-                            .font(.system(size: 28, weight: .bold))
+                            .font(.pixelSystem(size: 28, weight: .bold))
                             .foregroundColor(Color(hex: "#7B6BD8"))
                     }
                 }
@@ -75,7 +75,7 @@ struct WelcomeBackView: View {
                 // Tip from pet
                 VStack(spacing: 0) {
                     Text(IdleXPSystem.randomTip())
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                         .foregroundColor(theme.textSecondary)
                         .padding(12)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -116,7 +116,7 @@ struct WelcomeBackView: View {
                 // Let's go button
                 Button(action: dismissAction) {
                     Text("Let's go!")
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.pixelSystem(size: 16, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .padding(14)
                         .background(Color(hex: "#7B6BD8"))
@@ -157,29 +157,29 @@ private struct StatusChangeRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Text(emoji)
-                .font(.system(size: 16))
+                .font(.pixelSystem(size: 16))
 
             Text(label)
-                .font(.system(size: 14, weight: .semibold))
+                .font(.pixelSystem(size: 14, weight: .semibold))
                 .foregroundColor(theme.textPrimary)
 
             Spacer()
 
             HStack(spacing: 8) {
                 Text("\(oldValue)")
-                    .font(.system(size: 12))
+                    .font(.pixelSystem(size: 12))
                     .foregroundColor(theme.textSecondary)
 
                 Text("→")
-                    .font(.system(size: 12))
+                    .font(.pixelSystem(size: 12))
                     .foregroundColor(theme.textMuted)
 
                 Text("\(newValue)")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.pixelSystem(size: 12, weight: .semibold))
                     .foregroundColor(theme.textPrimary)
 
                 Text(changeText)
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 11, weight: .bold, design: .monospaced))
                     .foregroundColor(changeColor)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)

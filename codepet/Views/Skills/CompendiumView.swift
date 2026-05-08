@@ -40,11 +40,11 @@ struct CompendiumView: View {
                 // Header
                 VStack(spacing: 8) {
                     Text("Compendium")
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.pixelSystem(size: 28, weight: .bold))
                         .foregroundColor(theme.textPrimary)
 
                     Text("\(unlockedCount)/\(totalCount) discovered")
-                        .font(.system(size: 13))
+                        .font(.pixelSystem(size: 13))
                         .foregroundColor(theme.textSecondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -56,7 +56,7 @@ struct CompendiumView: View {
                         // All button
                         Button(action: { selectedCategory = nil }) {
                             Text("All")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.pixelSystem(size: 12, weight: .semibold))
                                 .foregroundColor(selectedCategory == nil ? .white : theme.textPrimary)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
@@ -70,7 +70,7 @@ struct CompendiumView: View {
                                 HStack(spacing: 4) {
                                     Text(category.emoji)
                                     Text(category.rawValue)
-                                        .font(.system(size: 12, weight: .semibold))
+                                        .font(.pixelSystem(size: 12, weight: .semibold))
                                 }
                                 .foregroundColor(selectedCategory == category ? .white : theme.textPrimary)
                                 .padding(.horizontal, 12)
@@ -136,28 +136,28 @@ private struct CompendiumEntryCard: View {
                 if isUnlocked {
                     // Unlocked entry
                     Text(entry.icon)
-                        .font(.system(size: 32))
+                        .font(.pixelSystem(size: 32))
 
                     Text(entry.name)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.pixelSystem(size: 12, weight: .semibold))
                         .foregroundColor(theme.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.center)
 
                     Text(entry.category.emoji)
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                 } else {
                     // Locked entry
                     VStack(spacing: 8) {
                         Text("❓")
-                            .font(.system(size: 32))
+                            .font(.pixelSystem(size: 32))
 
                         Text("Undiscovered")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.pixelSystem(size: 11, weight: .semibold))
                             .foregroundColor(theme.textMuted)
 
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 12))
+                            .font(.pixelSystem(size: 12))
                             .foregroundColor(theme.textMuted)
                     }
                 }
@@ -186,12 +186,12 @@ struct CompendiumDetailSheet: View {
             // Header
             HStack {
                 Text("Entry Details")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.pixelSystem(size: 18, weight: .bold))
                     .foregroundColor(theme.textPrimary)
                 Spacer()
                 Button(action: { isPresented = false }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
+                        .font(.pixelSystem(size: 18))
                         .foregroundColor(theme.textMuted)
                 }
             }
@@ -202,17 +202,17 @@ struct CompendiumDetailSheet: View {
                     // Icon and name
                     VStack(spacing: 12) {
                         Text(entry.icon)
-                            .font(.system(size: 48))
+                            .font(.pixelSystem(size: 48))
 
                         Text(entry.name)
-                            .font(.system(size: 20, weight: .bold))
+                            .font(.pixelSystem(size: 20, weight: .bold))
                             .foregroundColor(theme.textPrimary)
 
                         // Category badge
                         HStack(spacing: 6) {
                             Text(entry.category.emoji)
                             Text(entry.category.rawValue)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.pixelSystem(size: 12, weight: .semibold))
                         }
                         .foregroundColor(.white)
                         .padding(.horizontal, 10)
@@ -224,7 +224,7 @@ struct CompendiumDetailSheet: View {
 
                     // Description
                     Text(entry.description)
-                        .font(.system(size: 13))
+                        .font(.pixelSystem(size: 13))
                         .foregroundColor(theme.textSecondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12)
@@ -235,11 +235,11 @@ struct CompendiumDetailSheet: View {
                     if let codeExample = entry.codeExample {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Code Example")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.pixelSystem(size: 12, weight: .bold))
                                 .foregroundColor(theme.textSecondary)
 
                             Text(codeExample)
-                                .font(.system(size: 11, design: .monospaced))
+                                .font(.pixelSystem(size: 11, design: .monospaced))
                                 .foregroundColor(Color(hex: "#E0E0E0"))
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(12)
@@ -255,16 +255,16 @@ struct CompendiumDetailSheet: View {
                                 Image(systemName: "checkmark.circle.fill")
                                     .foregroundColor(theme.accentGreen)
                                 Text("Unlocked!")
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(.pixelSystem(size: 12, weight: .semibold))
                                     .foregroundColor(theme.accentGreen)
                             }
                         } else {
                             Text("Unlocked by completing:")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.pixelSystem(size: 12, weight: .semibold))
                                 .foregroundColor(theme.textSecondary)
 
                             Text(entry.unlockedBy)
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(.pixelSystem(size: 13, weight: .semibold))
                                 .foregroundColor(theme.textPrimary)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
@@ -284,7 +284,7 @@ struct CompendiumDetailSheet: View {
             // Close button
             Button(action: { isPresented = false }) {
                 Text("Done")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.pixelSystem(size: 14, weight: .semibold))
                     .frame(maxWidth: .infinity)
                     .padding(12)
                     .background(Color(hex: "#7B6BD8"))

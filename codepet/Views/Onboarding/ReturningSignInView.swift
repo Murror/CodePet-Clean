@@ -25,11 +25,11 @@ struct ReturningSignInView: View {
                     .frame(width: 280)
 
                 Text("Welcome back!")
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.pixelSystem(size: 24, weight: .bold))
                     .foregroundColor(Color(hex: "#2D2B26"))
 
                 Text("Sign in to continue your journey.")
-                    .font(.system(size: 14))
+                    .font(.pixelSystem(size: 14))
                     .foregroundColor(Color(hex: "#666666"))
             }
 
@@ -40,7 +40,7 @@ struct ReturningSignInView: View {
                 // Error message
                 if let error = authManager.authError, !error.contains("reset email sent") {
                     Text(error)
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                         .foregroundColor(.red)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 8)
@@ -52,9 +52,9 @@ struct ReturningSignInView: View {
                 }) {
                     HStack(spacing: 10) {
                         Image(systemName: "g.circle.fill")
-                            .font(.system(size: 16))
+                            .font(.pixelSystem(size: 16))
                         Text("Sign in with Google")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.pixelSystem(size: 15, weight: .semibold))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(14)
@@ -72,7 +72,7 @@ struct ReturningSignInView: View {
                 HStack {
                     Rectangle().fill(Color(hex: "#E0DBEF")).frame(height: 1)
                     Text("or")
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                         .foregroundColor(Color(hex: "#AAAAAA"))
                     Rectangle().fill(Color(hex: "#E0DBEF")).frame(height: 1)
                 }
@@ -81,11 +81,11 @@ struct ReturningSignInView: View {
                 // Email field
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Email")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.pixelSystem(size: 11, weight: .semibold))
                         .foregroundColor(Color(hex: "#888888"))
                     TextField("you@example.com", text: $email)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 14))
+                        .font(.pixelSystem(size: 14))
                         .textContentType(.emailAddress)
                 }
                 .padding(.horizontal, 8)
@@ -93,11 +93,11 @@ struct ReturningSignInView: View {
                 // Password field
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Password")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.pixelSystem(size: 11, weight: .semibold))
                         .foregroundColor(Color(hex: "#888888"))
                     SecureField("Your password", text: $password)
                         .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 14))
+                        .font(.pixelSystem(size: 14))
                 }
                 .padding(.horizontal, 8)
 
@@ -110,7 +110,7 @@ struct ReturningSignInView: View {
                             authManager.authError = nil
                         }
                     }
-                    .font(.system(size: 12))
+                    .font(.pixelSystem(size: 12))
                     .foregroundColor(Color(hex: "#7B6BD8"))
                     .buttonStyle(.plain)
 
@@ -124,7 +124,7 @@ struct ReturningSignInView: View {
                             authManager.sendPasswordReset(email: email)
                             resetSent = true
                         }
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                         .foregroundColor(Color(hex: "#B0A898"))
                         .buttonStyle(.plain)
                     }
@@ -133,7 +133,7 @@ struct ReturningSignInView: View {
                 // Reset confirmation
                 if resetSent {
                     Text("Password reset email sent! Check your inbox.")
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                         .foregroundColor(Color(hex: "#20B090"))
                         .multilineTextAlignment(.center)
                 }
@@ -160,7 +160,7 @@ struct ReturningSignInView: View {
                             Image(systemName: "envelope.fill")
                         }
                         Text(isAuthenticating ? "Signing in..." : (isSignUp ? "Create Account" : "Sign In"))
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.pixelSystem(size: 15, weight: .semibold))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(14)
@@ -178,7 +178,7 @@ struct ReturningSignInView: View {
                     authManager.authError = nil
                     authManager.isGuestMode = true
                 }
-                .font(.system(size: 13))
+                .font(.pixelSystem(size: 13))
                 .foregroundColor(Color(hex: "#B0A898"))
                 .buttonStyle(.plain)
                 .padding(.top, 4)

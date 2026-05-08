@@ -179,7 +179,7 @@ struct TipsMockupView: View {
     private func setupRow(_ item: TipSetupItem) -> some View {
         HStack(alignment: .center, spacing: 14) {
             Image(systemName: item.state.icon)
-                .font(.system(size: 16, weight: .medium))
+                .font(.pixelSystem(size: 16, weight: .medium))
                 .foregroundColor(item.state.color)
                 .frame(width: 20)
 
@@ -200,7 +200,7 @@ struct TipsMockupView: View {
                         .font(ReflectionTheme.sans(11, weight: .semibold))
                         .foregroundColor(ReflectionTheme.accent)
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.pixelSystem(size: 9, weight: .semibold))
                         .foregroundColor(ReflectionTheme.accent)
                 }
             }
@@ -285,7 +285,7 @@ struct TipsMockupView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Image(systemName: skill.icon)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(.pixelSystem(size: 16, weight: .medium))
                     .foregroundColor(ReflectionTheme.accent)
                 Spacer()
                 Text("\(skill.practiced)/\(skill.total)")
@@ -360,7 +360,7 @@ struct TipsMockupView: View {
     private func readingCard(_ item: TipReadingItem) -> some View {
         HStack(alignment: .top, spacing: 16) {
             Image(systemName: "book.closed.fill")
-                .font(.system(size: 22))
+                .font(.pixelSystem(size: 22))
                 .foregroundColor(ReflectionTheme.accent)
                 .frame(width: 40, height: 50)
                 .background(

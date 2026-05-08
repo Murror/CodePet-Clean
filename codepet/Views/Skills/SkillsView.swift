@@ -39,22 +39,22 @@ struct SkillsView: View {
                         HStack(alignment: .top) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("◆ CODEPET")
-                                    .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                                    .font(.pixelSystem(size: 9, weight: .semibold, design: .monospaced))
                                     .foregroundColor(PetCharacter.all[appState.activeChar]?.color ?? .gray)
                                 Text("Your Skills")
-                                    .font(.system(size: 26, weight: .bold))
+                                    .font(.pixelSystem(size: 26, weight: .bold))
                                     .foregroundColor(Color(hex: "#2D2B26"))
                                 Text("Learn the skills you need to build with AI – one lesson at a time.")
-                                    .font(.system(size: 13))
+                                    .font(.pixelSystem(size: 13))
                                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
                             }
                             Spacer()
                             Button(action: { showShareCard = true; SoundManager.shared.playTap() }) {
                                 HStack(spacing: 4) {
                                     Image(systemName: "square.and.arrow.up")
-                                        .font(.system(size: 11))
+                                        .font(.pixelSystem(size: 11))
                                     Text("Share")
-                                        .font(.system(size: 11, weight: .semibold))
+                                        .font(.pixelSystem(size: 11, weight: .semibold))
                                 }
                                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                                 .padding(.horizontal, 10)
@@ -100,13 +100,13 @@ struct SkillsView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 Text("YOUR LEARNING PATH")
-                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                                 Spacer()
                                 HStack(spacing: 0) {
                                     Button(action: { withAnimation { showTreeView = false } }) {
                                         Image(systemName: "list.bullet")
-                                            .font(.system(size: 10))
+                                            .font(.pixelSystem(size: 10))
                                             .foregroundColor(!showTreeView ? .white : Color(hex: "#B0A898"))
                                             .frame(width: 28, height: 22)
                                             .background(!showTreeView ? Color(hex: "#2D2B26") : Color.clear)
@@ -115,7 +115,7 @@ struct SkillsView: View {
                                     .buttonStyle(.plain)
                                     Button(action: { withAnimation { showTreeView = true } }) {
                                         Image(systemName: "circle.grid.cross")
-                                            .font(.system(size: 10))
+                                            .font(.pixelSystem(size: 10))
                                             .foregroundColor(showTreeView ? .white : Color(hex: "#B0A898"))
                                             .frame(width: 28, height: 22)
                                             .background(showTreeView ? Color(hex: "#2D2B26") : Color.clear)
@@ -326,17 +326,17 @@ struct LevelProgressCard: View {
                 .frame(width: 48, height: 48)
                 .overlay(
                     Text("\(appState.userLevel)")
-                        .font(.system(size: 20, weight: .black, design: .monospaced))
+                        .font(.pixelSystem(size: 20, weight: .black, design: .monospaced))
                         .foregroundColor(.white)
                 )
 
             VStack(alignment: .leading, spacing: 6) {
                 Text("Level \(appState.userLevel) – \(levelTitle)")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.pixelSystem(size: 15, weight: .bold))
                     .foregroundColor(Color(hex: "#2D2B26"))
 
                 Text("\(xpInLevel) / \(xpNeeded) XP • Complete your \(ordinalLesson) lesson!")
-                    .font(.system(size: 11))
+                    .font(.pixelSystem(size: 11))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
 
                 GeometryReader { geo in
@@ -401,7 +401,7 @@ struct StartHereCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("START HERE")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "#D4960A"))
 
             HStack(spacing: 16) {
@@ -411,7 +411,7 @@ struct StartHereCard: View {
                             .charIdle(t.id)
                             .petBreathing()
                         Text(t.name)
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.pixelSystem(size: 10, weight: .semibold))
                             .foregroundColor(t.color)
                     }
                 }
@@ -419,29 +419,29 @@ struct StartHereCard: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
                         Text("TIER \(tier.id)")
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
                             .background(tier.kingdomColor)
                             .cornerRadius(4)
                         Text(LessonLibrary.all[skill.id]?.duration ?? "3 min")
-                            .font(.system(size: 10))
+                            .font(.pixelSystem(size: 10))
                             .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                     }
 
                     Text(skill.name)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(.pixelSystem(size: 17, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26"))
 
                     Text(skill.desc)
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
                         .lineLimit(2)
 
                     Button(action: onStart) {
                         Text("Start lesson →")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.pixelSystem(size: 13, weight: .bold))
                             .foregroundColor(.white)
                             .padding(.horizontal, 20)
                             .padding(.vertical, 10)
@@ -492,11 +492,11 @@ struct KingdomSectionView: View {
                     .frame(width: 24, height: 24)
                     .overlay(
                         Text("\(tier.id)")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.pixelSystem(size: 11, weight: .bold))
                             .foregroundColor(.white)
                     )
                 Text(tier.kingdom)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.pixelSystem(size: 14, weight: .bold))
                     .foregroundColor(isLocked ? Color(hex: "#2D2B26").opacity(0.35) : Color(hex: "#2D2B26"))
                 Spacer()
 
@@ -509,9 +509,9 @@ struct KingdomSectionView: View {
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "map.fill")
-                                .font(.system(size: 9))
+                                .font(.pixelSystem(size: 9))
                             Text("View Kingdom")
-                                .font(.system(size: 9, weight: .semibold))
+                                .font(.pixelSystem(size: 9, weight: .semibold))
                         }
                         .foregroundColor(tier.kingdomColor)
                         .padding(.horizontal, 8)
@@ -525,7 +525,7 @@ struct KingdomSectionView: View {
                 }
 
                 Text("\(completedCount) / \(tier.skills.count)")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                     .foregroundColor(completedCount == tier.skills.count ? Color(hex: "#D4960A") : .gray)
             }
 
@@ -594,11 +594,11 @@ struct SkillRowView: View {
                     Group {
                         if isCompleted {
                             Image(systemName: "checkmark")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.pixelSystem(size: 12, weight: .bold))
                                 .foregroundColor(.white)
                         } else {
                             Text("\(index)")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.pixelSystem(size: 12, weight: .bold))
                                 .foregroundColor(isNext ? .white : .gray)
                         }
                     }
@@ -611,16 +611,16 @@ struct SkillRowView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(skill.name)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.pixelSystem(size: 13, weight: .semibold))
                     .foregroundColor(isLocked ? Color(hex: "#2D2B26").opacity(0.35) : Color(hex: "#2D2B26"))
                 if let t = teacherChar {
                     Text("with \(t.name)")
-                        .font(.system(size: 10))
+                        .font(.pixelSystem(size: 10))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                 }
                 if isLocked && !isCompleted {
                     Text("Unlocks after \(previousSkillName)")
-                        .font(.system(size: 9))
+                        .font(.pixelSystem(size: 9))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.3))
                 }
             }
@@ -632,7 +632,7 @@ struct SkillRowView: View {
                     if challengeAvailable && !challengeCompleted {
                         Button(action: { onChallenge?() }) {
                             Text("Challenge")
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.pixelSystem(size: 9, weight: .bold))
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
@@ -644,15 +644,15 @@ struct SkillRowView: View {
                         .buttonStyle(.plain)
                     } else if challengeCompleted {
                         Image(systemName: "star.fill")
-                            .font(.system(size: 12))
+                            .font(.pixelSystem(size: 12))
                             .foregroundColor(Color(hex: "#D4960A"))
                     }
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(Color(hex: "#6BCB77"))
-                        .font(.system(size: 16))
+                        .font(.pixelSystem(size: 16))
                     Button(action: onStart) {
                         Text("Review")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.pixelSystem(size: 10, weight: .semibold))
                             .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
@@ -666,7 +666,7 @@ struct SkillRowView: View {
             } else if isNext {
                 Button(action: onStart) {
                     Text("Start →")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.pixelSystem(size: 11, weight: .bold))
                         .foregroundColor(tierColor)
                 }
                 .buttonStyle(.plain)
@@ -674,10 +674,10 @@ struct SkillRowView: View {
                 Button(action: { onLockedTap?() }) {
                     HStack(spacing: 4) {
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 11))
+                            .font(.pixelSystem(size: 11))
                             .foregroundColor(Color(hex: "#2D2B26").opacity(0.2))
                         Text("Preview")
-                            .font(.system(size: 9))
+                            .font(.pixelSystem(size: 9))
                             .foregroundColor(Color(hex: "#2D2B26").opacity(0.2))
                     }
                 }
@@ -715,15 +715,15 @@ struct PlaygroundQuickAccess: View {
             HStack {
                 HStack(spacing: 6) {
                     Image(systemName: "hammer.fill")
-                        .font(.system(size: 10))
+                        .font(.pixelSystem(size: 10))
                         .foregroundColor(Color(hex: "#7B8CE0"))
                     Text("PROMPT PLAYGROUND")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#7B8CE0"))
                 }
                 Spacer()
                 Text("Write real prompts, not quizzes")
-                    .font(.system(size: 9))
+                    .font(.pixelSystem(size: 9))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.35))
             }
 
@@ -739,7 +739,7 @@ struct PlaygroundQuickAccess: View {
                                             .charIdle(t.id)
                                     }
                                     Text(scenario.difficulty.rawValue.uppercased())
-                                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                                        .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
                                         .foregroundColor(.white)
                                         .padding(.horizontal, 4)
                                         .padding(.vertical, 1)
@@ -747,11 +747,11 @@ struct PlaygroundQuickAccess: View {
                                         .cornerRadius(3)
                                 }
                                 Text(scenario.title)
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(.pixelSystem(size: 11, weight: .bold))
                                     .foregroundColor(Color(hex: "#2D2B26"))
                                     .lineLimit(1)
                                 Text("\(scenario.xpReward) XP")
-                                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                                     .foregroundColor(Color(hex: "#D4960A"))
                             }
                             .frame(width: 130)
@@ -805,11 +805,11 @@ struct SkillTreeView: View {
                             .frame(width: 20, height: 20)
                             .overlay(
                                 Text("\(tier.id)")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.pixelSystem(size: 9, weight: .bold))
                                     .foregroundColor(.white)
                             )
                         Text(tier.kingdom)
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.pixelSystem(size: 11, weight: .bold))
                             .foregroundColor(isLocked ? Color(hex: "#2D2B26").opacity(0.3) : Color(hex: "#2D2B26"))
                     }
                     .padding(.top, tierIdx == 0 ? 8 : tierSpacing)
@@ -879,7 +879,7 @@ struct SkillTreeView: View {
                                     .frame(width: 4, height: 4)
                             }
                             Image(systemName: "chevron.down")
-                                .font(.system(size: 8, weight: .bold))
+                                .font(.pixelSystem(size: 8, weight: .bold))
                                 .foregroundColor(allCompleted ? tier.kingdomColor : Color(hex: "#E8E6E0"))
                         }
                         .padding(.top, 8)
@@ -932,14 +932,14 @@ struct SkillTreeNode: View {
                             .opacity(isLocked ? 0.5 : 1)
                     } else {
                         Text(skill.icon)
-                            .font(.system(size: 20))
+                            .font(.pixelSystem(size: 20))
                             .opacity(isLocked ? 0.3 : 1)
                     }
 
                     // Completion badge
                     if isCompleted {
                         Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 16))
+                            .font(.pixelSystem(size: 16))
                             .foregroundColor(Color(hex: "#6BCB77"))
                             .background(Circle().fill(Color.white).frame(width: 14, height: 14))
                             .offset(x: 20, y: -20)
@@ -948,7 +948,7 @@ struct SkillTreeNode: View {
                     // Challenge star
                     if challengeDone {
                         Image(systemName: "star.fill")
-                            .font(.system(size: 10))
+                            .font(.pixelSystem(size: 10))
                             .foregroundColor(Color(hex: "#D4960A"))
                             .offset(x: -20, y: -20)
                     }
@@ -956,14 +956,14 @@ struct SkillTreeNode: View {
                     // Lock
                     if isLocked {
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 12))
+                            .font(.pixelSystem(size: 12))
                             .foregroundColor(Color(hex: "#2D2B26").opacity(0.2))
                     }
                 }
 
                 // Skill name
                 Text(skill.name)
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.pixelSystem(size: 9, weight: .semibold))
                     .foregroundColor(isLocked ? Color(hex: "#2D2B26").opacity(0.3) : Color(hex: "#2D2B26"))
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -972,7 +972,7 @@ struct SkillTreeNode: View {
                 // Action indicator
                 if isNext {
                     Text("START")
-                        .font(.system(size: 7, weight: .black, design: .monospaced))
+                        .font(.pixelSystem(size: 7, weight: .black, design: .monospaced))
                         .foregroundColor(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
@@ -981,7 +981,7 @@ struct SkillTreeNode: View {
                 } else if isCompleted && !challengeDone {
                     Button(action: onChallenge) {
                         Text("CHALLENGE")
-                            .font(.system(size: 6, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 6, weight: .bold, design: .monospaced))
                             .foregroundColor(Color(hex: "#D4960A"))
                     }
                     .buttonStyle(.plain)
@@ -1041,14 +1041,14 @@ struct ReviewReadySection: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("REVIEW READY")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#7B8CE0"))
                 Image(systemName: "brain.head.profile")
-                    .font(.system(size: 10))
+                    .font(.pixelSystem(size: 10))
                     .foregroundColor(Color(hex: "#7B8CE0"))
                 Spacer()
                 Text("\(reviewSkillIds.count) to review")
-                    .font(.system(size: 9))
+                    .font(.pixelSystem(size: 9))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
             }
 
@@ -1062,11 +1062,11 @@ struct ReviewReadySection: View {
                                         .charIdle(t.id)
                                 }
                                 Text(skill.name)
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .font(.pixelSystem(size: 10, weight: .semibold))
                                     .foregroundColor(Color(hex: "#2D2B26"))
                                     .lineLimit(1)
                                 Text(reviewInterval(for: skill.id))
-                                    .font(.system(size: 8, design: .monospaced))
+                                    .font(.pixelSystem(size: 8, design: .monospaced))
                                     .foregroundColor(Color(hex: "#7B8CE0"))
                             }
                             .frame(width: 90)
@@ -1115,12 +1115,12 @@ struct ShareProgressCard: View {
             // Top bar
             HStack {
                 Text("SHARE PROGRESS")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#D4960A"))
                 Spacer()
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.pixelSystem(size: 11, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                         .frame(width: 24, height: 24)
                         .background(Color(hex: "#F0F0EC"))
@@ -1159,9 +1159,9 @@ struct ShareProgressCard: View {
                     Button(action: copyToClipboard) {
                         HStack(spacing: 6) {
                             Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                                .font(.system(size: 12))
+                                .font(.pixelSystem(size: 12))
                             Text(copied ? "Copied!" : "Copy Image")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.pixelSystem(size: 12, weight: .semibold))
                         }
                         .foregroundColor(copied ? Color(hex: "#6BCB77") : .white)
                         .padding(.horizontal, 20)
@@ -1174,9 +1174,9 @@ struct ShareProgressCard: View {
                     Button(action: saveToDesktop) {
                         HStack(spacing: 6) {
                             Image(systemName: "arrow.down.circle")
-                                .font(.system(size: 12))
+                                .font(.pixelSystem(size: 12))
                             Text("Save Image")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.pixelSystem(size: 12, weight: .semibold))
                         }
                         .foregroundColor(Color(hex: "#2D2B26"))
                         .padding(.horizontal, 20)
@@ -1202,11 +1202,11 @@ struct ShareProgressCard: View {
             // Header
             HStack {
                 Text("◆ CODEPET")
-                    .font(.system(size: 8, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                     .foregroundColor(character?.color ?? .gray)
                 Spacer()
                 Text("Level \(appState.userLevel)")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#D4960A"))
             }
 
@@ -1218,10 +1218,10 @@ struct ShareProgressCard: View {
                 }
                 VStack(alignment: .leading, spacing: 4) {
                     Text(appState.displayName.isEmpty ? "CodePet Builder" : appState.displayName)
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.pixelSystem(size: 16, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26"))
                     Text("Tier \(appState.currentTier) • \(characterOutfits[appState.currentTier]?.name ?? "Starter")")
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                 }
                 Spacer()
@@ -1249,7 +1249,7 @@ struct ShareProgressCard: View {
                 .frame(height: 6)
 
                 Text("\(Int(progressPct * 100))% complete")
-                    .font(.system(size: 9, design: .monospaced))
+                    .font(.pixelSystem(size: 9, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
             }
 
@@ -1259,9 +1259,9 @@ struct ShareProgressCard: View {
                     let unlocked = tier <= appState.currentTier
                     VStack(spacing: 2) {
                         Text(characterOutfits[tier]?.badge ?? "?")
-                            .font(.system(size: 14))
+                            .font(.pixelSystem(size: 14))
                         Text("T\(tier)")
-                            .font(.system(size: 7, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
                             .foregroundColor(unlocked ? Color(hex: "#2D2B26") : Color(hex: "#C8C0B4"))
                     }
                     .opacity(unlocked ? 1 : 0.3)
@@ -1330,10 +1330,10 @@ struct ShareStat: View {
     var body: some View {
         VStack(spacing: 2) {
             Text(value)
-                .font(.system(size: 14, weight: .black, design: .monospaced))
+                .font(.pixelSystem(size: 14, weight: .black, design: .monospaced))
                 .foregroundColor(color)
             Text(label)
-                .font(.system(size: 8, weight: .medium, design: .monospaced))
+                .font(.pixelSystem(size: 8, weight: .medium, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
         }
         .frame(maxWidth: .infinity)
@@ -1386,20 +1386,20 @@ struct LockedSkillPreview: View {
             HStack {
                 if let tier = skillTier {
                     Text("TIER \(tier.id)")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(tier.kingdomColor)
                         .cornerRadius(4)
                     Text(tier.kingdom)
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.pixelSystem(size: 10, weight: .semibold))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                 }
                 Spacer()
                 Button(action: onDismiss) {
                     Image(systemName: "xmark")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.pixelSystem(size: 11, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                         .frame(width: 24, height: 24)
                         .background(Color(hex: "#F0F0EC"))
@@ -1426,7 +1426,7 @@ struct LockedSkillPreview: View {
                                     .saturation(0.4)
                                     .opacity(0.7)
                                 Text(t.name)
-                                    .font(.system(size: 10, weight: .semibold))
+                                    .font(.pixelSystem(size: 10, weight: .semibold))
                                     .foregroundColor(t.color.opacity(0.6))
                             }
                         }
@@ -1434,14 +1434,14 @@ struct LockedSkillPreview: View {
                         VStack(alignment: .leading, spacing: 8) {
                             HStack(spacing: 6) {
                                 Text(skill.icon)
-                                    .font(.system(size: 18))
+                                    .font(.pixelSystem(size: 18))
                                 Text(skill.name)
-                                    .font(.system(size: 18, weight: .bold))
+                                    .font(.pixelSystem(size: 18, weight: .bold))
                                     .foregroundColor(Color(hex: "#2D2B26"))
                             }
 
                             Text(skill.desc)
-                                .font(.system(size: 13))
+                                .font(.pixelSystem(size: 13))
                                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
                                 .lineSpacing(3)
                         }
@@ -1451,15 +1451,15 @@ struct LockedSkillPreview: View {
                     // Unlock requirement
                     VStack(spacing: 10) {
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 20))
+                            .font(.pixelSystem(size: 20))
                             .foregroundColor(Color(hex: "#D4960A"))
 
                         Text("Locked")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.pixelSystem(size: 14, weight: .bold))
                             .foregroundColor(Color(hex: "#2D2B26"))
 
                         Text(unlockRequirement)
-                            .font(.system(size: 12))
+                            .font(.pixelSystem(size: 12))
                             .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
 
                         // Progress bar
@@ -1478,7 +1478,7 @@ struct LockedSkillPreview: View {
                                 .frame(maxWidth: 200)
 
                                 Text("\(tierProgress.completed) / \(tierProgress.total) skills completed")
-                                    .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                    .font(.pixelSystem(size: 9, weight: .medium, design: .monospaced))
                                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                             }
                         }
@@ -1503,7 +1503,7 @@ struct LockedSkillPreview: View {
                                 .frame(width: 3)
                                 .padding(.trailing, 12)
                             Text("\"\(t.firstWords.replacingOccurrences(of: "\"", with: ""))\"")
-                                .font(.system(size: 12))
+                                .font(.pixelSystem(size: 12))
                                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
                                 .italic()
                                 .lineSpacing(3)
@@ -1544,7 +1544,7 @@ struct SkillsDailyGoalCard: View {
             VStack(spacing: 4) {
                 StreakFireView(streak: appState.streak)
                 Text("streak")
-                    .font(.system(size: 8, weight: .medium, design: .monospaced))
+                    .font(.pixelSystem(size: 8, weight: .medium, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
             }
             .frame(width: 48)
@@ -1558,11 +1558,11 @@ struct SkillsDailyGoalCard: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text("DAILY GOAL")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#D4960A"))
                     Spacer()
                     Text("\(appState.completedLessons.count) skills learned")
-                        .font(.system(size: 10))
+                        .font(.pixelSystem(size: 10))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                 }
 
@@ -1575,14 +1575,14 @@ struct SkillsDailyGoalCard: View {
                             .overlay(
                                 i < lessonsToday ?
                                 Image(systemName: "checkmark")
-                                    .font(.system(size: 6, weight: .bold))
+                                    .font(.pixelSystem(size: 6, weight: .bold))
                                     .foregroundColor(.white)
                                 : nil
                             )
                     }
                     if dailyTarget > 5 {
                         Text("+\(dailyTarget - 5)")
-                            .font(.system(size: 9))
+                            .font(.pixelSystem(size: 9))
                             .foregroundColor(Color(hex: "#B0A898"))
                     }
                     Spacer()
@@ -1591,7 +1591,7 @@ struct SkillsDailyGoalCard: View {
                 // Best streak
                 if appState.longestStreak > 0 {
                     Text("Best streak: \(appState.longestStreak) days")
-                        .font(.system(size: 9))
+                        .font(.pixelSystem(size: 9))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.3))
                 }
             }

@@ -55,11 +55,6 @@ let charPlayAnimations: [String: CharPlayAnimation] = [
         text: "Hack mode!",
         particles: [("#E0508C","<"),("#FF80B0","/>"),("#C03070","{"),("#FF60A0","}"),("#FFB0D0","✦")]
     ),
-    "zero": CharPlayAnimation(
-        animationType: .float,
-        text: "...",
-        particles: [("#888884","0"),("#AAAAAA","1"),("#666664","0"),("#CCCCCC","1"),("#BBBBBB","✦")]
-    ),
     "null": CharPlayAnimation(
         animationType: .wiggle,
         text: "¿¡Chaos!?",
@@ -146,7 +141,7 @@ struct PlayParticleBurstView: View {
                 let angle = Double(i) * (.pi * 2 / Double(particles.count))
                 let dist: CGFloat = CGFloat.random(in: 25...55)
                 Text(particles[i].symbol)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.pixelSystem(size: 14, weight: .bold))
                     .foregroundColor(Color(hex: particles[i].color))
                     .opacity(animating ? 0 : 1)
                     .offset(
@@ -182,7 +177,7 @@ struct PetReactionView: View {
             VStack(spacing: 8) {
                 // Floating text bubble
                 Text(text)
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 12, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: PetCharacter.all[characterId]?.hexColor ?? "#666"))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -259,7 +254,6 @@ struct CharIdleModifier: ViewModifier {
         case "crash": return 1.2   // bounce squish
         case "luna": return 2.0    // gentle bop
         case "sage": return 3.0    // slow head scan
-        case "zero": return 2.5    // float + sway
         case "null": return 1.6    // jittery idle
         case "glitch": return 1.4  // punk twitch
         default: return 2.0
@@ -308,12 +302,6 @@ private struct IdleEffect: ViewModifier {
             content
                 .offset(x: phase ? 3 : -2, y: phase ? -2 : 1)
                 .rotationEffect(.degrees(phase ? 3 : -2))
-
-        case "zero":
-            // Serene float + gentle sway
-            content
-                .offset(y: phase ? -9 : 0)
-                .rotationEffect(.degrees(phase ? 1.5 : -1.5))
 
         case "null":
             // Chaotic idle bounce
@@ -368,7 +356,7 @@ struct XPBurstView: View {
         ZStack {
             ForEach(particles) { particle in
                 Text(particle.text)
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 12, weight: .bold, design: .monospaced))
                     .foregroundColor(color)
                     .opacity(animating ? 0 : particle.opacity)
                     .offset(
@@ -408,7 +396,7 @@ struct StreakFireView: View {
     var body: some View {
         HStack(spacing: 2) {
             Image(systemName: "flame.fill")
-                .font(.system(size: 16))
+                .font(.pixelSystem(size: 16))
                 .foregroundColor(fireColor)
                 .scaleEffect(flicker ? 1.15 : 0.95)
                 .animation(
@@ -418,7 +406,7 @@ struct StreakFireView: View {
                 )
 
             Text("\(streak)")
-                .font(.system(size: 14, weight: .heavy, design: .monospaced))
+                .font(.pixelSystem(size: 14, weight: .heavy, design: .monospaced))
                 .foregroundColor(fireColor)
         }
         .onAppear { flicker = true }
@@ -552,7 +540,7 @@ struct ConfettiBurstView: View {
         ZStack {
             ForEach(0..<particles.count, id: \.self) { i in
                 Text(particles[i].symbol)
-                    .font(.system(size: CGFloat.random(in: 8...16)))
+                    .font(.pixelSystem(size: CGFloat.random(in: 8...16)))
                     .foregroundColor(particles[i].color)
                     .rotationEffect(.degrees(animating ? particles[i].rotation * 3 : 0))
                     .offset(
@@ -611,7 +599,7 @@ struct LevelUpOverlay: View {
                     HStack(spacing: 8) {
                         ForEach(0..<5, id: \.self) { i in
                             Text("⭐")
-                                .font(.system(size: 20))
+                                .font(.pixelSystem(size: 20))
                                 .rotationEffect(.degrees(Double.random(in: -15...15)))
                                 .transition(.scale.combined(with: .opacity))
                         }
@@ -625,22 +613,22 @@ struct LevelUpOverlay: View {
                     .frame(width: 80, height: 80)
                     .overlay(
                         Text("\(level)")
-                            .font(.system(size: 32, weight: .black, design: .monospaced))
+                            .font(.pixelSystem(size: 32, weight: .black, design: .monospaced))
                             .foregroundColor(.white)
                     )
                     .shadow(color: characterColor.opacity(0.5), radius: 20)
                     .modifier(PulseGlowModifier(color: characterColor))
 
                 Text("LEVEL UP!")
-                    .font(.system(size: 24, weight: .black, design: .monospaced))
+                    .font(.pixelSystem(size: 24, weight: .black, design: .monospaced))
                     .foregroundColor(.white)
 
                 Text("You've reached Level \(level)")
-                    .font(.system(size: 14))
+                    .font(.pixelSystem(size: 14))
                     .foregroundColor(.white.opacity(0.8))
 
                 Button("Continue") { dismiss() }
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.pixelSystem(size: 14, weight: .bold))
                     .foregroundColor(characterColor)
                     .padding(.horizontal, 28)
                     .padding(.vertical, 10)
@@ -715,20 +703,20 @@ struct TierUnlockOverlay: View {
 
             VStack(spacing: 20) {
                 Text("🎊")
-                    .font(.system(size: 28))
+                    .font(.pixelSystem(size: 28))
 
                 Text("Tier \(tierNumber) Unlocked!")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.pixelSystem(size: 22, weight: .bold))
 
                 Text("You completed all Tier \(tierNumber - 1) skills!")
-                    .font(.system(size: 12))
+                    .font(.pixelSystem(size: 12))
                     .foregroundColor(Color(hex: "#888888"))
 
                 // Character evolution
                 if showEvo, let char = charData, let _ = outfit {
                     VStack(spacing: 12) {
                         Text("\(char.name) EVOLVED!")
-                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                             .foregroundColor(char.color)
                             .tracking(1)
 
@@ -746,10 +734,10 @@ struct TierUnlockOverlay: View {
                                                     .stroke(tier == tierNumber ? char.color : Color(hex: "#E0DDD6"), lineWidth: tier == tierNumber ? 2 : 1)
                                             )
                                         Text(characterOutfits[tier]?.badge ?? "?")
-                                            .font(.system(size: 18))
+                                            .font(.pixelSystem(size: 18))
                                     }
                                     Text(characterOutfits[tier]?.name ?? "")
-                                        .font(.system(size: 9, weight: .semibold))
+                                        .font(.pixelSystem(size: 9, weight: .semibold))
                                         .foregroundColor(unlocked ? Color(hex: "#2D2B26") : Color(hex: "#C8C0B4"))
                                 }
                                 .opacity(unlocked ? 1 : 0.3)
@@ -769,7 +757,7 @@ struct TierUnlockOverlay: View {
                 }
 
                 Button("Continue") { dismiss() }
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.pixelSystem(size: 14, weight: .bold))
                     .foregroundColor(charData?.color ?? .blue)
                     .padding(.horizontal, 28)
                     .padding(.vertical, 10)

@@ -37,14 +37,14 @@ struct PetCareView: View {
             // Section header
             HStack {
                 Text("PET CARE")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(theme.textSecondary)
                 Spacer()
                 HStack(spacing: 4) {
                     Text(petMood.emoji)
-                        .font(.system(size: 14))
+                        .font(.pixelSystem(size: 14))
                     Text(petMood.rawValue)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.pixelSystem(size: 11, weight: .semibold))
                         .foregroundColor(theme.textPrimary)
                 }
             }
@@ -52,13 +52,13 @@ struct PetCareView: View {
             // Mood + quote
             HStack(spacing: 12) {
                 Text(petMood.emoji)
-                    .font(.system(size: 32))
+                    .font(.pixelSystem(size: 32))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(currentCharacter.name)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.pixelSystem(size: 13, weight: .bold))
                         .foregroundColor(theme.textPrimary)
                     Text(petMood.description)
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                         .foregroundColor(theme.textSecondary)
                 }
                 Spacer()
@@ -79,14 +79,14 @@ struct PetCareView: View {
                             Button(action: { if canAfford { feedPet(food) } }) {
                                 VStack(spacing: 4) {
                                     Text(food.emoji)
-                                        .font(.system(size: 22))
+                                        .font(.pixelSystem(size: 22))
                                     Text(food.name)
-                                        .font(.system(size: 9, weight: .semibold))
+                                        .font(.pixelSystem(size: 9, weight: .semibold))
                                         .foregroundColor(theme.textPrimary)
                                         .lineLimit(1)
                                     HStack(spacing: 2) {
                                         Text("🪙\(food.coinCost)")
-                                            .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                            .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                                             .foregroundColor(canAfford ? theme.textPrimary : theme.textMuted)
                                     }
                                 }
@@ -106,9 +106,9 @@ struct PetCareView: View {
                 Button(action: { gameState.wakeUpPet() }) {
                     HStack(spacing: 8) {
                         Text("💤")
-                            .font(.system(size: 20))
+                            .font(.pixelSystem(size: 20))
                         Text("Tap to wake up")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.pixelSystem(size: 12, weight: .semibold))
                             .foregroundColor(theme.textPrimary)
                     }
                     .frame(maxWidth: .infinity)
@@ -159,11 +159,11 @@ private struct StatusBar: View {
         VStack(spacing: 6) {
             HStack {
                 Text("\(emoji) \(label)")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(theme.textSecondary)
                 Spacer()
                 Text("\(value)/100")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.pixelSystem(size: 11, weight: .bold))
                     .foregroundColor(theme.textPrimary)
             }
             GeometryReader { geo in

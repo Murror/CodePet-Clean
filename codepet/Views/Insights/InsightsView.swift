@@ -216,13 +216,13 @@ struct InsightsView: View {
                 // Header
                 VStack(alignment: .leading, spacing: 4) {
                     Text("◆ CODEPET")
-                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .semibold, design: .monospaced))
                         .foregroundColor(Color(hex: "#8B7BE8"))
                     Text("Your Progress")
-                        .font(.system(size: 26, weight: .bold))
+                        .font(.pixelSystem(size: 26, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B3E"))
                     Text("Track your learning journey — one pixel at a time.")
-                        .font(.system(size: 13))
+                        .font(.pixelSystem(size: 13))
                         .foregroundColor(Color(hex: "#2D2B3E").opacity(0.55))
                 }
 
@@ -264,12 +264,12 @@ struct MCPCodingSummarySection: View {
             // Section label with source badge
             HStack(spacing: 6) {
                 Text("TODAY'S CODING")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
 
                 if mcpBridge.dataSource == "extension" {
                     Text("CURSOR")
-                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -277,7 +277,7 @@ struct MCPCodingSummarySection: View {
                         .cornerRadius(3)
                 } else if mcpBridge.dataSource == "local" {
                     Text("MCP")
-                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -325,12 +325,12 @@ struct MCPCodingSummarySection: View {
                 // Source indicator
                 if isDemo {
                     Text("Preview — install the Cursor extension to see live coding data")
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .medium, design: .monospaced))
                         .foregroundColor(Color(hex: "#8B7BE8").opacity(0.6))
                         .padding(.top, 2)
                 } else if mcpBridge.dataSource == "extension" {
                     Text("Live from Cursor extension")
-                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .font(.pixelSystem(size: 9, weight: .medium, design: .monospaced))
                         .foregroundColor(Color(hex: "#00B4D8").opacity(0.7))
                         .padding(.top, 2)
                 }
@@ -379,10 +379,10 @@ struct MCPStatChip: View {
     var body: some View {
         VStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 16, weight: .black, design: .monospaced))
+                .font(.pixelSystem(size: 16, weight: .black, design: .monospaced))
                 .foregroundColor(color)
             Text(label)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
         }
         .frame(maxWidth: .infinity)
@@ -442,11 +442,11 @@ struct MCPLanguageBar: View {
                             .fill(langColors[lang] ?? InsightColors.purple)
                             .frame(width: 6, height: 6)
                         Text(lang)
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.pixelSystem(size: 9, weight: .semibold))
                             .foregroundColor(Color(hex: "#2D2B3E").opacity(0.5))
                         if total > 0 {
                             Text("\(count * 100 / total)%")
-                                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                                .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                                 .foregroundColor(Color(hex: "#2D2B3E").opacity(0.3))
                         }
                     }
@@ -471,15 +471,15 @@ struct MCPPetReaction: View {
                     .fill(Color(hex: "#8B7BE8"))
                     .frame(width: 36, height: 36)
                 Text("⭐")
-                    .font(.system(size: 18))
+                    .font(.pixelSystem(size: 18))
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(petName) says:")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#8B7BE8"))
                 Text(reaction)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.pixelSystem(size: 11, weight: .medium))
                     .foregroundColor(Color(hex: "#2D2B3E").opacity(0.7))
                     .lineLimit(3)
             }
@@ -551,12 +551,12 @@ struct MCPSkillTreeSection: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Text("SKILL TREE")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
 
                 if !mcpBridge.skillProgress.isEmpty {
                     Text(mcpBridge.dataSource == "extension" ? "CURSOR" : "MCP")
-                        .font(.system(size: 7, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
                         .foregroundColor(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -598,13 +598,13 @@ struct MCPKingdomCard: View {
             // Kingdom header
             HStack {
                 Text("\(icon) \(name)")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.pixelSystem(size: 11, weight: .bold))
                     .foregroundColor(Color(hex: "#2D2B3E"))
 
                 Spacer()
 
                 Text(tier)
-                    .font(.system(size: 7, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
                     .foregroundColor(color)
                     .padding(.horizontal, 5)
                     .padding(.vertical, 2)
@@ -616,7 +616,7 @@ struct MCPKingdomCard: View {
             ForEach(skills) { skill in
                 HStack(spacing: 8) {
                     Text(skill.name)
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.pixelSystem(size: 9, weight: .semibold))
                         .foregroundColor(Color(hex: "#2D2B3E").opacity(0.55))
                         .frame(width: 80, alignment: .leading)
                         .lineLimit(1)
@@ -634,7 +634,7 @@ struct MCPKingdomCard: View {
                     .frame(height: 6)
 
                     Text("Lv\(skill.level)")
-                        .font(.system(size: 8, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#2D2B3E").opacity(0.35))
                         .frame(width: 24, alignment: .trailing)
                 }
@@ -662,7 +662,7 @@ struct PixelWeeklyStats: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("THIS WEEK")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
 
             HStack(spacing: 12) {
@@ -702,11 +702,11 @@ struct PixelStatChip<Icon: View>: View {
             icon()
 
             Text(value)
-                .font(.system(size: 22, weight: .black, design: .monospaced))
+                .font(.pixelSystem(size: 22, weight: .black, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B3E"))
 
             Text(label)
-                .font(.system(size: 9, weight: .semibold, design: .monospaced))
+                .font(.pixelSystem(size: 9, weight: .semibold, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B3E").opacity(0.45))
         }
         .frame(maxWidth: .infinity)
@@ -725,7 +725,7 @@ struct PixelStreakCalendar: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("STREAK")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
 
                 Spacer()
@@ -733,10 +733,10 @@ struct PixelStreakCalendar: View {
                 HStack(spacing: 6) {
                     PixelFlame(color: InsightColors.orange, tipColor: InsightColors.gold, size: 14)
                     Text("\(appState.streak)")
-                        .font(.system(size: 16, weight: .black, design: .monospaced))
+                        .font(.pixelSystem(size: 16, weight: .black, design: .monospaced))
                         .foregroundColor(InsightColors.orange)
                     Text("days")
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .font(.pixelSystem(size: 10, weight: .semibold, design: .monospaced))
                         .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
                 }
             }
@@ -753,7 +753,7 @@ struct PixelStreakCalendar: View {
 
                     VStack(spacing: 4) {
                         Text(dayName)
-                            .font(.system(size: 8, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                             .foregroundColor(isToday ? InsightColors.orange : Color(hex: "#2D2B3E").opacity(0.35))
 
                         ZStack {
@@ -770,7 +770,7 @@ struct PixelStreakCalendar: View {
                                 PixelCheck(size: 12)
                             } else {
                                 Text("\(dayNum)")
-                                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                                    .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                                     .foregroundColor(Color(hex: "#2D2B3E").opacity(0.3))
                             }
                         }
@@ -829,7 +829,7 @@ struct PixelStatisticsGrid: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("STATISTICS")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
 
             LazyVGrid(columns: [
@@ -889,11 +889,11 @@ struct PixelStatBox<Icon: View>: View {
             icon()
 
             Text(value)
-                .font(.system(size: 18, weight: .black, design: .monospaced))
+                .font(.pixelSystem(size: 18, weight: .black, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B3E"))
 
             Text(title)
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
         }
         .frame(maxWidth: .infinity)
@@ -912,7 +912,7 @@ struct PixelActivityBreakdown: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("ACTIVITY")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B3E").opacity(0.4))
 
             VStack(spacing: 0) {
@@ -954,7 +954,7 @@ struct PixelActivityBreakdown: View {
                             .fill(Color(hex: "#8B7BE8").opacity(0.3))
                             .frame(height: 1)
                         Text(mcpBridge.dataSource == "extension" ? "from Cursor" : "from real coding")
-                            .font(.system(size: 7, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
                             .foregroundColor(Color(hex: "#8B7BE8").opacity(0.5))
                         Rectangle()
                             .fill(Color(hex: "#8B7BE8").opacity(0.3))
@@ -1027,7 +1027,7 @@ struct PixelActivityRow<Icon: View>: View {
                 .frame(width: 18, height: 18)
 
             Text(label)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.pixelSystem(size: 11, weight: .semibold))
                 .foregroundColor(Color(hex: "#2D2B3E"))
 
             Spacer()
@@ -1037,7 +1037,7 @@ struct PixelActivityRow<Icon: View>: View {
                 .frame(maxWidth: 90)
 
             Text("\(value)/\(maxValue)")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B3E").opacity(0.45))
                 .frame(width: 36, alignment: .trailing)
         }

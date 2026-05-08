@@ -39,10 +39,10 @@ struct HeartsView: View {
                 ForEach(0..<HeartsSystem.maxHearts, id: \.self) { index in
                     if index < currentHearts {
                         Text("❤️")
-                            .font(.system(size: 16))
+                            .font(.pixelSystem(size: 16))
                     } else {
                         Text("🤍")
-                            .font(.system(size: 16))
+                            .font(.pixelSystem(size: 16))
                     }
                 }
 
@@ -52,10 +52,10 @@ struct HeartsView: View {
                 if timeUntilNextHeart != nil {
                     HStack(spacing: 4) {
                         Text("Next ❤️ in")
-                            .font(.system(size: 11, weight: .semibold))
+                            .font(.pixelSystem(size: 11, weight: .semibold))
                             .foregroundColor(theme.textSecondary)
                         Text(timeFormatted)
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 11, weight: .bold, design: .monospaced))
                             .foregroundColor(theme.textPrimary)
                     }
                     .padding(.horizontal, 8)
@@ -158,12 +158,12 @@ struct HeartsRefillSheet: View {
             // Header
             HStack {
                 Text("Hearts")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(.pixelSystem(size: 20, weight: .bold))
                     .foregroundColor(theme.textPrimary)
                 Spacer()
                 Button(action: { isPresented = false }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20))
+                        .font(.pixelSystem(size: 20))
                         .foregroundColor(theme.textMuted)
                 }
             }
@@ -172,22 +172,22 @@ struct HeartsRefillSheet: View {
             // Current hearts display (large)
             VStack(spacing: 12) {
                 Text("❤️")
-                    .font(.system(size: 48))
+                    .font(.pixelSystem(size: 48))
 
                 HStack(spacing: 8) {
                     ForEach(0..<HeartsSystem.maxHearts, id: \.self) { index in
                         if index < currentHearts {
                             Text("❤️")
-                                .font(.system(size: 24))
+                                .font(.pixelSystem(size: 24))
                         } else {
                             Text("🤍")
-                                .font(.system(size: 24))
+                                .font(.pixelSystem(size: 24))
                         }
                     }
                 }
 
                 Text("\(currentHearts) / \(HeartsSystem.maxHearts)")
-                    .font(.system(size: 16, weight: .semibold))
+                    .font(.pixelSystem(size: 16, weight: .semibold))
                     .foregroundColor(theme.textPrimary)
             }
             .padding(20)
@@ -200,9 +200,9 @@ struct HeartsRefillSheet: View {
                     HStack(spacing: 8) {
                         Text("🪙")
                         Text("Refill all hearts")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.pixelSystem(size: 14, weight: .semibold))
                         Text("(\(GameEconomy.heartRefillCost))")
-                            .font(.system(size: 12))
+                            .font(.pixelSystem(size: 12))
                             .foregroundColor(theme.textSecondary)
                     }
                     .frame(maxWidth: .infinity)
@@ -216,13 +216,13 @@ struct HeartsRefillSheet: View {
                 // Or wait text
                 VStack(spacing: 4) {
                     Text("Or wait")
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                         .foregroundColor(theme.textSecondary)
                     Text(timeFormatted)
-                        .font(.system(size: 14, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 14, weight: .bold, design: .monospaced))
                         .foregroundColor(theme.textPrimary)
                     Text("for next heart")
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                         .foregroundColor(theme.textSecondary)
                 }
                 .frame(maxWidth: .infinity)
@@ -231,7 +231,7 @@ struct HeartsRefillSheet: View {
                 .cornerRadius(8)
             } else {
                 Text("Hearts at full capacity!")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.pixelSystem(size: 14, weight: .semibold))
                     .foregroundColor(theme.accentGreen)
                     .frame(maxWidth: .infinity)
                     .padding(12)
@@ -242,10 +242,10 @@ struct HeartsRefillSheet: View {
             // Tip
             VStack(spacing: 8) {
                 Text("💡 Tip")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.pixelSystem(size: 12, weight: .bold))
                     .foregroundColor(theme.textPrimary)
                 Text("Feeding \(currentCharacter.name) a meal can boost your hearts too!")
-                    .font(.system(size: 11))
+                    .font(.pixelSystem(size: 11))
                     .foregroundColor(theme.textSecondary)
                     .multilineTextAlignment(.center)
             }

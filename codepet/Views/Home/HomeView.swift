@@ -39,11 +39,11 @@ struct HomeView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("\(greeting)\(appState.displayName.isEmpty ? "" : ", \(appState.displayName)")!")
-                                .font(.system(size: 22, weight: .bold))
+                                .font(.pixelSystem(size: 22, weight: .bold))
                                 .foregroundColor(theme.textPrimary)
 
                             Text("Level \(appState.userLevel) • Tier \(appState.currentTier)")
-                                .font(.system(size: 13))
+                                .font(.pixelSystem(size: 13))
                                 .foregroundColor(theme.textSecondary)
                         }
 
@@ -55,9 +55,9 @@ struct HomeView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "star.fill")
                                     .foregroundColor(theme.accentGold)
-                                    .font(.system(size: 12))
+                                    .font(.pixelSystem(size: 12))
                                 Text("\(appState.totalXP) XP")
-                                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                                    .font(.pixelSystem(size: 14, weight: .semibold, design: .monospaced))
                                     .foregroundColor(theme.textPrimary)
                             }
                         }
@@ -288,7 +288,7 @@ struct PetAreaView5: View {
             // Speech Bubble above scene
             if showSpeechBubble && !showRadial {
                 Text(reactionText ?? currentGreeting)
-                    .font(.system(size: 14, weight: .medium))
+                    .font(.pixelSystem(size: 14, weight: .medium))
                     .foregroundColor(theme.textPrimary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
@@ -356,7 +356,7 @@ struct PetAreaView5: View {
                                 .fill(sceneTheme.badgeColor)
                                 .frame(width: 8, height: 8)
                             Text(sceneTheme.name)
-                                .font(.system(size: 11, weight: .bold))
+                                .font(.pixelSystem(size: 11, weight: .bold))
                                 .foregroundColor(sceneTheme.badgeColor)
                         }
                         .padding(.horizontal, 12)
@@ -372,7 +372,7 @@ struct PetAreaView5: View {
                         // Tap hint
                         if !showRadial && reactionText == nil {
                             Text("Tap to interact")
-                                .font(.system(size: 8, weight: .semibold, design: .monospaced))
+                                .font(.pixelSystem(size: 8, weight: .semibold, design: .monospaced))
                                 .foregroundColor(sceneTheme.badgeColor)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
@@ -388,7 +388,7 @@ struct PetAreaView5: View {
 
                     // Name badge (bottom center)
                     Text("\(character.name) · Lv \(appState.userLevel)")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                         .foregroundColor(character.color)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 5)
@@ -726,9 +726,9 @@ struct RadialMenu: View {
                 Button(action: { onAction(a.action) }) {
                     VStack(spacing: 1) {
                         Text(a.icon)
-                            .font(.system(size: 16))
+                            .font(.pixelSystem(size: 16))
                         Text(a.label)
-                            .font(.system(size: 7, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
                             .foregroundColor(Color(hex: "#888888"))
                     }
                     .frame(width: 42, height: 42)
@@ -766,7 +766,7 @@ struct EnergyBarView5: View {
     var body: some View {
         HStack(spacing: 10) {
             Text("ENERGY")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                 .foregroundColor(theme.textMuted)
 
             GeometryReader { geo in
@@ -783,7 +783,7 @@ struct EnergyBarView5: View {
             .frame(height: 10)
 
             Text("\(energy)%")
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                 .foregroundColor(barColor)
         }
         .padding(.horizontal, 14)
@@ -823,16 +823,16 @@ struct XPProgressView5: View {
                         .frame(width: 28, height: 28)
                         .overlay(
                             Text("\(appState.userLevel)")
-                                .font(.system(size: 12, weight: .heavy, design: .monospaced))
+                                .font(.pixelSystem(size: 12, weight: .heavy, design: .monospaced))
                                 .foregroundColor(.white)
                         )
 
                     VStack(alignment: .leading) {
                         Text("Level \(appState.userLevel)")
-                            .font(.system(size: 12, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 12, weight: .bold, design: .monospaced))
                             .foregroundColor(theme.textPrimary)
                         Text("\(appState.totalXP) XP total")
-                            .font(.system(size: 8, design: .monospaced))
+                            .font(.pixelSystem(size: 8, design: .monospaced))
                             .foregroundColor(theme.textMuted)
                     }
                 }
@@ -841,10 +841,10 @@ struct XPProgressView5: View {
 
                 VStack(alignment: .trailing) {
                     Text("\(xpInLevel) / \(xpNeeded) XP")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                         .foregroundColor(charColor)
                     Text("to Level \(appState.userLevel + 1)")
-                        .font(.system(size: 8, design: .monospaced))
+                        .font(.pixelSystem(size: 8, design: .monospaced))
                         .foregroundColor(theme.textMuted)
                 }
             }
@@ -889,11 +889,11 @@ struct DailyChallengeCard5: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Daily Challenge")
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 12, weight: .bold, design: .monospaced))
                     .foregroundColor(theme.accentGold)
                 Spacer()
                 Text("\(todaysChallenge.xpReward) XP")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(theme.accentGold.opacity(0.15))
@@ -902,11 +902,11 @@ struct DailyChallengeCard5: View {
             }
 
             Text(todaysChallenge.title)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.pixelSystem(size: 15, weight: .semibold))
                 .foregroundColor(theme.textPrimary)
 
             Text(todaysChallenge.description)
-                .font(.system(size: 13))
+                .font(.pixelSystem(size: 13))
                 .foregroundColor(theme.textSecondary)
 
             if appState.dailyChallengeCompleted {
@@ -914,7 +914,7 @@ struct DailyChallengeCard5: View {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(theme.accentGreen)
                     Text("Completed today!")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.pixelSystem(size: 12, weight: .semibold))
                         .foregroundColor(theme.accentGreen)
                 }
             } else {
@@ -928,7 +928,7 @@ struct DailyChallengeCard5: View {
                     }
                 }) {
                     Text("Start Challenge")
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.pixelSystem(size: 12, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
@@ -962,11 +962,11 @@ struct StoryLoreCard5: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("The DevRealm")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.pixelSystem(size: 10, weight: .bold))
                     .foregroundColor(Color(hex: "#E8D5B5"))
                 Spacer()
                 Text("Chapter \(appState.currentTier)")
-                    .font(.system(size: 7, design: .monospaced))
+                    .font(.pixelSystem(size: 7, design: .monospaced))
                     .foregroundColor(.gray)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 2)
@@ -975,7 +975,7 @@ struct StoryLoreCard5: View {
             }
 
             Text(loreText)
-                .font(.system(size: 10, design: .monospaced))
+                .font(.pixelSystem(size: 10, design: .monospaced))
                 .foregroundColor(Color(hex: "#B0A898"))
                 .lineSpacing(4)
         }
@@ -1010,9 +1010,9 @@ struct QuickSettingsRow: View {
             Button(action: { appState.toggleDarkMode() }) {
                 HStack(spacing: 6) {
                     Image(systemName: appState.isDarkMode ? "moon.fill" : "sun.max.fill")
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                     Text(appState.isDarkMode ? "Dark" : "Light")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.pixelSystem(size: 11, weight: .medium))
                 }
                 .foregroundColor(theme.textPrimary)
                 .padding(.horizontal, 12)
@@ -1029,9 +1029,9 @@ struct QuickSettingsRow: View {
             Button(action: { appState.toggleSound() }) {
                 HStack(spacing: 6) {
                     Image(systemName: appState.soundEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                     Text(appState.soundEnabled ? "Sound On" : "Sound Off")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.pixelSystem(size: 11, weight: .medium))
                 }
                 .foregroundColor(theme.textPrimary)
                 .padding(.horizontal, 12)
@@ -1048,9 +1048,9 @@ struct QuickSettingsRow: View {
             Button(action: { appState.resetOnboarding() }) {
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 12))
+                        .font(.pixelSystem(size: 12))
                     Text("Reset Onboarding")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.pixelSystem(size: 11, weight: .medium))
                 }
                 .foregroundColor(.red)
                 .padding(.horizontal, 12)

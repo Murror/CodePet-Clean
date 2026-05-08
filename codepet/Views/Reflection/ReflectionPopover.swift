@@ -35,7 +35,7 @@ struct ReflectionSummaryBlock: View {
                         .font(ReflectionTheme.sans(12, weight: .semibold))
                     Spacer()
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.pixelSystem(size: 10, weight: .semibold))
                 }
                 .foregroundColor(.white)
                 .padding(.horizontal, 12)

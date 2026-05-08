@@ -7,7 +7,7 @@ struct ProfileView: View {
         ScrollView {
             VStack(spacing: 24) {
                 Text("Profile")
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.pixelSystem(size: 24, weight: .bold))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 YourPetSection()
@@ -30,11 +30,11 @@ struct YourPetSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Your Pet")
-                .font(.system(size: 14, weight: .semibold, design: .default))
+                .font(.pixelSystem(size: 14, weight: .semibold, design: .default))
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Switch companions any time. Your progress stays.")
-                    .font(.system(size: 11))
+                    .font(.pixelSystem(size: 11))
                     .foregroundColor(.secondary)
 
                 LazyVGrid(columns: columns, spacing: 10) {
@@ -84,12 +84,12 @@ private struct PetGridCell: View {
                 )
 
                 Text(character.name)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.pixelSystem(size: 11, weight: .bold))
                     .foregroundColor(isSelected ? character.color : Color(hex: "#2D2B26"))
                     .lineLimit(1)
 
                 Text(character.domain)
-                    .font(.system(size: 9, weight: .medium))
+                    .font(.pixelSystem(size: 9, weight: .medium))
                     .foregroundColor(.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
@@ -108,11 +108,11 @@ struct LanguageStyleSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Language Style")
-                .font(.system(size: 14, weight: .semibold, design: .default))
+                .font(.pixelSystem(size: 14, weight: .semibold, design: .default))
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Choose how the app talks to you. Switch any time.")
-                    .font(.system(size: 11))
+                    .font(.pixelSystem(size: 11))
                     .foregroundColor(.secondary)
 
                 VStack(spacing: 8) {
@@ -143,19 +143,19 @@ private struct PersonaRow: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Text(persona.icon)
-                    .font(.system(size: 20))
+                    .font(.pixelSystem(size: 20))
                 VStack(alignment: .leading, spacing: 2) {
                     Text(persona.displayName)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.pixelSystem(size: 13, weight: .semibold))
                         .foregroundColor(.primary)
                     Text(persona.blurb)
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                         .foregroundColor(.secondary)
                 }
                 Spacer()
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.pixelSystem(size: 12, weight: .semibold))
                         .foregroundColor(Color(hex: "#7B6BD8"))
                 }
             }

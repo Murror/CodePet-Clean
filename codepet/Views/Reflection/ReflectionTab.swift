@@ -315,7 +315,7 @@ struct ReflectionTab: View {
         } label: {
             HStack(alignment: .center, spacing: 10) {
                 Image(systemName: "sparkle")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.pixelSystem(size: 13, weight: .semibold))
                     .foregroundColor(ReflectionTheme.accent)
                     .frame(width: 22, height: 22)
                     .background(
