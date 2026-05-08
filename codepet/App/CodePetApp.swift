@@ -1,5 +1,6 @@
 import SwiftUI
 import FirebaseCore
+import GoogleSignIn
 
 @main
 struct CodePetApp: App {
@@ -70,6 +71,15 @@ struct CodePetApp: App {
                     // Re-sync MCP data
                     mcpBridge.refresh()
                     appState.syncFromMCP(mcpBridge)
+                }
+                // Google Sign-In OAuth callback. Without this handler the
+                // browser redirects to com.googleusercontent.apps.<id>:// and
+                // macOS routes the URL to us, but GoogleSignIn never finishes
+                // — the user picks an account and the flow appears to hang.
+                .onOpenURL { url in
+                    print("[Auth] Received OAuth callback URL: \(url.scheme ?? "nil")://...")
+                    let handled = GIDSignIn.sharedInstance.handle(url)
+                    print("[Auth] GoogleSignIn.handle(url): \(handled)")
                 }
         }
         .windowStyle(.hiddenTitleBar)
