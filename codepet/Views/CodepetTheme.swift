@@ -10,6 +10,14 @@ import SwiftUI
 
 enum CodepetTheme {
 
+    // MARK: Global font override
+    //
+    // When `usePixelFontGlobally` is true, every theme font helper
+    // (`CodepetTheme.body/display`, plus `ReflectionTheme.sans/serif/mono`)
+    // returns the Minecraft bitmap font. Set to `false` to revert the whole
+    // app to native sans/serif/mono — single-line flip, no per-view edits.
+    static let usePixelFontGlobally = true
+
     // MARK: Surfaces
 
     /// Page background — warm cream that the marketing site uses across hero,
@@ -79,11 +87,13 @@ enum CodepetTheme {
     // MARK: Typography
 
     static func display(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        Font.system(size: size, weight: weight, design: .default)
+        if usePixelFontGlobally { return pixel(size) }
+        return Font.system(size: size, weight: weight, design: .default)
     }
 
     static func body(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        Font.system(size: size, weight: weight, design: .default)
+        if usePixelFontGlobally { return pixel(size) }
+        return Font.system(size: size, weight: weight, design: .default)
     }
 
     /// Bundled bitmap pixel font ("Minecraft.ttf"). Use sparingly for accents

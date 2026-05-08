@@ -58,17 +58,23 @@ enum ReflectionTheme {
     static let cardBackground = Color.white
     static let borderLight = Color(red: 0xEB / 255.0, green: 0xE8 / 255.0, blue: 0xDF / 255.0)
 
-    // Fonts — "Fraunces" falls back to system .serif when not installed
+    // Fonts — "Fraunces" falls back to system .serif when not installed.
+    // When CodepetTheme.usePixelFontGlobally is true, all three return the
+    // bundled Minecraft pixel font (single point of truth for the global
+    // override).
     static func serif(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        Font.system(size: size, weight: weight, design: .serif)
+        if CodepetTheme.usePixelFontGlobally { return CodepetTheme.pixel(size) }
+        return Font.system(size: size, weight: weight, design: .serif)
     }
 
     static func sans(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        Font.system(size: size, weight: weight)
+        if CodepetTheme.usePixelFontGlobally { return CodepetTheme.pixel(size) }
+        return Font.system(size: size, weight: weight)
     }
 
     static func mono(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        Font.system(size: size, weight: weight, design: .monospaced)
+        if CodepetTheme.usePixelFontGlobally { return CodepetTheme.pixel(size) }
+        return Font.system(size: size, weight: weight, design: .monospaced)
     }
 }
 
