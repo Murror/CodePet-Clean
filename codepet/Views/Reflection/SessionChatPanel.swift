@@ -15,7 +15,7 @@ struct SessionChatPanel: View {
 
     private var pet: PetCharacter? { PetCharacter.all[appState.activeChar] }
     private var petName: String { pet?.name ?? "Pet" }
-    private var petColor: Color { pet?.color ?? PixelTheme.outline }
+    private var petColor: Color { pet?.color ?? CodepetTheme.accentPurple }
 
     private var messages: [ChatMessage] { chatStore.messages(for: session.id) }
     private var isStreaming: Bool { controller.inFlightSessionId == session.id }
@@ -23,15 +23,15 @@ struct SessionChatPanel: View {
     var body: some View {
         VStack(spacing: 0) {
             header
-            Rectangle().fill(PixelTheme.outline).frame(height: PixelTheme.borderWidth)
             messageList
-            Rectangle().fill(PixelTheme.outline).frame(height: PixelTheme.borderWidth)
             inputRow
         }
         .frame(width: 360, height: 480)
-        .background(Rectangle().fill(PixelTheme.panelFill))
-        .pixelBorder()
-        .pixelShadow(petColor)
+        .background(
+            RoundedRectangle(cornerRadius: CodepetTheme.cardRadius, style: .continuous)
+                .fill(CodepetTheme.surface)
+        )
+        .codepetShadow(CodepetTheme.floatingShadow)
         .onAppear { inputFocused = true }
     }
 
@@ -45,27 +45,40 @@ struct SessionChatPanel: View {
                     .interpolation(.none)
                     .scaledToFit()
                     .frame(width: 28, height: 28)
-                    .background(Rectangle().fill(pet.color.opacity(0.20)))
-                    .pixelBorder()
+                    .padding(4)
+                    .background(
+                        Circle().fill(pet.color.opacity(0.18))
+                    )
             }
             VStack(alignment: .leading, spacing: 1) {
-                Text(petName.uppercased())
-                    .font(ReflectionTheme.sans(12, weight: .bold))
-                    .tracking(0.8)
-                    .foregroundColor(ReflectionTheme.primaryText)
+                Text(petName)
+                    .font(CodepetTheme.body(14, weight: .semibold))
+                    .foregroundColor(CodepetTheme.primaryText)
                 Text("Ask about this session.")
-                    .font(ReflectionTheme.sans(11))
-                    .foregroundColor(ReflectionTheme.mutedText)
+                    .font(CodepetTheme.body(11))
+                    .foregroundColor(CodepetTheme.mutedText)
             }
             Spacer()
             Button(action: onClose) {
                 Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .semibold))
             }
-            .buttonStyle(PixelIconButtonStyle(size: 22, fill: PixelTheme.panelFill))
+            .buttonStyle(CodepetIconButtonStyle())
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Rectangle().fill(petColor.opacity(0.10)))
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            UnevenRoundedRectangle(
+                cornerRadii: .init(
+                    topLeading: CodepetTheme.cardRadius,
+                    bottomLeading: 0,
+                    bottomTrailing: 0,
+                    topTrailing: CodepetTheme.cardRadius
+                ),
+                style: .continuous
+            )
+            .fill(petColor.opacity(0.08))
+        )
     }
 
     // MARK: - Message list
@@ -89,8 +102,6 @@ struct SessionChatPanel: View {
                     if let error = controller.error {
                         errorRow(error)
                     }
-                    // Sentinel: emits true to BottomVisibilityKey when this view
-                    // is within 40pt of the scroll container's bottom edge.
                     Color.clear
                         .frame(height: 1)
                         .id("bottomSentinel")
@@ -104,8 +115,8 @@ struct SessionChatPanel: View {
                             }
                         )
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
             }
             .coordinateSpace(name: "chatScroll")
             .onPreferenceChange(BottomVisibilityKey.self) { atBottom = $0 }
@@ -148,31 +159,31 @@ struct SessionChatPanel: View {
     private func bubble(role: ChatMessage.Role, text: String, isStreaming: Bool) -> some View {
         let isUser = role == .user
         let bubbleFill: Color = isUser
-            ? Color(white: 0.96)
-            : petColor.opacity(0.18)
+            ? CodepetTheme.accentPurple
+            : Color(white: 0.96)
+        let textColor: Color = isUser ? .white : CodepetTheme.bodyText
         HStack {
             if isUser { Spacer(minLength: 28) }
             VStack(alignment: isUser ? .trailing : .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     Text(text)
-                        .font(isUser
-                              ? ReflectionTheme.sans(13)
-                              : ReflectionTheme.serif(13.5))
-                        .foregroundColor(ReflectionTheme.primaryText)
+                        .font(CodepetTheme.body(13.5))
+                        .foregroundColor(textColor)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                     if isStreaming {
-                        Text("█")
-                            .font(.system(size: 11, weight: .bold))
+                        Text("▎")
+                            .font(.system(size: 13))
                             .foregroundColor(petColor)
-                            .padding(.leading, 1)
+                            .opacity(0.7)
                     }
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 8)
-                .background(Rectangle().fill(bubbleFill))
-                .pixelBorder(PixelTheme.outline, width: PixelTheme.borderWidth)
-                .pixelShadow(PixelTheme.outline.opacity(isUser ? 0.4 : 0.5), offset: 2)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 9)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(bubbleFill)
+                )
             }
             if !isUser { Spacer(minLength: 28) }
         }
@@ -183,17 +194,19 @@ struct SessionChatPanel: View {
 
     private func errorRow(_ error: SessionChatController.ChatError) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: "exclamationmark.square.fill")
+            Image(systemName: "exclamationmark.circle.fill")
                 .font(.system(size: 11))
-                .foregroundColor(ReflectionTheme.moodAlert)
+                .foregroundColor(CodepetTheme.accentOrange)
             Text(errorText(error))
-                .font(ReflectionTheme.sans(11))
-                .foregroundColor(ReflectionTheme.mutedText)
+                .font(CodepetTheme.body(11))
+                .foregroundColor(CodepetTheme.mutedText)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(Rectangle().fill(ReflectionTheme.moodAlert.opacity(0.12)))
-        .pixelBorder(ReflectionTheme.moodAlert)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: CodepetTheme.inputRadius, style: .continuous)
+                .fill(CodepetTheme.accentOrange.opacity(0.10))
+        )
     }
 
     private func errorText(_ error: SessionChatController.ChatError) -> String {
@@ -218,26 +231,26 @@ struct SessionChatPanel: View {
                 .textFieldStyle(.plain)
                 .lineLimit(1...8)
                 .focused($inputFocused)
-                .font(ReflectionTheme.sans(13))
-                .pixelTextField()
+                .font(CodepetTheme.body(13))
+                .foregroundColor(CodepetTheme.bodyText)
+                .codepetInput()
                 .onSubmit { submit() }
 
             Button(action: submit) {
                 Image(systemName: "arrow.up")
-                    .font(.system(size: 13, weight: .bold))
             }
-            .buttonStyle(PixelButtonStyle(
-                fill: canSubmit ? petColor : Color(white: 0.92),
-                foreground: canSubmit ? .white : ReflectionTheme.mutedText,
-                paddingH: 10,
-                paddingV: 8
+            .buttonStyle(CodepetPillButtonStyle(
+                fill: canSubmit ? petColor : Color(white: 0.85),
+                foreground: .white,
+                paddingH: 12,
+                paddingV: 9
             ))
             .disabled(!canSubmit)
             .keyboardShortcut(.return, modifiers: [])
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(Rectangle().fill(Color(white: 0.98)))
+        .padding(.horizontal, 14)
+        .padding(.top, 10)
+        .padding(.bottom, 14)
     }
 
     private var canSubmit: Bool {

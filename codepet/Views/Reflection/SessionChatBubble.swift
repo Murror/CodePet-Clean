@@ -8,41 +8,35 @@ struct SessionChatBubble: View {
     @State private var float = false
 
     private var pet: PetCharacter? { PetCharacter.all[appState.activeChar] }
-    private var petColor: Color { pet?.color ?? PixelTheme.outline }
+    private var petColor: Color { pet?.color ?? CodepetTheme.accentPurple }
 
     var body: some View {
         Button(action: onTap) {
             ZStack {
+                Circle()
+                    .fill(petColor.opacity(0.18))
+
                 if let pet = pet {
                     Image(pet.imageName)
                         .resizable()
                         .interpolation(.none)
                         .scaledToFit()
-                        .padding(4)
-                        .frame(width: 56, height: 56)
-                        .background(Rectangle().fill(pet.color.opacity(0.20)))
-                } else {
-                    Rectangle()
-                        .fill(petColor.opacity(0.30))
-                        .frame(width: 56, height: 56)
+                        .padding(8)
                 }
             }
-            .pixelBorder()
-            .pixelShadow(petColor, offset: float ? 5 : 3)
-            .offset(y: float ? -2 : 0)
+            .frame(width: 60, height: 60)
+            .codepetShadow(CodepetTheme.Shadow(
+                color: petColor.opacity(0.35),
+                radius: 14, x: 0, y: 6
+            ))
+            .offset(y: float ? -3 : 0)
         }
         .buttonStyle(.plain)
         .onAppear { startAnimations() }
     }
 
     private func startAnimations() {
-        // 2-frame stepped float — snaps between positions instead of easing,
-        // matching the discrete feel of pixel art.
-        withAnimation(
-            .linear(duration: 0.001)
-                .repeatForever(autoreverses: true)
-                .delay(1.4)
-        ) {
+        withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) {
             float = true
         }
     }
