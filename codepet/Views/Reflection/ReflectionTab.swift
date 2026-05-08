@@ -408,14 +408,14 @@ struct ReflectionTab: View {
 
     @ViewBuilder
     private func petHeader(for session: Session) -> some View {
-        HStack(alignment: .center, spacing: 14) {
-            PetAvatar(mood: .calm, size: 96)
-            VStack(alignment: .leading, spacing: 8) {
+        HStack(alignment: .center, spacing: 12) {
+            PetAvatar(mood: .calm, size: 56)
+            VStack(alignment: .leading, spacing: 4) {
                 Text(petName)
-                    .font(ReflectionTheme.serif(22, weight: .medium))
+                    .font(ReflectionTheme.serif(18, weight: .medium))
                     .foregroundColor(ReflectionTheme.primaryText)
                 Text(dateDisplay(session.startedAt))
-                    .font(ReflectionTheme.sans(12))
+                    .font(ReflectionTheme.sans(11))
                     .foregroundColor(ReflectionTheme.mutedText)
             }
             Spacer()
@@ -436,9 +436,12 @@ struct ReflectionTab: View {
                 Task { await sessionEnricher.enrich(session: session, petPersona: persona) }
             }
 
-            // Per-turn rendering (chronological, oldest first)
-            ForEach(session.turns) { turn in
-                turnSection(for: turn)
+            // Per-turn rendering (chronological, oldest first).
+            // Avatar appears only on the newest turn — older turns share the
+            // pet-color thread so the page doesn't feel like the avatar
+            // repeats on every entry.
+            ForEach(Array(session.turns.enumerated()), id: \.element.id) { index, turn in
+                turnSection(for: turn, isLast: index == session.turns.count - 1)
             }
         }
     }
@@ -456,7 +459,7 @@ struct ReflectionTab: View {
     }
 
     @ViewBuilder
-    private func turnSection(for turn: Turn) -> some View {
+    private func turnSection(for turn: Turn, isLast: Bool) -> some View {
         VStack(alignment: .leading, spacing: 20) {
             // Turn title + time metadata
             VStack(alignment: .leading, spacing: 6) {
@@ -481,7 +484,7 @@ struct ReflectionTab: View {
 
             // Narrative chat view or loading state
             if let narrative = turn.narrative {
-                NarrativeChatTurnView(narrative: narrative)
+                NarrativeChatTurnView(narrative: narrative, showAvatar: isLast)
             } else {
                 TurnLoadingStates(state: turn.state, onRetry: {
                     let persona = currentPetPersona()

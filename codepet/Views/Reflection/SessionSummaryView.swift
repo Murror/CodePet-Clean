@@ -19,8 +19,8 @@ struct SessionSummaryView: View {
         VStack(alignment: .leading, spacing: 0) {
             dividerLine
 
-            HStack(alignment: .top, spacing: 12) {
-                petAvatar(size: 44)
+            HStack(alignment: .top, spacing: 10) {
+                petAvatar(size: 36)
                 Group {
                     if let summary = summary {
                         readyBubble(summary: summary)

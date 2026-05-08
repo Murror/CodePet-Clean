@@ -8,6 +8,10 @@ import SwiftUI
 struct NarrativeChatTurnView: View {
     @EnvironmentObject var appState: AppState
     let narrative: Narrative
+    /// When true, render the pet avatar to the left of the bubble. When
+    /// false, the bubble takes full width with only a thin pet-color thread
+    /// on its left edge — used for older turns so the avatar doesn't repeat.
+    var showAvatar: Bool = true
 
     // Pet animation tracks (premium = restrained)
     @State private var petFloat = false
@@ -20,9 +24,15 @@ struct NarrativeChatTurnView: View {
         PetCharacter.all[appState.activeChar]
     }
 
+    private var petColor: Color {
+        pet?.color ?? ReflectionTheme.accent
+    }
+
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            petAvatar(size: 44)
+        HStack(alignment: .top, spacing: showAvatar ? 12 : 0) {
+            if showAvatar {
+                petAvatar(size: 36)
+            }
             petBubble
                 .scaleEffect(didAppear ? 1.0 : 0.6, anchor: .topLeading)
                 .opacity(didAppear ? 1.0 : 0.0)
@@ -45,47 +55,56 @@ struct NarrativeChatTurnView: View {
     // MARK: - Pet bubble (single voice)
 
     private var petBubble: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if let pet = pet {
-                Text(pet.name)
-                    .font(ReflectionTheme.sans(10, weight: .semibold))
-                    .tracking(0.6)
-                    .foregroundColor(ReflectionTheme.mutedText)
-            }
-
-            Text(narrative.whatYouWanted)
-                .font(ReflectionTheme.serif(14))
-                .foregroundColor(ReflectionTheme.primaryText)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-
+        HStack(alignment: .top, spacing: 0) {
+            // Pet-color left stripe — visual "thread" tying the turns of a
+            // session together. More pronounced when the avatar is hidden.
             Rectangle()
-                .fill(ReflectionTheme.borderLight)
-                .frame(height: 1)
-                .padding(.vertical, 2)
+                .fill(petColor.opacity(showAvatar ? 0.25 : 0.55))
+                .frame(width: showAvatar ? 2 : 3)
 
-            Text(narrative.whatHappened)
-                .font(ReflectionTheme.serif(14))
-                .foregroundColor(ReflectionTheme.primaryText)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 10) {
+                if let pet = pet {
+                    Text(pet.name)
+                        .font(ReflectionTheme.sans(10, weight: .semibold))
+                        .tracking(0.6)
+                        .foregroundColor(petColor.opacity(0.85))
+                }
 
-            if !narrative.lesson.isEmpty {
-                lessonRow(narrative.lesson)
-                    .padding(.top, 4)
+                Text(narrative.whatYouWanted)
+                    .font(ReflectionTheme.serif(14))
+                    .foregroundColor(ReflectionTheme.primaryText)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Rectangle()
+                    .fill(ReflectionTheme.borderLight)
+                    .frame(height: 1)
+                    .padding(.vertical, 2)
+
+                Text(narrative.whatHappened)
+                    .font(ReflectionTheme.serif(14))
+                    .foregroundColor(ReflectionTheme.primaryText)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if !narrative.lesson.isEmpty {
+                    lessonRow(narrative.lesson)
+                        .padding(.top, 4)
+                }
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(ReflectionTheme.cardBackground)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(petColor.opacity(0.04))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(ReflectionTheme.borderLight, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(petColor.opacity(0.15), lineWidth: 1)
         )
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func lessonRow(_ text: String) -> some View {
