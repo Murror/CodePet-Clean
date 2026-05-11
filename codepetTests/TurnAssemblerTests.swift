@@ -133,10 +133,11 @@ final class TurnAssemblerTests: XCTestCase {
             isoTime: "2026-05-05T09:01:00Z",
             sessionId: session
         )
+        let now = ISO8601DateFormatter().date(from: "2026-05-05T09:05:00Z")!
 
         let turns = TurnAssembler.assemble(
             inputs: [s, p],
-            now: Date(),
+            now: now,
             narratives: [:]
         )
 

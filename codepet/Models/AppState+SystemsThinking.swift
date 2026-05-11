@@ -272,11 +272,6 @@ extension AppState {
             .successToSuccessful: "⚠️ Same skills on repeat? Break the loop — try something weird!",
             .shiftingBurden: "⚠️ All new, nothing reviewed? Even hackers back up their data.",
         ],
-        "zero": [
-            .driftToLowPerformance: "⚠️ Declining. Inefficient. Fix.",
-            .successToSuccessful: "⚠️ Repetition without variety. Suboptimal.",
-            .shiftingBurden: "⚠️ Reviews overdue. New input without retention = waste.",
-        ],
         "null": [
             .driftToLowPerformance: "⚠️ Uh oh, scores going brrr... downward! Let's reverse that chaos!",
             .successToSuccessful: "⚠️ You're stuck in a loop! I should know — I LIVE in loops!",

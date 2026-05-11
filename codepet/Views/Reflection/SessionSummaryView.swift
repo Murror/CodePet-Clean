@@ -47,127 +47,107 @@ struct SessionSummaryView: View {
     // MARK: - Ready state
 
     private func readyBubble(summary: SessionSummary) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 6) {
-                if let pet = pet {
-                    Text(pet.name)
-                        .font(ReflectionTheme.sans(10, weight: .semibold))
-                        .tracking(0.6)
-                        .foregroundColor(ReflectionTheme.mutedText)
-                    Text("·")
-                        .foregroundColor(ReflectionTheme.mutedText)
+        PixelCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 6) {
+                    if let pet = pet {
+                        Text(pet.name.uppercased())
+                            .font(.pixelSystem(size: 10))
+                            .tracking(1.0)
+                            .foregroundColor(Color(hex: "#77706 5"))
+                        Text("·")
+                            .foregroundColor(Color(hex: "#77706 5"))
+                    }
+                    Text("SESSION RECAP")
+                        .font(.pixelSystem(size: 10))
+                        .tracking(1.4)
+                        .foregroundColor(Color(hex: "#7C3AED"))
                 }
-                Text("SESSION RECAP")
-                    .font(ReflectionTheme.sans(10, weight: .semibold))
-                    .tracking(1.2)
-                    .foregroundColor(ReflectionTheme.accent)
-            }
 
-            Text(summary.summary)
-                .font(ReflectionTheme.serif(14))
-                .foregroundColor(ReflectionTheme.primaryText)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+                Text(summary.summary)
+                    .font(CodepetTheme.body(14))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
 
-            if !summary.lesson.isEmpty {
-                lessonRow(summary.lesson)
+                if !summary.lesson.isEmpty {
+                    lessonRow(summary.lesson)
+                }
             }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(ReflectionTheme.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(ReflectionTheme.borderLight, lineWidth: 1)
-        )
     }
 
     private func lessonRow(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "lightbulb.fill")
-                .font(.pixelSystem(size: 11, weight: .medium))
-                .foregroundColor(ReflectionTheme.accent)
-                .padding(.top, 3)
-            Text(text)
-                .font(ReflectionTheme.serif(13, weight: .medium))
-                .italic()
-                .foregroundColor(ReflectionTheme.primaryText)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+        PixelCard(
+            fill: Color(hex: "#FCEBA8"),
+            shadowOffset: 3,
+            blockSize: 3,
+            steps: 2,
+            borderWidth: 3
+        ) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.pixelSystem(size: 12, weight: .medium))
+                    .foregroundColor(Color(hex: "#B6850A"))
+                    .padding(.top, 2)
+                Text(text)
+                    .font(CodepetTheme.body(13, weight: .medium))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(ReflectionTheme.accent.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(ReflectionTheme.accent.opacity(0.18), lineWidth: 1)
-        )
     }
 
     // MARK: - Loading state
 
     private var loadingBubble: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 6) {
-                if let pet = pet {
-                    Text(pet.name)
-                        .font(ReflectionTheme.sans(10, weight: .semibold))
-                        .tracking(0.6)
-                        .foregroundColor(ReflectionTheme.mutedText)
-                    Text("·")
-                        .foregroundColor(ReflectionTheme.mutedText)
-                }
-                Text("SESSION RECAP")
-                    .font(ReflectionTheme.sans(10, weight: .semibold))
-                    .tracking(1.2)
-                    .foregroundColor(ReflectionTheme.mutedText)
-            }
-
-            skeletonLine(width: 0.9)
-            skeletonLine(width: 0.75)
-            skeletonLine(width: 0.55)
-
-            Text("Mình đang sắp lại câu chuyện cho bạn…")
-                .font(ReflectionTheme.sans(11))
-                .italic()
-                .foregroundColor(ReflectionTheme.mutedText)
-
-            Button(action: onTriggerSummary) {
+        PixelCard {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 6) {
-                    Image(systemName: "sparkle")
-                        .font(.pixelSystem(size: 11, weight: .semibold))
-                    Text("Summarize now")
-                        .font(ReflectionTheme.sans(12, weight: .semibold))
+                    if let pet = pet {
+                        Text(pet.name.uppercased())
+                            .font(.pixelSystem(size: 10))
+                            .tracking(1.0)
+                            .foregroundColor(Color(hex: "#77706 5"))
+                        Text("·")
+                            .foregroundColor(Color(hex: "#77706 5"))
+                    }
+                    Text("SESSION RECAP")
+                        .font(.pixelSystem(size: 10))
+                        .tracking(1.4)
+                        .foregroundColor(Color(hex: "#77706 5"))
                 }
-                .foregroundColor(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(ReflectionTheme.accent)
-                )
+
+                skeletonLine(width: 0.9)
+                skeletonLine(width: 0.75)
+                skeletonLine(width: 0.55)
+
+                Text("Putting your story together…")
+                    .font(CodepetTheme.body(11))
+                    .foregroundColor(Color(hex: "#77706 5"))
+
+                Button(action: onTriggerSummary) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "sparkle")
+                        Text("Summarize now")
+                    }
+                }
+                .buttonStyle(PixelButtonStyle(
+                    fill: Color(hex: "#7C3AED"),
+                    font: .pixelSystem(size: 12, weight: .semibold)
+                ))
+                .padding(.top, 4)
             }
-            .buttonStyle(.plain)
-            .padding(.top, 4)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(ReflectionTheme.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(ReflectionTheme.borderLight, lineWidth: 1)
-        )
     }
 
     // MARK: - Pet avatar (matches turn view)

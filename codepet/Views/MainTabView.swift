@@ -51,6 +51,8 @@ struct MainTabView: View {
                             ReflectionTab()
                         case .tips:
                             TipsMockupView()
+                        case .dictionary:
+                            DictionaryView()
                         case .profile:
                             ProfileView()
                         }
@@ -126,7 +128,7 @@ struct SidebarNav: View {
 
     @State private var isAvatarHovered = false
 
-    private let mainTabs: [AppState.Tab] = [.reflection, .tips]
+    private let mainTabs: [AppState.Tab] = [.reflection, .tips, .dictionary]
 
     var body: some View {
         VStack(spacing: 2) {
@@ -199,9 +201,7 @@ struct NavButton: View {
                     }
 
                     Text(tab.rawValue)
-                        .font(CodepetTheme.usePixelFontGlobally
-                              ? CodepetTheme.pixel(9)
-                              : .system(size: 8, weight: isSelected ? .semibold : .regular, design: .monospaced))
+                        .font(CodepetTheme.pixel(9))
                         .foregroundColor(isSelected ? Color(hex: "#2D2B26") : Color(hex: "#B0A898"))
                 }
                 .frame(width: 56, height: 52)
@@ -244,6 +244,10 @@ struct NavIconView: View {
             case .tips:
                 // TODO: replace with pixel-art Canvas icon — mockup only
                 Image(systemName: "lightbulb.fill")
+                    .font(.pixelSystem(size: 14, weight: .medium))
+                    .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
+            case .dictionary:
+                Image(systemName: "book.fill")
                     .font(.pixelSystem(size: 14, weight: .medium))
                     .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
             case .profile:

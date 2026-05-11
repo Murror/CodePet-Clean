@@ -7,7 +7,11 @@ import os
 @MainActor
 final class NarrativeEnricher: ObservableObject {
 
-    let objectWillChange = PassthroughSubject<Void, Never>()
+    /// Turn IDs whose most recent enrichment attempt failed. Reactive — the
+    /// reflection UI reads this through `@EnvironmentObject` and threads it
+    /// into `TurnAssembler` so failed turns render the failure UI instead of
+    /// being permanently stuck on the "summarizing" skeleton.
+    @Published private(set) var failedTurns: [String: FailureReason] = [:]
 
     private let api: ReflectionAPIClientProtocol
     private let store: NarrativeStore
@@ -54,6 +58,10 @@ final class NarrativeEnricher: ObservableObject {
         turn: Turn,
         petPersona: SummarizeTurnRequest.PetPersonaDTO?
     ) async -> TurnState {
+        // Clear any prior failure for this turn so the UI flips back to the
+        // summarizing skeleton during the new attempt.
+        failedTurns.removeValue(forKey: turn.id)
+
         let request = makeRequest(for: turn, petPersona: petPersona)
         for attempt in 0...1 {
             do {
@@ -70,33 +78,43 @@ final class NarrativeEnricher: ObservableObject {
                 do {
                     try store.appendNarrative(turnId: turn.id, sessionId: turn.sessionId, narrative: n)
                 } catch {
-                    logger.error("failed to persist narrative: \(error.localizedDescription)")
+                    logger.error("failed to persist narrative: turn=\(turn.id) error=\(error.localizedDescription)")
                 }
                 return .ready
             } catch let err as ReflectionAPIError {
                 switch err {
                 case .notSignedIn, .http(401, _):
-                    return .failed(reason: .auth)
+                    return recordFailure(turn.id, reason: .auth, error: err)
                 case .http(429, _):
-                    return .failed(reason: .quota)
+                    return recordFailure(turn.id, reason: .quota, error: err)
                 case .http(400, _), .malformedResponse:
-                    return .failed(reason: .badResponse)
+                    return recordFailure(turn.id, reason: .badResponse, error: err)
                 case .http, .network:
                     if attempt == 0 {
+                        logger.warning("turn enrich transient error, retrying: turn=\(turn.id) error=\(String(describing: err))")
                         try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
                         continue
                     }
-                    return .failed(reason: .network)
+                    return recordFailure(turn.id, reason: .network, error: err)
                 }
             } catch {
                 if attempt == 0 {
+                    logger.warning("turn enrich unexpected error, retrying: turn=\(turn.id) error=\(error.localizedDescription)")
                     try? await Task.sleep(nanoseconds: UInt64(retryDelay * 1_000_000_000))
                     continue
                 }
-                return .failed(reason: .unknown)
+                return recordFailure(turn.id, reason: .unknown, error: error)
             }
         }
-        return .failed(reason: .unknown)
+        return recordFailure(turn.id, reason: .unknown, error: nil)
+    }
+
+    private func recordFailure(_ turnId: String, reason: FailureReason, error: Error?) -> TurnState {
+        let detail = error.map { String(describing: $0) } ?? "no_error"
+        logger.error("turn enrich failed: turn=\(turnId) reason=\(reason.rawValue) error=\(detail)")
+        print("[NarrativeEnricher] ✗ turn=\(turnId) reason=\(reason.rawValue) error=\(detail)")
+        failedTurns[turnId] = reason
+        return .failed(reason: reason)
     }
 
     private func makeRequest(
@@ -119,8 +137,18 @@ final class NarrativeEnricher: ObservableObject {
             prompt: turn.prompt,
             events: events,
             rawSummary: rawSummary,
-            petPersona: petPersona
+            petPersona: petPersona,
+            userBrief: Self.currentUserBrief()
         )
+    }
+
+    /// Read the user's welcome-screen project brief from UserDefaults.
+    /// Returns nil when the brief is unset or whitespace-only so the wire
+    /// payload omits the field instead of sending an empty string.
+    static func currentUserBrief() -> String? {
+        let raw = UserDefaults.standard.string(forKey: "cp_user_project_brief") ?? ""
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private func extractTool(from text: String) -> String {

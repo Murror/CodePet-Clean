@@ -318,11 +318,6 @@ struct PersonaContent {
             productOwner: "Spec it. Then break the spec on purpose, not by accident.",
             developer:    "Plan first. Then break the plan with intent."
         ),
-        "zero": PersonaText(
-            student:      "Plan. Then make.",
-            productOwner: "Scope. Then build.",
-            developer:    "Plan. Then code."
-        ),
         "null": PersonaText(
             student:      "PLAN?! Maybe! Probably! Let's plan to plan to plan!",
             productOwner: "SCOPE?! YES! Or maybe! Pin it down before chaos eats it!",

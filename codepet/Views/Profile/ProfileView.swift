@@ -43,8 +43,7 @@ struct AccountSection: View {
                 }
             }
             .padding(16)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E0DBEF"), lineWidth: 1))
+            .pixelBox(fill: Color.white)
         }
     }
 
@@ -83,15 +82,18 @@ struct AccountSection: View {
 
             Button(action: { authManager.signOut() }) {
                 Text("Sign out")
-                    .font(.pixelSystem(size: 11, weight: .semibold))
-                    .foregroundColor(Color(hex: "#C04040"))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        Capsule().fill(Color(hex: "#E04040").opacity(0.10))
-                    )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PixelButtonStyle(
+                fill: Color(hex: "#E04040").opacity(0.12),
+                foreground: Color(hex: "#C04040"),
+                paddingH: 12,
+                paddingV: 6,
+                blockSize: 2,
+                steps: 2,
+                borderWidth: 2,
+                shadowOffset: 2,
+                font: .pixelSystem(size: 11, weight: .semibold)
+            ))
         }
     }
 
@@ -138,15 +140,18 @@ struct AccountSection: View {
 
             Button(action: { authManager.isGuestMode = false }) {
                 Text("Sign in")
-                    .font(.pixelSystem(size: 11, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
-                    .background(
-                        Capsule().fill(Color(hex: "#7B6BD8"))
-                    )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(PixelButtonStyle(
+                fill: Color(hex: "#7B6BD8"),
+                foreground: .white,
+                paddingH: 14,
+                paddingV: 7,
+                blockSize: 2,
+                steps: 2,
+                borderWidth: 2,
+                shadowOffset: 2,
+                font: .pixelSystem(size: 11, weight: .semibold)
+            ))
         }
     }
 
@@ -198,8 +203,7 @@ struct YourPetSection: View {
                 }
             }
             .padding(16)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E0DBEF"), lineWidth: 1))
+            .pixelBox(fill: Color.white)
         }
     }
 }
@@ -271,8 +275,7 @@ struct LanguageStyleSection: View {
                 }
             }
             .padding(16)
-            .background(RoundedRectangle(cornerRadius: 12).fill(Color.white))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E0DBEF"), lineWidth: 1))
+            .pixelBox(fill: Color.white)
         }
     }
 }

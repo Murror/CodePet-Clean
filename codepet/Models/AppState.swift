@@ -74,6 +74,7 @@ class AppState: ObservableObject {
         case insights = "Insights"
         case reflection = "Reflection"
         case tips = "Tips"
+        case dictionary = "Dictionary"
         case profile = "Profile"
 
         var icon: String {
@@ -84,6 +85,7 @@ class AppState: ObservableObject {
             case .insights: return "chart.bar.fill"
             case .reflection: return "quote.opening"
             case .tips: return "lightbulb.fill"
+            case .dictionary: return "book.fill"
             case .profile: return "person.fill"
             }
         }

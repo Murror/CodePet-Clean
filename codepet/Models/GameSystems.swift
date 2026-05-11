@@ -533,14 +533,6 @@ public struct PetAbility: Identifiable {
         PetAbility(id: "glitch_chaos", characterId: "glitch", name: "Chaos Mode", emoji: "🌀",
             description: "Randomize lesson order for surprise bonus XP", unlocksAtTier: 4),
 
-        // Zero — The Silent Optimizer
-        PetAbility(id: "zero_efficient", characterId: "zero", name: "Optimize", emoji: "📐",
-            description: "Lessons are 1 step shorter (skip the easiest question)", unlocksAtTier: 2),
-        PetAbility(id: "zero_compress", characterId: "zero", name: "Compress", emoji: "🗜️",
-            description: "Earn coins at 1.5x rate from all sources", unlocksAtTier: 3),
-        PetAbility(id: "zero_void", characterId: "zero", name: "Void Step", emoji: "⚫",
-            description: "Complete a lesson with 0 wrong answers for triple XP", unlocksAtTier: 4),
-
         // Null — The Chaos Gremlin
         PetAbility(id: "null_random", characterId: "null", name: "Null Pointer", emoji: "❓",
             description: "Random chance (20%) to get double XP on any answer", unlocksAtTier: 2),

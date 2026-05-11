@@ -79,24 +79,23 @@ struct WelcomeSessionView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(ReflectionTheme.accent.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(ReflectionTheme.accent.opacity(0.2), lineWidth: 1)
-        )
+        .pixelBox(fill: ReflectionTheme.accent.opacity(0.18))
     }
 
     private func stepCard(number: String, title: String, description: String, code: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(number)
-                    .font(ReflectionTheme.serif(16, weight: .semibold))
+                    .font(.pixelSystem(size: 14, weight: .bold))
                     .foregroundColor(.white)
                     .frame(width: 26, height: 26)
-                    .background(Circle().fill(ReflectionTheme.accent))
+                    .pixelBox(
+                        fill: ReflectionTheme.accent,
+                        shadowOffset: 2,
+                        blockSize: 2,
+                        steps: 2,
+                        borderWidth: 2
+                    )
                 Text(title)
                     .font(ReflectionTheme.serif(17, weight: .medium))
                     .foregroundColor(ReflectionTheme.primaryText)
@@ -110,14 +109,7 @@ struct WelcomeSessionView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(ReflectionTheme.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(ReflectionTheme.borderLight, lineWidth: 1)
-        )
+        .pixelBox(fill: ReflectionTheme.cardBackground)
     }
 
     private func codeBlock(_ code: String) -> some View {
@@ -131,13 +123,12 @@ struct WelcomeSessionView: View {
             CopyButton(text: code)
         }
         .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(Color(red: 0xF5 / 255.0, green: 0xF3 / 255.0, blue: 0xFA / 255.0))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(ReflectionTheme.borderLight, lineWidth: 1)
+        .pixelBox(
+            fill: Color(red: 0xF5 / 255.0, green: 0xF3 / 255.0, blue: 0xFA / 255.0),
+            shadowOffset: 3,
+            blockSize: 3,
+            steps: 2,
+            borderWidth: 3
         )
     }
 
@@ -163,23 +154,29 @@ struct WelcomeSessionView: View {
                 .foregroundColor(ReflectionTheme.primaryText)
                 .padding(8)
                 .frame(minHeight: 100)
-                .background(
-                    RoundedRectangle(cornerRadius: 8).fill(ReflectionTheme.background)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8).stroke(ReflectionTheme.borderLight, lineWidth: 1)
+                .pixelBox(
+                    fill: ReflectionTheme.background,
+                    shadowOffset: 3,
+                    blockSize: 3,
+                    steps: 2,
+                    borderWidth: 3
                 )
 
             HStack(spacing: 10) {
                 Button(action: saveBrief) {
                     Text("Save brief")
-                        .font(ReflectionTheme.sans(12, weight: .semibold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(RoundedRectangle(cornerRadius: 8).fill(ReflectionTheme.accent))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PixelButtonStyle(
+                    fill: ReflectionTheme.accent,
+                    foreground: .white,
+                    paddingH: 14,
+                    paddingV: 8,
+                    blockSize: 2,
+                    steps: 2,
+                    borderWidth: 2,
+                    shadowOffset: 3,
+                    font: .pixelSystem(size: 12, weight: .semibold)
+                ))
                 .disabled(projectBrief.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .opacity(projectBrief.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
 
@@ -198,14 +195,7 @@ struct WelcomeSessionView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(ReflectionTheme.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(ReflectionTheme.borderLight, lineWidth: 1)
-        )
+        .pixelBox(fill: ReflectionTheme.cardBackground)
     }
 
     private var footer: some View {
@@ -251,15 +241,18 @@ private struct CopyButton: View {
     var body: some View {
         Button(action: copy) {
             Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                .font(.pixelSystem(size: 11, weight: .medium))
-                .foregroundColor(copied ? ReflectionTheme.moodCalm : ReflectionTheme.mutedText)
-                .frame(width: 24, height: 24)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(ReflectionTheme.background)
-                )
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PixelButtonStyle(
+            fill: ReflectionTheme.background,
+            foreground: copied ? ReflectionTheme.moodCalm : ReflectionTheme.mutedText,
+            paddingH: 7,
+            paddingV: 5,
+            blockSize: 2,
+            steps: 2,
+            borderWidth: 2,
+            shadowOffset: 2,
+            font: .pixelSystem(size: 11, weight: .medium)
+        ))
     }
 
     private func copy() {

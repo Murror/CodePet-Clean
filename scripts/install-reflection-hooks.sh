@@ -85,6 +85,23 @@ jq -nc \
     >> "$HOME/.codepet/events.jsonl"
 TOOL_EOF
 
+cat > "$HOOKS_DIR/log-summary.sh" <<'SUMMARY_EOF'
+#!/bin/bash
+# Stop hook — fires when Claude Code finishes responding to one prompt.
+# Writes a `summary` event so TurnAssembler can close the in-flight turn.
+INPUT=$(cat)
+SESSION=$(echo "$INPUT" | jq -r '.session_id // empty')
+TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+if [ -z "$SESSION" ]; then exit 0; fi
+
+jq -nc \
+    --arg t "$TIME" \
+    --arg s "$SESSION" \
+    '{time:$t, type:"summary", session_id:$s, text:""}' \
+    >> "$HOME/.codepet/events.jsonl"
+SUMMARY_EOF
+
 cat > "$HOOKS_DIR/log-session-end.sh" <<'SESSIONEND_EOF'
 #!/bin/bash
 SESSION_ENDS="$HOME/Library/Containers/app.murror.codepet/Data/.codepet/session_ends.jsonl"
@@ -100,7 +117,7 @@ jq -nc --arg s "$SESSION" --arg t "$TIME" \
     '{session_id:$s, time:$t}' >> "$SESSION_ENDS"
 SESSIONEND_EOF
 
-chmod +x "$HOOKS_DIR/log-prompt.sh" "$HOOKS_DIR/log-tool.sh" "$HOOKS_DIR/log-session-end.sh"
+chmod +x "$HOOKS_DIR/log-prompt.sh" "$HOOKS_DIR/log-tool.sh" "$HOOKS_DIR/log-summary.sh" "$HOOKS_DIR/log-session-end.sh"
 
 cat <<'INSTRUCTIONS'
 
@@ -121,6 +138,11 @@ top-level "hooks" key (merge with any existing hooks you already have):
       "matcher": "*",
       "hooks": [
         { "type": "command", "command": "~/.codepet/hooks/log-tool.sh" }
+      ]
+    }],
+    "Stop": [{
+      "hooks": [
+        { "type": "command", "command": "~/.codepet/hooks/log-summary.sh" }
       ]
     }],
     "SessionEnd": [{

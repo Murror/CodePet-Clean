@@ -15,6 +15,7 @@ export interface SummarizePayload {
   events: EventForPrompt[];
   raw_summary: string;
   pet_persona?: PetPersonaInput;
+  user_brief?: string;
 }
 
 export function validatePayload(body: any): string | null {
@@ -33,6 +34,9 @@ export function validatePayload(body: any): string | null {
         || typeof p.personality !== "string" || typeof p.domain !== "string") {
       return "pet_persona requires id/name/personality/domain strings";
     }
+  }
+  if (b.user_brief !== undefined && typeof b.user_brief !== "string") {
+    return "user_brief must be a string when provided";
   }
   return null;
 }
@@ -100,7 +104,8 @@ export async function handleSummarizeTurn(
       events: payload.events,
       raw_summary: payload.raw_summary,
       language: payload.language,
-      petPersona: payload.pet_persona
+      petPersona: payload.pet_persona,
+      user_brief: payload.user_brief
     });
   } catch (err) {
     logger.error("anthropic call failed", { uid: auth.uid, turn_id: payload.turn_id, err: String(err) });

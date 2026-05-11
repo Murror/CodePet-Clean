@@ -52,21 +52,21 @@ struct ReturningSignInView: View {
                 }) {
                     HStack(spacing: 10) {
                         Image(systemName: "g.circle.fill")
-                            .font(.pixelSystem(size: 16))
                         Text("Sign in with Google")
-                            .font(.pixelSystem(size: 15, weight: .semibold))
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color.white)
-                            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color(hex: "#E0E0E0"), lineWidth: 1))
-                            .shadow(color: .black.opacity(0.06), radius: 4, y: 2)
-                    )
-                    .foregroundColor(Color(hex: "#1F2937"))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PixelButtonStyle(
+                    fill: Color.white,
+                    foreground: Color(hex: "#1F2937"),
+                    paddingH: 14,
+                    paddingV: 14,
+                    blockSize: 3,
+                    steps: 2,
+                    borderWidth: 3,
+                    shadowOffset: 4,
+                    font: .pixelSystem(size: 15, weight: .semibold)
+                ))
 
                 // Divider
                 HStack {
@@ -160,17 +160,20 @@ struct ReturningSignInView: View {
                             Image(systemName: "envelope.fill")
                         }
                         Text(isAuthenticating ? "Signing in..." : (isSignUp ? "Create Account" : "Sign In"))
-                            .font(.pixelSystem(size: 15, weight: .semibold))
                     }
                     .frame(maxWidth: .infinity)
-                    .padding(14)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(emailReady ? Color(hex: "#7B6BD8") : Color(hex: "#D0CDE0"))
-                    )
-                    .foregroundColor(.white)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PixelButtonStyle(
+                    fill: emailReady ? Color(hex: "#7B6BD8") : Color(hex: "#D0CDE0"),
+                    foreground: .white,
+                    paddingH: 14,
+                    paddingV: 14,
+                    blockSize: 3,
+                    steps: 2,
+                    borderWidth: 3,
+                    shadowOffset: 4,
+                    font: .pixelSystem(size: 15, weight: .semibold)
+                ))
                 .disabled(!emailReady)
 
                 // Skip — continue as a local guest (no Firebase account)

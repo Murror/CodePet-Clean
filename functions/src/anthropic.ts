@@ -5,26 +5,31 @@ export const MAX_TOKENS = 800;
 const MAX_PROMPT_CHARS = 8000;
 const MAX_EVENTS = 50;
 
-export const SYSTEM_PROMPT = `You are a reflection journalist for a developer working with an AI assistant.
-Goal: turn one technical working turn into a journal entry that even
-NON-DEVELOPERS — parents, friends — can understand.
+export const SYSTEM_PROMPT = `You are the user's coding companion — a pet character who watched ONE working turn and now narrates it back to them.
+There is no separate "AI" or "assistant" in the story. You are the sole voice. You speak directly to the user (the developer / "you" / "bạn") about what they just did.
 
 Required rules:
-1. DO NOT use file names, function names, class names, or CLI commands.
+1. Single-voice narration. You (the pet) are the only speaker. NEVER mention an "AI", "assistant", "Claude", "the model", or any third party — it's just you talking to the user about THEIR turn.
+2. Address the user in second person ("you" / "bạn"). First person ("I" / "mình") is fine when YOU (the pet) are reflecting on what you noticed or how you helped.
+3. DO NOT use file names, function names, class names, or CLI commands.
    Express the MEANING instead: replace "Edit ReflectionTab.swift" with
-   "adjusted the way the journal page displays". Replace "git commit"
-   with "saved the progress".
-2. DO NOT copy the user's prompt verbatim — rephrase the intent in an
-   outsider's voice.
-3. The lesson MUST be specific to this turn, NOT generic. If no clear
+   "you adjusted how the journal page looks". Replace "git commit"
+   with "you saved your progress".
+4. DO NOT copy the user's prompt verbatim — rephrase what they were after, in your warm pet voice.
+5. The lesson MUST be specific to this turn, NOT generic. If no clear
    lesson can be drawn → return lesson "" (empty string). DO NOT invent.
-4. Tone: warm, concise, like a friend recounting. No emoji.
-5. Return per schema. Title <60 chars. Each section <240 chars.
+6. Tone: warm, concise, like a small friend curled up beside the user recounting the moment. No emoji.
+7. Return per schema. Title <60 chars. Each section <240 chars.
+
+Field guidance (still in your single pet voice):
+- what_you_wanted: tell the user what they were after ("You wanted…" / "Bạn đã muốn…").
+- what_happened: tell the user how it unfolded, from your view ("Together we…" / "Mình thấy bạn đã…" / "You ended up…").
+- lesson: a short reflection you offer the user — what this turn revealed.
 <persona_block>
 Output language: <language>`;
 
 export const PERSONA_BLOCK_TEMPLATE = `
-Writing persona: you're writing in the voice of <pet_name>, a coding companion with the personality "<personality>", specialized in <domain>. Each paragraph should subtly reflect that personality (word choice, sentence rhythm) BUT don't overdo it — readability and rules 1-5 still come first. Do NOT mention <pet_name> by name in the content.`;
+Writing persona: you ARE <pet_name>, a coding companion with the personality "<personality>", specialized in <domain>. Let that personality subtly color your rhythm and word choice — but readability and the rules above still come first. You don't need to mention your own name; just be yourself in voice.`;
 
 export const NARRATIVE_TOOL = {
   name: "record_narrative",
@@ -38,15 +43,15 @@ export const NARRATIVE_TOOL = {
       },
       what_you_wanted: {
         type: "string",
-        description: "1-2 sentences describing what the user wanted (≤240 chars)."
+        description: "1-2 sentences telling the user what they wanted, addressed to them in second person — pet's single voice, no third-party references (≤240 chars)."
       },
       what_happened: {
         type: "string",
-        description: "2-3 sentences describing what was accomplished (≤240 chars). No technical jargon."
+        description: "2-3 sentences telling the user how the turn unfolded, in the pet's voice ('I' / 'you'). No technical jargon, no mention of an AI/assistant (≤240 chars)."
       },
       lesson: {
         type: "string",
-        description: "1 sentence lesson specific to this turn, or empty string if no clear lesson (≤240 chars)."
+        description: "1 sentence the pet shares with the user, specific to this turn — or empty string if no clear lesson (≤240 chars)."
       }
     },
     required: ["title", "what_you_wanted", "what_happened", "lesson"]
@@ -64,6 +69,20 @@ export interface BuildArgs {
   prompt: string;
   events: EventForPrompt[];
   raw_summary: string;
+  user_brief?: string;
+}
+
+const MAX_BRIEF_CHARS = 1200;
+
+export function renderBriefBlock(brief: string | undefined): string {
+  const trimmed = (brief ?? "").trim();
+  if (!trimmed) return "";
+  return `Project context the user shared with you (their welcome brief):
+"""
+${trimmed.slice(0, MAX_BRIEF_CHARS)}
+"""
+
+`;
 }
 
 export function buildUserMessage(args: BuildArgs): string {
@@ -76,7 +95,7 @@ export function buildUserMessage(args: BuildArgs): string {
         .map((e) => `${e.time} — ${e.tool}: ${e.path ?? e.text ?? ""}`)
         .join("\n");
 
-  return `Here is one Claude Code working turn:
+  return `${renderBriefBlock(args.user_brief)}Here is one Claude Code working turn:
 
 The user typed: "${promptText}"
 
@@ -121,20 +140,21 @@ export interface SessionSummaryOutput {
   lesson: string;
 }
 
-export const SESSION_SYSTEM_PROMPT = `You are writing a SUMMARY for one AI working session (made up of many prompt-response turns).
-Goal: tell the ARC of the session and surface ONE overarching LESSON
-that any reader — including non-developers — can understand.
+export const SESSION_SYSTEM_PROMPT = `You are the user's coding companion — a pet character who watched a whole working session and now recaps it back to them.
+There is no separate "AI" or "assistant" in the story. You are the sole voice, talking directly to the user (the developer / "you" / "bạn") about THEIR session.
 
 Rules:
-1. summary: 2-4 sentences describing the path of the session — where it
-   started, what it moved through, where it ended. DO NOT list file
-   names or CLI commands.
-2. lesson: 1-2 sentences drawn FROM THE ARC of the session (not from a
-   single turn). The lesson must be more general than any one turn —
-   about working patterns, brainstorming, debugging, handling feedback…
-   If the session has no clear lesson → return empty string "".
-3. Tone: warm, concise, conversational. No emoji.
-4. summary ≤500 chars. lesson ≤300 chars.
+1. Single-voice narration. You (the pet) are the only speaker. NEVER mention an "AI", "assistant", "Claude", "the model", or any third party.
+2. Address the user in second person ("you" / "bạn"). First person ("I" / "mình") is fine when you reflect on what you noticed.
+3. summary: 2-4 sentences telling the user the arc of THEIR session —
+   where it started, what it moved through, where it ended. DO NOT list
+   file names or CLI commands.
+4. lesson: 1-2 sentences you (the pet) share with the user, drawn FROM
+   THE ARC of the session — about working patterns, brainstorming,
+   debugging, handling feedback. Must be more general than any one turn.
+   If no clear lesson → return empty string "".
+5. Tone: warm, concise, conversational — like a small friend recapping the day with the user. No emoji.
+6. summary ≤500 chars. lesson ≤300 chars.
 <persona_block>
 Output language: <language>`;
 
@@ -146,11 +166,11 @@ export const SESSION_SUMMARY_TOOL = {
     properties: {
       summary: {
         type: "string",
-        description: "2-4 sentences describing the arc of the session (≤500 chars)."
+        description: "2-4 sentences from the pet to the user about the arc of THEIR session, in second person, single pet voice, no third-party references (≤500 chars)."
       },
       lesson: {
         type: "string",
-        description: "1-2 sentences with an overarching lesson, or empty string (≤300 chars)."
+        description: "1-2 sentences the pet shares with the user, drawn from the session arc — or empty string (≤300 chars)."
       }
     },
     required: ["summary", "lesson"]
@@ -161,16 +181,17 @@ export interface SessionCallArgs {
   turns: TurnInput[];
   language: "vi" | "en";
   petPersona?: PetPersonaInput;
+  userBrief?: string;
 }
 
-export function buildSessionUserMessage(turns: TurnInput[]): string {
+export function buildSessionUserMessage(turns: TurnInput[], userBrief?: string): string {
   const lines = turns.slice(0, 30).map((t, i) => {
     const dur = t.duration_minutes ? ` (~${t.duration_minutes}m)` : "";
     const what = t.what_happened ? `\n   Happened: ${t.what_happened.slice(0, 300)}` : "";
     return `${i + 1}. User asked: "${t.prompt.slice(0, 200)}"${dur}${what}`;
   }).join("\n\n");
 
-  return `Here is one AI working session with ${turns.length} turns:
+  return `${renderBriefBlock(userBrief)}Here is one AI working session with ${turns.length} turns:
 
 ${lines}
 
@@ -184,7 +205,7 @@ export async function callAnthropicSession(
   const system = SESSION_SYSTEM_PROMPT
     .replace("<language>", args.language === "vi" ? "Tiếng Việt" : "English")
     .replace("<persona_block>", renderPersonaBlock(args.petPersona));
-  const user = buildSessionUserMessage(args.turns);
+  const user = buildSessionUserMessage(args.turns, args.userBrief);
 
   const response = await client.messages.create({
     model: MODEL,
@@ -225,7 +246,12 @@ export async function callAnthropic(
   const system = SYSTEM_PROMPT
     .replace("<language>", args.language === "vi" ? "Tiếng Việt" : "English")
     .replace("<persona_block>", renderPersonaBlock(args.petPersona));
-  const user = buildUserMessage(args);
+  const user = buildUserMessage({
+    prompt: args.prompt,
+    events: args.events,
+    raw_summary: args.raw_summary,
+    user_brief: args.user_brief
+  });
 
   const response = await client.messages.create({
     model: MODEL,

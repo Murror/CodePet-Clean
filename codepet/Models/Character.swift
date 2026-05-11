@@ -15,7 +15,7 @@ struct PetCharacter: Identifiable {
     /// Asset catalog image name: "char-byte", "char-nova", etc.
     var imageName: String { "char-\(id)" }
 
-    static let starters = ["byte", "nova", "crash", "luna", "sage", "glitch", "zero", "null"]
+    static let starters = ["byte", "nova", "crash", "luna", "sage", "glitch", "null"]
 
     static let all: [String: PetCharacter] = [
         "byte": PetCharacter(
@@ -72,15 +72,6 @@ struct PetCharacter: Identifiable {
             brief: "A rebellious hacker who finds unconventional solutions and shortcuts.",
             firstWords: "\"Rules are suggestions the compiler hasn't rejected yet. Let's find out which ones matter.\""
         ),
-        "zero": PetCharacter(
-            id: "zero", name: "Zero", badge: "The Silent Optimizer",
-            color: Color(hex: "#888884"), hexColor: "#888884",
-            personality: "minimal, efficient, few words",
-            domain: "QA / Testing",
-            greeting: ["...", "Efficiency. Let's begin."],
-            brief: "A minimalist companion who speaks little but optimizes everything.",
-            firstWords: "\"The fastest code is code that doesn't run. Let's find what you're running unnecessarily.\""
-        ),
         "null": PetCharacter(
             id: "null", name: "Null", badge: "The Chaos Gremlin",
             color: Color(hex: "#80C830"), hexColor: "#80C830",
@@ -99,14 +90,14 @@ struct CharacterRecommender {
     static func recommend(who: String, desire: String, goal: String) -> String {
         var scores: [String: Int] = [
             "luna": 0, "crash": 0, "nova": 0, "byte": 0,
-            "sage": 0, "glitch": 0, "zero": 0, "null": 0
+            "sage": 0, "glitch": 0, "null": 0
         ]
 
         // Who are you?
         switch who {
         case "beginner": scores["luna", default: 0] += 3; scores["byte", default: 0] += 1; scores["sage", default: 0] += 1
         case "idea":     scores["crash", default: 0] += 3; scores["luna", default: 0] += 1; scores["null", default: 0] += 1
-        case "builder":  scores["crash", default: 0] += 2; scores["byte", default: 0] += 2; scores["zero", default: 0] += 2
+        case "builder":  scores["crash", default: 0] += 2; scores["byte", default: 0] += 2
         case "creative": scores["nova", default: 0] += 2; scores["byte", default: 0] += 2; scores["glitch", default: 0] += 2
         default: break
         }
@@ -114,9 +105,9 @@ struct CharacterRecommender {
         // What drives you?
         switch desire {
         case "prove":      scores["luna", default: 0] += 2; scores["crash", default: 0] += 1; scores["sage", default: 0] += 1
-        case "autonomous": scores["crash", default: 0] += 2; scores["byte", default: 0] += 2; scores["zero", default: 0] += 1
+        case "autonomous": scores["crash", default: 0] += 2; scores["byte", default: 0] += 2
         case "mastery":    scores["nova", default: 0] += 3; scores["sage", default: 0] += 2
-        case "speed":      scores["crash", default: 0] += 3; scores["zero", default: 0] += 2
+        case "speed":      scores["crash", default: 0] += 3
         default: break
         }
 
@@ -124,7 +115,7 @@ struct CharacterRecommender {
         switch goal {
         case "launch":    scores["crash", default: 0] += 2; scores["luna", default: 0] += 1; scores["glitch", default: 0] += 1
         case "portfolio": scores["luna", default: 0] += 2; scores["nova", default: 0] += 1; scores["sage", default: 0] += 1
-        case "automate":  scores["byte", default: 0] += 2; scores["zero", default: 0] += 3; scores["crash", default: 0] += 1
+        case "automate":  scores["byte", default: 0] += 2; scores["crash", default: 0] += 1
         case "levelup":   scores["nova", default: 0] += 3; scores["sage", default: 0] += 2; scores["byte", default: 0] += 1
         default: break
         }
@@ -140,7 +131,6 @@ struct CharacterRecommender {
         "byte":   ("A match for your curiosity", "You're building something original and you think for yourself. Byte doesn't hand you answers — it watches, nudges, and lets you figure things out. Perfect for independent builders."),
         "sage":   ("Precision for your ambition", "You want real data, not vibes. Sage tracks your patterns, measures your progress, and tells you exactly what to improve — no hand-holding, just honest analysis."),
         "glitch": ("Chaos for your creativity", "You learn by breaking things. Glitch encourages experimentation, celebrates errors as data, and helps you find the edges of what's possible."),
-        "zero":   ("Efficiency for your workflow", "You hate waste — wasted lines, wasted prompts, wasted time. Zero strips everything to the essential. If there's a shorter path, Zero will find it."),
         "null":   ("The unconventional path", "You don't fit neatly into a box, and that's exactly the point. Null watches the things you're not paying attention to and finds meaning in the gaps between your prompts."),
     ]
 }

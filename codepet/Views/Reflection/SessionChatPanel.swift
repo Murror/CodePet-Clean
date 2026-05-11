@@ -26,60 +26,63 @@ struct SessionChatPanel: View {
             messageList
             inputRow
         }
-        .frame(width: 360, height: 480)
-        .background(
-            RoundedRectangle(cornerRadius: CodepetTheme.cardRadius, style: .continuous)
-                .fill(CodepetTheme.surface)
-        )
-        .codepetShadow(CodepetTheme.floatingShadow)
+        .frame(width: 320)
+        .frame(maxHeight: .infinity)
+        .background(petColor.opacity(0.05))
         .onAppear { inputFocused = true }
     }
 
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 10) {
-            if let pet = pet {
-                Image(pet.imageName)
-                    .resizable()
-                    .interpolation(.none)
-                    .scaledToFit()
-                    .frame(width: 28, height: 28)
-                    .padding(4)
-                    .background(
-                        Circle().fill(pet.color.opacity(0.18))
-                    )
+        VStack(spacing: 12) {
+            HStack(spacing: 10) {
+                if let pet = pet {
+                    Image(pet.imageName)
+                        .resizable()
+                        .interpolation(.none)
+                        .scaledToFit()
+                        .frame(width: 44, height: 44)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(petName)
+                        .font(.pixelSystem(size: 14, weight: .bold))
+                        .foregroundColor(Color(hex: "#2D2B26"))
+                    Text("Session chat")
+                        .font(.pixelSystem(size: 9, design: .monospaced))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
+                }
+                Spacer()
+                Button(action: onClose) {
+                    Image(systemName: "xmark")
+                }
+                .buttonStyle(PixelButtonStyle(
+                    fill: Color(hex: "#F0F0EC"),
+                    foreground: Color(hex: "#2D2B26"),
+                    paddingH: 8,
+                    paddingV: 6,
+                    blockSize: 2,
+                    steps: 2,
+                    borderWidth: 2,
+                    shadowOffset: 2,
+                    font: .pixelSystem(size: 12, weight: .semibold)
+                ))
+                .help("Close chat")
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(petName.uppercased())
-                    .font(CodepetTheme.pixel(15))
-                    .foregroundColor(CodepetTheme.primaryText)
-                    .tracking(0.5)
-                Text("Ask about this session.")
-                    .font(CodepetTheme.body(11))
-                    .foregroundColor(CodepetTheme.mutedText)
+
+            // Status row
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(petColor)
+                    .frame(width: 6, height: 6)
+                Text(isStreaming ? "\(petName) is typing..." : "Ask about this session.")
+                    .font(.pixelSystem(size: 10))
+                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
             }
-            Spacer()
-            Button(action: onClose) {
-                Image(systemName: "xmark")
-                    .font(.pixelSystem(size: 11, weight: .semibold))
-            }
-            .buttonStyle(CodepetIconButtonStyle())
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
-        .background(
-            UnevenRoundedRectangle(
-                cornerRadii: .init(
-                    topLeading: CodepetTheme.cardRadius,
-                    bottomLeading: 0,
-                    bottomTrailing: 0,
-                    topTrailing: CodepetTheme.cardRadius
-                ),
-                style: .continuous
-            )
-            .fill(petColor.opacity(0.08))
-        )
+        .padding(16)
+        .background(petColor.opacity(0.08))
     }
 
     // MARK: - Message list
@@ -143,9 +146,7 @@ struct SessionChatPanel: View {
     }
 
     private var greeting: String {
-        Locale.current.identifier.hasPrefix("vi")
-            ? "Hỏi mình về phiên này nhé."
-            : "Ask me about this session."
+        "Ask me about this session."
     }
 
     private var streamingBubble: some View {
@@ -159,36 +160,56 @@ struct SessionChatPanel: View {
     @ViewBuilder
     private func bubble(role: ChatMessage.Role, text: String, isStreaming: Bool) -> some View {
         let isUser = role == .user
-        let bubbleFill: Color = isUser
-            ? CodepetTheme.accentPurple
-            : Color(white: 0.96)
-        let textColor: Color = isUser ? .white : CodepetTheme.bodyText
-        HStack {
-            if isUser { Spacer(minLength: 28) }
-            VStack(alignment: isUser ? .trailing : .leading, spacing: 0) {
+        if isUser {
+            HStack {
+                Spacer()
+                Text(text)
+                    .font(.pixelSystem(size: 12))
+                    .foregroundColor(.white)
+                    .lineSpacing(4)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(12)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(petColor.opacity(0.85))
+                    )
+            }
+        } else {
+            HStack(alignment: .top, spacing: 8) {
+                if let pet = pet {
+                    Image(pet.imageName)
+                        .resizable()
+                        .interpolation(.none)
+                        .scaledToFit()
+                        .frame(width: 24, height: 24)
+                }
                 HStack(alignment: .firstTextBaseline, spacing: 0) {
                     Text(text)
-                        .font(CodepetTheme.body(13.5))
-                        .foregroundColor(textColor)
+                        .font(.pixelSystem(size: 12))
+                        .foregroundColor(Color(hex: "#2D2B26"))
+                        .lineSpacing(4)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                     if isStreaming {
                         Text("▎")
-                            .font(.pixelSystem(size: 13))
+                            .font(.pixelSystem(size: 12))
                             .foregroundColor(petColor)
                             .opacity(0.7)
                     }
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 9)
+                .padding(12)
                 .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(bubbleFill)
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(petColor.opacity(0.15))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(petColor.opacity(0.25), lineWidth: 1)
+                        )
                 )
+                Spacer(minLength: 0)
             }
-            if !isUser { Spacer(minLength: 28) }
         }
-        .frame(maxWidth: .infinity, alignment: isUser ? .trailing : .leading)
     }
 
     // MARK: - Error row
@@ -227,31 +248,40 @@ struct SessionChatPanel: View {
     // MARK: - Input row
 
     private var inputRow: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField("Type a question…", text: $draft, axis: .vertical)
+        HStack(spacing: 8) {
+            TextField("Ask \(petName)...", text: $draft, axis: .vertical)
                 .textFieldStyle(.plain)
                 .lineLimit(1...8)
                 .focused($inputFocused)
-                .font(CodepetTheme.body(13))
-                .foregroundColor(CodepetTheme.bodyText)
-                .codepetInput()
+                .font(.pixelSystem(size: 12))
+                .foregroundColor(Color(hex: "#2D2B26"))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(petColor.opacity(0.08))
+                )
                 .onSubmit { submit() }
 
             Button(action: submit) {
                 Image(systemName: "arrow.up")
             }
-            .buttonStyle(CodepetPillButtonStyle(
-                fill: canSubmit ? petColor : Color(white: 0.85),
+            .buttonStyle(PixelButtonStyle(
+                fill: canSubmit ? petColor : Color(hex: "#D0D0CC"),
                 foreground: .white,
-                paddingH: 12,
-                paddingV: 9
+                paddingH: 10,
+                paddingV: 8,
+                blockSize: 2,
+                steps: 2,
+                borderWidth: 2,
+                shadowOffset: 3,
+                font: .pixelSystem(size: 14, weight: .bold)
             ))
             .disabled(!canSubmit)
             .keyboardShortcut(.return, modifiers: [])
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 10)
-        .padding(.bottom, 14)
+        .padding(12)
+        .background(petColor.opacity(0.08))
     }
 
     private var canSubmit: Bool {

@@ -38,7 +38,8 @@ struct ReflectionTab: View {
         return TurnAssembler.assemble(
             inputs: inputs,
             now: Date(),
-            narratives: narrativeStore.narratives
+            narratives: narrativeStore.narratives,
+            failedTurns: enricher.failedTurns
         )
     }
 
@@ -89,42 +90,43 @@ struct ReflectionTab: View {
                 }
             }
             .frame(maxWidth: .infinity)
+
+            // Right-docked chat sidebar (open state)
+            if let session = selectedSession, !session.isWelcome, chatExpanded {
+                Divider()
+                    .background(ReflectionTheme.borderLight)
+                SessionChatPanel(
+                    session: session,
+                    onClose: {
+                        if chatController.inFlightSessionId == session.id {
+                            chatController.cancel()
+                        }
+                        chatExpanded = false
+                    },
+                    onSend: { text in
+                        let request = makeChatRequest(for: session, userMessage: text)
+                        Task {
+                            await chatController.send(
+                                userText: text,
+                                sessionId: session.id,
+                                request: request
+                            )
+                        }
+                    }
+                )
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
         }
         .background(ReflectionTheme.background)
         .overlay(alignment: .bottomTrailing) {
-            if let session = selectedSession, !session.isWelcome {
-                ZStack(alignment: .bottomTrailing) {
-                    if chatExpanded {
-                        SessionChatPanel(
-                            session: session,
-                            onClose: {
-                                if chatController.inFlightSessionId == session.id {
-                                    chatController.cancel()
-                                }
-                                chatExpanded = false
-                            },
-                            onSend: { text in
-                                let request = makeChatRequest(for: session, userMessage: text)
-                                Task {
-                                    await chatController.send(
-                                        userText: text,
-                                        sessionId: session.id,
-                                        request: request
-                                    )
-                                }
-                            }
-                        )
-                        .padding(16)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    } else {
-                        SessionChatBubble(onTap: { chatExpanded = true })
-                            .padding(16)
-                            .transition(.opacity.combined(with: .scale))
-                    }
-                }
-                .animation(.easeOut(duration: 0.18), value: chatExpanded)
+            // Floating launcher bubble — only visible when chat is collapsed.
+            if let session = selectedSession, !session.isWelcome, !chatExpanded {
+                SessionChatBubble(onTap: { chatExpanded = true })
+                    .padding(16)
+                    .transition(.opacity.combined(with: .scale))
             }
         }
+        .animation(.easeOut(duration: 0.22), value: chatExpanded)
         .onChange(of: allSessions) { sessions in
             // Per-turn narrative is still auto-generated when a turn closes —
             // it fires once per turn and the UI shows a loading bubble in the
@@ -477,10 +479,14 @@ struct ReflectionTab: View {
             if let narrative = turn.narrative {
                 NarrativeChatTurnView(narrative: narrative, showAvatar: isLast)
             } else {
-                TurnLoadingStates(state: turn.state, onRetry: {
-                    let persona = currentPetPersona()
-                    Task { await enricher.enrich(turn: turn, petPersona: persona) }
-                })
+                TurnLoadingStates(
+                    state: turn.state,
+                    actionCount: turn.rawEvents.count,
+                    onRetry: {
+                        let persona = currentPetPersona()
+                        Task { await enricher.enrich(turn: turn, petPersona: persona) }
+                    }
+                )
             }
 
             // Collapsed technical details

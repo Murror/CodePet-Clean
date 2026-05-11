@@ -203,30 +203,33 @@ struct CompanionPanelView: View {
 
                     Spacer()
 
-                    Button("Switch") {
-                        showSwitchSheet = true
-                    }
-                    .font(.pixelSystem(size: 10, weight: .medium))
-                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(character.color.opacity(0.12))
-                    )
-                    .buttonStyle(.plain)
+                    Button("Switch") { showSwitchSheet = true }
+                        .buttonStyle(PixelButtonStyle(
+                            fill: character.color.opacity(0.18),
+                            foreground: Color(hex: "#2D2B26"),
+                            paddingH: 10,
+                            paddingV: 5,
+                            blockSize: 2,
+                            steps: 2,
+                            borderWidth: 2,
+                            shadowOffset: 2,
+                            font: .pixelSystem(size: 10, weight: .medium)
+                        ))
 
                     Button(action: { onClose() }) {
                         Image(systemName: "xmark")
-                            .font(.pixelSystem(size: 12, weight: .semibold))
-                            .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
-                            .frame(width: 28, height: 28)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color(hex: "#F0F0EC"))
-                            )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PixelButtonStyle(
+                        fill: Color(hex: "#F0F0EC"),
+                        foreground: Color(hex: "#2D2B26"),
+                        paddingH: 8,
+                        paddingV: 6,
+                        blockSize: 2,
+                        steps: 2,
+                        borderWidth: 2,
+                        shadowOffset: 2,
+                        font: .pixelSystem(size: 12, weight: .semibold)
+                    ))
                     .help("Close chat")
                 }
 
@@ -330,11 +333,19 @@ struct CompanionPanelView: View {
                 Button(action: {
                     if !chatInput.isEmpty { sendMessage(chatInput) }
                 }) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.pixelSystem(size: 24))
-                        .foregroundColor(chatInput.isEmpty ? Color(hex: "#D0D0CC") : character.color)
+                    Image(systemName: "arrow.up")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PixelButtonStyle(
+                    fill: chatInput.isEmpty ? Color(hex: "#D0D0CC") : character.color,
+                    foreground: .white,
+                    paddingH: 10,
+                    paddingV: 8,
+                    blockSize: 2,
+                    steps: 2,
+                    borderWidth: 2,
+                    shadowOffset: 3,
+                    font: .pixelSystem(size: 14, weight: .bold)
+                ))
                 .disabled(chatInput.isEmpty)
             }
             .padding(12)
@@ -477,20 +488,18 @@ struct QuickActionsGrid: View {
                     ForEach(pair, id: \.self) { action in
                         Button(action: { onAction?(action) }) {
                             Text(action)
-                                .font(.pixelSystem(size: 10))
-                                .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 7)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(characterColor.opacity(0.1))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(characterColor.opacity(0.22), lineWidth: 1)
-                                        )
-                                )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PixelButtonStyle(
+                            fill: characterColor.opacity(0.15),
+                            foreground: Color(hex: "#2D2B26"),
+                            paddingH: 10,
+                            paddingV: 6,
+                            blockSize: 2,
+                            steps: 2,
+                            borderWidth: 2,
+                            shadowOffset: 2,
+                            font: .pixelSystem(size: 10, weight: .medium)
+                        ))
                     }
                 }
             }

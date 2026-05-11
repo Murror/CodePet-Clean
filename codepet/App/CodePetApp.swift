@@ -29,9 +29,7 @@ struct CodePetApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .environment(\.font, CodepetTheme.usePixelFontGlobally
-                             ? CodepetTheme.pixel(13)
-                             : .body)
+                .environment(\.font, CodepetTheme.body(13))
                 .environmentObject(appState)
                 .environmentObject(authManager)
                 .environmentObject(gameState)

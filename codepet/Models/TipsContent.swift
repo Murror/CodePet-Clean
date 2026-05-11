@@ -190,30 +190,6 @@ struct TipsContent {
             ),
         ],
 
-        // Zero — QA / Testing (minimal / terse)
-        "zero": [
-            TipSkillTile(
-                icon: "triangle",
-                title: "Test pyramid",
-                hint: "Many unit. Few integration. Fewer e2e. Never invert."
-            ),
-            TipSkillTile(
-                icon: "exclamationmark.octagon",
-                title: "Edge cases",
-                hint: "Zero. Null. Max. Negative. Empty string. Test those before the happy path."
-            ),
-            TipSkillTile(
-                icon: "square.split.2x1",
-                title: "Test data isolation",
-                hint: "Each test owns its data. Shared fixtures are bugs waiting."
-            ),
-            TipSkillTile(
-                icon: "eye",
-                title: "Behavior over implementation",
-                hint: "Test what code does, not how. Refactor without breaking tests."
-            ),
-        ],
-
         // Null — Mobile Dev (chaotic / silly)
         "null": [
             TipSkillTile(
@@ -277,12 +253,6 @@ struct TipsContent {
             TipSetupItem(title: "Data versioning",         status: "DVC stale · last commit 9d ago",   state: .warning, actionLabel: "Re-snapshot"),
             TipSetupItem(title: "Feature store",           status: "Features re-derived per notebook", state: .missing, actionLabel: "Centralize"),
             TipSetupItem(title: "Model monitoring",        status: "No drift alerts in prod",          state: .missing, actionLabel: "Wire alerts"),
-        ],
-        "zero": [
-            TipSetupItem(title: "Unit test suite",         status: "1,847 tests · 94% pass",           state: .done,    actionLabel: nil),
-            TipSetupItem(title: "Integration tests",       status: "Flaky rate 8% — over budget",      state: .warning, actionLabel: "Triage"),
-            TipSetupItem(title: "E2E coverage",            status: "Critical paths untested",          state: .missing, actionLabel: "Cover"),
-            TipSetupItem(title: "Test data fixtures",      status: "Shared · isolation drift",         state: .missing, actionLabel: "Isolate"),
         ],
         "null": [
             TipSetupItem(title: "Crashlytics",             status: "Connected · 99.7% crash-free",     state: .done,    actionLabel: nil),
@@ -379,20 +349,6 @@ struct TipsContent {
                 why: "Re-read every six months. Each time another section starts to land."
             ),
         ],
-        "zero": [
-            TipReadingItem(
-                title: "The Art of Unit Testing",
-                author: "Roy Osherove",
-                kind: "Book · 296 pages",
-                why: "Testable code is just well-designed code. The book makes the link explicit."
-            ),
-            TipReadingItem(
-                title: "xUnit Test Patterns",
-                author: "Gerard Meszaros",
-                kind: "Book · 944 pages",
-                why: "Reference, not cover-to-cover. The smell catalogue alone is worth it."
-            ),
-        ],
         "null": [
             TipReadingItem(
                 title: "iOS App Architecture",
@@ -418,7 +374,6 @@ struct TipsContent {
         "sage":   "Three of the last five 'must-haves' didn't ship and weren't missed. Worth a retro on how the bar gets set — and by whom.",
         "glitch": "Three deploys this week needed manual touch. That's three bugs waiting in the gap between 'works on staging' and 'works on prod'.",
         "byte":   "Two notebooks shipped without a fixed seed this week. Results aren't reproducible. Past-you's findings are dead until you can re-run them.",
-        "zero":   "Three tests changed this week to make them pass instead of fixing the bug. Worth flagging before the pattern compounds.",
         "null":   "Push permission asked on first launch this week — consent rate 11%. Try waiting until value is proven; usually 4× lift.",
     ]
 }

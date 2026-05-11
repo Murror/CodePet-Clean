@@ -2,34 +2,38 @@ import SwiftUI
 
 struct TurnLoadingStates: View {
     let state: TurnState
+    var actionCount: Int = 0
     var onRetry: () -> Void = {}
     var onSignIn: () -> Void = {}
 
     var body: some View {
         switch state {
         case .pending:
-            stateRow(
-                title: "Working…",
-                detail: "This turn isn't finished yet. The story will appear once Claude is done."
-            )
+            pendingCard
 
         case .summarizing:
-            VStack(alignment: .leading, spacing: 14) {
-                skeletonLine(width: 0.85)
-                skeletonLine(width: 0.7)
-                skeletonLine(width: 0.6)
-                Text("Summarizing the story…")
-                    .font(ReflectionTheme.sans(11))
-                    .foregroundColor(ReflectionTheme.mutedText)
+            PixelCard {
+                VStack(alignment: .leading, spacing: 14) {
+                    skeletonLine(width: 0.85)
+                    skeletonLine(width: 0.7)
+                    skeletonLine(width: 0.6)
+                    Text("Summarizing the story…")
+                        .font(.pixelSystem(size: 11))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
 
         case .ready:
             EmptyView()  // body shown by NarrativeChatTurnView
 
         case .pendingOrphan:
-            stateRow(
+            stateCard(
                 title: "Session left unfinished",
-                detail: "This turn didn't close normally — Claude Code may have been closed mid-way."
+                detail: "This turn didn't close normally — Claude Code may have been closed mid-way.",
+                fill: Color(hex: "#FCEBA8")
             )
 
         case .failed(let reason):
@@ -37,23 +41,59 @@ struct TurnLoadingStates: View {
         }
     }
 
-    private func stateRow(title: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(ReflectionTheme.serif(16, weight: .medium))
-                .foregroundColor(ReflectionTheme.primaryText)
-            Text(detail)
-                .font(ReflectionTheme.sans(13))
-                .foregroundColor(ReflectionTheme.mutedText)
-                .fixedSize(horizontal: false, vertical: true)
+    private var pendingCard: some View {
+        PixelCard(fill: Color(hex: "#F5E8C7")) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text("Working")
+                        .font(.pixelSystem(size: 14, weight: .bold))
+                        .foregroundColor(Color(hex: "#2D2B26"))
+                    PulsingDots()
+                }
+                Text(pendingDetail)
+                    .font(CodepetTheme.body(13))
+                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var pendingDetail: String {
+        switch actionCount {
+        case 0:
+            return "Watching… Claude may still be thinking, or only writing text. The story arrives when this turn closes."
+        case 1:
+            return "1 action so far. The story will appear once Claude is done."
+        default:
+            return "\(actionCount) actions so far. The story will appear once Claude is done."
+        }
+    }
+
+    private func stateCard(title: String, detail: String, fill: Color) -> some View {
+        PixelCard(fill: fill) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(title)
+                    .font(.pixelSystem(size: 14, weight: .bold))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+                Text(detail)
+                    .font(CodepetTheme.body(13))
+                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
     private func skeletonLine(width: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 4)
-            .fill(ReflectionTheme.borderLight.opacity(0.6))
+        Rectangle()
+            .fill(Color(hex: "#2D2B26").opacity(0.15))
             .frame(maxWidth: .infinity)
-            .frame(height: 14)
+            .frame(height: 12)
             .scaleEffect(x: width, y: 1, anchor: .leading)
     }
 
@@ -84,28 +124,58 @@ struct TurnLoadingStates: View {
             }
         }()
 
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .foregroundColor(ReflectionTheme.moodAlert)
-                Text(title)
-                    .font(ReflectionTheme.serif(16, weight: .medium))
-                    .foregroundColor(ReflectionTheme.primaryText)
-            }
-            Text(detail)
-                .font(ReflectionTheme.sans(13))
-                .foregroundColor(ReflectionTheme.mutedText)
-                .fixedSize(horizontal: false, vertical: true)
+        PixelCard(fill: Color(hex: "#A8D8D4")) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.pixelSystem(size: 14, weight: .semibold))
+                        .foregroundColor(Color(hex: "#B6850A"))
+                    Text(title)
+                        .font(.pixelSystem(size: 14, weight: .bold))
+                        .foregroundColor(Color(hex: "#2D2B26"))
+                }
+                Text(detail)
+                    .font(CodepetTheme.body(13))
+                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.75))
+                    .fixedSize(horizontal: false, vertical: true)
 
-            Button(action: action) {
-                Text(reason == .auth ? "Sign in" : "Try again")
-                    .font(ReflectionTheme.sans(12, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(ReflectionTheme.accent))
+                Button(action: action) {
+                    Text(reason == .auth ? "Sign in" : "Try again")
+                }
+                .buttonStyle(PixelButtonStyle(
+                    fill: Color(hex: "#2D2B26"),
+                    font: .pixelSystem(size: 12, weight: .semibold)
+                ))
             }
-            .buttonStyle(.plain)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+}
+
+/// Three dots that fade in/out in a wave — used in the .pending card so the
+/// user sees the turn is being watched live, not stuck.
+private struct PulsingDots: View {
+    @State private var phase: Int = 0
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(0..<3, id: \.self) { i in
+                Text("●")
+                    .font(.pixelSystem(size: 12, weight: .bold))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+                    .opacity(phase == i ? 1.0 : 0.25)
+            }
+        }
+        .onAppear { startAnimation() }
+    }
+
+    private func startAnimation() {
+        Timer.scheduledTimer(withTimeInterval: 0.35, repeats: true) { _ in
+            withAnimation(.easeInOut(duration: 0.25)) {
+                phase = (phase + 1) % 3
+            }
         }
     }
 }

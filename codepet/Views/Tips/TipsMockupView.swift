@@ -112,14 +112,7 @@ struct TipsMockupView: View {
                 }
             }
             .padding(22)
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(ReflectionTheme.cardBackground)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(ReflectionTheme.borderLight, lineWidth: 1)
-            )
+            .pixelBox(fill: ReflectionTheme.cardBackground)
         }
     }
 
@@ -165,14 +158,7 @@ struct TipsMockupView: View {
                     }
                 }
             }
-            .background(
-                RoundedRectangle(cornerRadius: 14)
-                    .fill(ReflectionTheme.cardBackground)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14)
-                    .stroke(ReflectionTheme.borderLight, lineWidth: 1)
-            )
+            .pixelBox(fill: ReflectionTheme.cardBackground)
         }
     }
 
@@ -313,14 +299,7 @@ struct TipsMockupView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(ReflectionTheme.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(ReflectionTheme.borderLight, lineWidth: 1)
-        )
+        .pixelBox(fill: ReflectionTheme.cardBackground)
     }
 
     // MARK: - Reading section
@@ -393,14 +372,7 @@ struct TipsMockupView: View {
             .fixedSize()
         }
         .padding(18)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(ReflectionTheme.cardBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(ReflectionTheme.borderLight, lineWidth: 1)
-        )
+        .pixelBox(fill: ReflectionTheme.cardBackground)
     }
 
     // MARK: - Pet's note
@@ -425,14 +397,7 @@ struct TipsMockupView: View {
             Spacer(minLength: 0)
         }
         .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 14)
-                .fill(ReflectionTheme.accent.opacity(0.04))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(ReflectionTheme.accent.opacity(0.15), lineWidth: 1)
-        )
+        .pixelBox(fill: ReflectionTheme.cardBackground)
     }
 
     // MARK: - Footer
@@ -449,17 +414,22 @@ struct TipsMockupView: View {
     // MARK: - Helpers
 
     private func pillButton(label: String, primary: Bool) -> some View {
-        Text(label)
-            .font(ReflectionTheme.sans(11, weight: primary ? .semibold : .medium))
-            .foregroundColor(primary ? .white : ReflectionTheme.secondaryText)
-            .lineLimit(1)
-            .fixedSize()
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(primary ? ReflectionTheme.accent : ReflectionTheme.borderLight.opacity(0.5))
-            )
+        Button(action: {}) {
+            Text(label)
+                .lineLimit(1)
+                .fixedSize()
+        }
+        .buttonStyle(PixelButtonStyle(
+            fill: primary ? ReflectionTheme.accent : ReflectionTheme.borderLight.opacity(0.5),
+            foreground: primary ? .white : ReflectionTheme.secondaryText,
+            paddingH: 12,
+            paddingV: 6,
+            blockSize: 2,
+            steps: 2,
+            borderWidth: 2,
+            shadowOffset: 2,
+            font: .pixelSystem(size: 11, weight: primary ? .semibold : .medium)
+        ))
     }
 }
 

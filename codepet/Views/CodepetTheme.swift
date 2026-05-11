@@ -10,13 +10,13 @@ import SwiftUI
 
 enum CodepetTheme {
 
-    // MARK: Global font override
+    // MARK: Typography rule
     //
-    // When `usePixelFontGlobally` is true, every theme font helper
-    // (`CodepetTheme.body/display`, plus `ReflectionTheme.sans/serif/mono`)
-    // returns the Minecraft bitmap font. Set to `false` to revert the whole
-    // app to native sans/serif/mono — single-line flip, no per-view edits.
-    static let usePixelFontGlobally = true
+    // Titles (display() and any pixelSystem(size:) ≥ 18pt) render in Minecraft
+    // bitmap. Everything else — body copy, labels, captions, tab pills — renders
+    // in Inter. Inter weight files (Regular/Medium/SemiBold/Bold) must be
+    // present in codepet/Resources/Fonts/ and listed in FontRegistrar.swift.
+    static let titlePixelSizeThreshold: CGFloat = 18
 
     // MARK: Surfaces
 
@@ -86,47 +86,62 @@ enum CodepetTheme {
 
     // MARK: Typography
 
+    /// Title / headline. Always Minecraft pixel font.
     static func display(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        if usePixelFontGlobally { return pixel(size) }
-        return Font.system(size: size, weight: weight, design: .default)
+        _ = weight // Minecraft is a single-weight bitmap font
+        return pixel(size)
     }
 
+    /// Body / content. Always Inter.
     static func body(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        if usePixelFontGlobally { return pixel(size) }
-        return Font.system(size: size, weight: weight, design: .default)
+        return inter(size, weight: weight)
     }
 
-    /// Bundled bitmap pixel font ("Minecraft.ttf"). Use sparingly for accents
-    /// — labels, eyebrows, badges, the streaming cursor — where a pixel
-    /// flavor pairs nicely with the pet sprites. Body text and AI replies
-    /// should stay on `body(_:weight:)` for readability.
-    ///
-    /// Falls back to monospaced system if the font hasn't been registered.
+    /// Bundled bitmap pixel font ("Minecraft.ttf"). Used by `display(_:)` and
+    /// available directly when an explicit pixel accent is needed.
     static func pixel(_ size: CGFloat) -> Font {
-        // Trigger one-shot font registration even in contexts that bypass
-        // App.init (SwiftUI Previews, unit tests).
         _ = FontRegistrar.autoRegister
         return Font.custom("Minecraft", size: size, relativeTo: .body)
+    }
+
+    /// Inter sans-serif. Maps SwiftUI weight to the matching Inter weight file
+    /// registered by `FontRegistrar`. We ship Google's 18pt optical variant
+    /// because content sizes sit in the 8–17pt range. Unsupplied weights
+    /// (light/thin/black) fall back to Regular.
+    static func inter(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        _ = FontRegistrar.autoRegister
+        let name: String
+        switch weight {
+        case .black, .heavy, .bold:
+            name = "Inter18pt-Bold"
+        case .semibold:
+            name = "Inter18pt-SemiBold"
+        case .medium:
+            name = "Inter18pt-Medium"
+        default:
+            name = "Inter18pt-Regular"
+        }
+        return Font.custom(name, size: size, relativeTo: .body)
     }
 }
 
 // MARK: - Drop-in `.font(.pixelSystem(size:))` replacement
 
 extension Font {
-    /// Drop-in for `Font.system(size:weight:design:)` that respects
-    /// `CodepetTheme.usePixelFontGlobally` — returns the Minecraft pixel font
-    /// when the flag is on, falls through to the native system font when off.
-    /// Used to flip ad-hoc `.font(.pixelSystem(size:))` callsites without touching
-    /// each one individually.
+    /// Drop-in for `Font.system(size:weight:design:)` that follows the
+    /// project-wide rule: titles (≥ 18pt) render in Minecraft, everything
+    /// smaller renders in Inter. The `design` hint is ignored — pick weight
+    /// instead.
     static func pixelSystem(
         size: CGFloat,
         weight: Font.Weight = .regular,
         design: Font.Design = .default
     ) -> Font {
-        if CodepetTheme.usePixelFontGlobally {
+        _ = design
+        if size >= CodepetTheme.titlePixelSizeThreshold {
             return CodepetTheme.pixel(size)
         }
-        return .system(size: size, weight: weight, design: design)
+        return CodepetTheme.inter(size, weight: weight)
     }
 }
 

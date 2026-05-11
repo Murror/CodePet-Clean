@@ -146,7 +146,7 @@ struct SplashPhase: View {
                 Text("Your AI coding companions are waiting.")
                     .font(.pixelSystem(size: 15))
                     .foregroundColor(Color(hex: "#888888"))
-                Text("8 characters. 16 skills. One journey.")
+                Text("7 characters. 16 skills. One journey.")
                     .font(.pixelSystem(size: 13))
                     .foregroundColor(Color(hex: "#BBBBBB"))
             }

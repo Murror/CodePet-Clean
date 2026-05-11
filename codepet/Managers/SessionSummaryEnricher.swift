@@ -96,7 +96,8 @@ final class SessionSummaryEnricher: ObservableObject {
             sessionId: session.id,
             language: language,
             turns: turns,
-            petPersona: persona
+            petPersona: persona,
+            userBrief: NarrativeEnricher.currentUserBrief()
         )
     }
 }

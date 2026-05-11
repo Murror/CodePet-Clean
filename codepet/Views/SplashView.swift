@@ -91,7 +91,7 @@ struct SplashView: View {
                         .font(.pixelSystem(size: taglineFont))
                         .foregroundColor(.secondary)
 
-                    Text("8 characters. 16 skills. One journey.")
+                    Text("7 characters. 16 skills. One journey.")
                         .font(.pixelSystem(size: subTaglineFont))
                         .foregroundColor(.secondary.opacity(0.7))
                         .padding(.top, 2)
@@ -102,17 +102,21 @@ struct SplashView: View {
                         Button(action: onContinue) {
                             HStack(spacing: 6) {
                                 Text("Meet Your Pet")
-                                    .font(.pixelSystem(size: buttonFont, weight: .semibold))
                                 Text("→")
-                                    .font(.pixelSystem(size: buttonFont, weight: .semibold))
                             }
-                            .foregroundColor(.white)
                             .frame(maxWidth: buttonWidth)
-                            .padding(.vertical, h * 0.018)
-                            .background(Color(hex: "#2D2B26"))
-                            .cornerRadius(28)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PixelButtonStyle(
+                            fill: Color(hex: "#2D2B26"),
+                            foreground: .white,
+                            paddingH: 18,
+                            paddingV: h * 0.018,
+                            blockSize: 3,
+                            steps: 2,
+                            borderWidth: 3,
+                            shadowOffset: 4,
+                            font: .pixelSystem(size: buttonFont, weight: .semibold)
+                        ))
                     }
 
                     Spacer()

@@ -1,7 +1,10 @@
 import * as admin from "firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
 
-export const DAILY_LIMIT = 50;
+// Raised from 50 to 100_000 for demo / dev iteration — effectively no
+// limit while still leaving a guard rail against true runaway loops.
+// Re-lower when launching to public.
+export const DAILY_LIMIT = 100_000;
 
 export function todayKey(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10);  // YYYY-MM-DD UTC

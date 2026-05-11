@@ -1,7 +1,7 @@
 # Codepet — Project Instructions
 
 ## What is Codepet?
-Codepet is an AI coding companion app where users adopt pixel-art characters that guide them through learning to code. 8 characters, 16 skills, one journey. Built by MURROR (murror.app).
+Codepet is an AI coding companion app where users adopt pixel-art characters that guide them through learning to code. 7 characters, 16 skills, one journey. Built by MURROR (murror.app).
 
 ## Tech Stack
 - **Platform:** macOS (SwiftUI, minimum macOS 13+)
@@ -24,7 +24,7 @@ CodePet-Clean/                  # ← Single source of truth (Xcode + Cursor + G
 │   │   ├── AppState.swift      # All user state, auto-saves to UserDefaults
 │   │   ├── AppState+GameSystems.swift  # GameState class (pet care, hearts, coins, cosmetics)
 │   │   ├── GameSystems.swift   # Game data models (PetCare, HeartsSystem, Economy, etc.)
-│   │   ├── Character.swift     # PetCharacter model, 8 starters, Color(hex:) extension
+│   │   ├── Character.swift     # PetCharacter model, 7 starters, Color(hex:) extension
 │   │   ├── SkillData.swift     # Skill tree definitions (4 tiers, 4 kingdoms)
 │   │   └── LessonContent.swift # Lesson content data (8 lessons)
 │   ├── Managers/
@@ -76,8 +76,8 @@ CodePet-Clean/                  # ← Single source of truth (Xcode + Cursor + G
 - **Pixel art:** Always use `.interpolation(.none)` and `Image.NEAREST` for scaling
 - **App icon:** `codepet-official-logo.png` — C at 55% width × 63% height, white background
 
-## Characters (8 starters)
-byte, nova, crash, luna, sage, glitch, zero, null
+## Characters (7 starters)
+byte, nova, crash, luna, sage, glitch, null
 
 ## Important Files
 - `codepet-official-logo.png` — Final app icon (do not modify)

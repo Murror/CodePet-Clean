@@ -23,10 +23,14 @@ enum TurnAssembler {
     }()
 
     /// Group inputs into Turns. Pure — no I/O.
+    /// `failedTurns` carries the in-memory enrichment failure map from
+    /// `NarrativeEnricher` so the UI can render the failure UI instead of an
+    /// indefinite "summarizing" skeleton when the cloud function call fails.
     static func assemble(
         inputs: [AssemblerInput],
         now: Date,
-        narratives: [String: Narrative]
+        narratives: [String: Narrative],
+        failedTurns: [String: FailureReason] = [:]
     ) -> [Turn] {
         let sorted = inputs.sorted { lhs, rhs in
             if lhs.sessionId != rhs.sessionId { return lhs.sessionId < rhs.sessionId }
@@ -42,7 +46,8 @@ enum TurnAssembler {
                 sessionId: sessionId,
                 events: events,
                 now: now,
-                narratives: narratives
+                narratives: narratives,
+                failedTurns: failedTurns
             ))
         }
 
@@ -53,7 +58,8 @@ enum TurnAssembler {
         sessionId: String,
         events: [AssemblerInput],
         now: Date,
-        narratives: [String: Narrative]
+        narratives: [String: Narrative],
+        failedTurns: [String: FailureReason]
     ) -> [Turn] {
         var turns: [Turn] = []
 
@@ -73,6 +79,7 @@ enum TurnAssembler {
                 sessionId: sessionId,
                 promptISO: prompt.isoTime,
                 narratives: narratives,
+                failedTurns: failedTurns,
                 forceState: .pendingOrphan
             ))
             pendingPrompt = nil
@@ -102,6 +109,7 @@ enum TurnAssembler {
                     sessionId: sessionId,
                     promptISO: prompt.isoTime,
                     narratives: narratives,
+                    failedTurns: failedTurns,
                     forceState: nil
                 ))
                 pendingPrompt = nil
@@ -114,9 +122,13 @@ enum TurnAssembler {
            case .prompt(let text) = prompt.kind,
            let started = isoFormatter.date(from: prompt.isoTime) {
             let age = now.timeIntervalSince(started)
-            // Spec: trailing prompts older than 30 minutes (wall clock) become orphans.
-            // Threshold is strict — exactly 30:00 stays pending; >30:00 becomes orphan.
-            let orphanThreshold: TimeInterval = 30 * 60
+            // Trailing prompts older than the threshold are likely cancelled
+            // / abandoned (user pressed Ctrl+C or closed the terminal before
+            // the Stop hook could fire). 5 min strikes a balance: long
+            // enough for legitimately slow turns, short enough that cancels
+            // surface as orphans within a few minutes instead of half an
+            // hour.
+            let orphanThreshold: TimeInterval = 5 * 60
             let state: TurnState = age > orphanThreshold ? .pendingOrphan : .pending
             turns.append(makeTurn(
                 prompt: text,
@@ -126,6 +138,7 @@ enum TurnAssembler {
                 sessionId: sessionId,
                 promptISO: prompt.isoTime,
                 narratives: narratives,
+                failedTurns: failedTurns,
                 forceState: state
             ))
         }
@@ -141,6 +154,7 @@ enum TurnAssembler {
         sessionId: String,
         promptISO: String,
         narratives: [String: Narrative],
+        failedTurns: [String: FailureReason],
         forceState: TurnState?
     ) -> Turn {
         let id = Turn.makeID(sessionId: sessionId, promptISO: promptISO)
@@ -151,6 +165,8 @@ enum TurnAssembler {
             state = forced
         } else if narrative != nil {
             state = .ready
+        } else if ended != nil, let reason = failedTurns[id] {
+            state = .failed(reason: reason)
         } else if ended != nil {
             state = .summarizing
         } else {

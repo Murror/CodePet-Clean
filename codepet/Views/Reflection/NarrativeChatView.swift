@@ -55,35 +55,29 @@ struct NarrativeChatTurnView: View {
     // MARK: - Pet bubble (single voice)
 
     private var petBubble: some View {
-        HStack(alignment: .top, spacing: 0) {
-            // Pet-color left stripe — visual "thread" tying the turns of a
-            // session together. More pronounced when the avatar is hidden.
-            Rectangle()
-                .fill(petColor.opacity(showAvatar ? 0.25 : 0.55))
-                .frame(width: showAvatar ? 2 : 3)
-
+        PixelCard {
             VStack(alignment: .leading, spacing: 10) {
                 if let pet = pet {
-                    Text(pet.name)
-                        .font(ReflectionTheme.sans(10, weight: .semibold))
-                        .tracking(0.6)
+                    Text(pet.name.uppercased())
+                        .font(.pixelSystem(size: 10))
+                        .tracking(1.0)
                         .foregroundColor(petColor.opacity(0.85))
                 }
 
                 Text(narrative.whatYouWanted)
-                    .font(ReflectionTheme.serif(14))
-                    .foregroundColor(ReflectionTheme.primaryText)
+                    .font(CodepetTheme.body(14))
+                    .foregroundColor(Color(hex: "#2D2B26"))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Rectangle()
-                    .fill(ReflectionTheme.borderLight)
-                    .frame(height: 1)
+                    .fill(Color(hex: "#2D2B26").opacity(0.25))
+                    .frame(height: 2)
                     .padding(.vertical, 2)
 
                 Text(narrative.whatHappened)
-                    .font(ReflectionTheme.serif(14))
-                    .foregroundColor(ReflectionTheme.primaryText)
+                    .font(CodepetTheme.body(14))
+                    .foregroundColor(Color(hex: "#2D2B26"))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -96,40 +90,30 @@ struct NarrativeChatTurnView: View {
             .padding(.vertical, 12)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(petColor.opacity(0.04))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(petColor.opacity(0.15), lineWidth: 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func lessonRow(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: "lightbulb.fill")
-                .font(.pixelSystem(size: 11, weight: .medium))
-                .foregroundColor(ReflectionTheme.accent)
-                .padding(.top, 3)
-            Text(text)
-                .font(ReflectionTheme.serif(13, weight: .medium))
-                .italic()
-                .foregroundColor(ReflectionTheme.primaryText)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+        PixelCard(
+            fill: Color(hex: "#FCEBA8"),
+            shadowOffset: 3,
+            blockSize: 3,
+            steps: 2,
+            borderWidth: 3
+        ) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "lightbulb.fill")
+                    .font(.pixelSystem(size: 12, weight: .medium))
+                    .foregroundColor(Color(hex: "#B6850A"))
+                    .padding(.top, 2)
+                Text(text)
+                    .font(CodepetTheme.body(13, weight: .medium))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(ReflectionTheme.accent.opacity(0.08))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(ReflectionTheme.accent.opacity(0.18), lineWidth: 1)
-        )
     }
 
     // MARK: - Pet avatar
