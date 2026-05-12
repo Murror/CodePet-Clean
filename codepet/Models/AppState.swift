@@ -61,6 +61,15 @@ class AppState: ObservableObject {
         }
     }
 
+    /// UI display language. Controls demo content language and any other
+    /// SwiftUI-rendered copy wired to `L10n`. Persists to UserDefaults key
+    /// `cp_ui_language`. Default: Vietnamese (matches existing copy).
+    @Published var uiLanguage: AppLanguage = .vi {
+        didSet {
+            UserDefaults.standard.set(uiLanguage.rawValue, forKey: "cp_ui_language")
+        }
+    }
+
     // Phase 5: Theme & Sound
     @Published var isDarkMode: Bool = false
     @Published var soundEnabled: Bool = false
@@ -128,6 +137,13 @@ class AppState: ObservableObject {
             self.demoModeEnabled = true
         } else {
             self.demoModeEnabled = UserDefaults.standard.bool(forKey: "cp_demo_mode")
+        }
+
+        // UI language hydration: read raw value from UserDefaults, fall
+        // back to Vietnamese to match existing app copy.
+        if let raw = UserDefaults.standard.string(forKey: "cp_ui_language"),
+           let lang = AppLanguage(rawValue: raw) {
+            self.uiLanguage = lang
         }
     }
 

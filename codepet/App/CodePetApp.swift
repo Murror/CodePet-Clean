@@ -62,6 +62,10 @@ struct CodePetApp: App {
                     appState.syncFromMCP(mcpBridge)
 
                     demoHotkeyMonitor.bind(controller: demoController)
+                    // Sync display language into the demo controller so the
+                    // synthesized Session/Turn/Narrative render in the right
+                    // language.
+                    demoController.language = appState.uiLanguage
                     if appState.demoModeEnabled {
                         demoHotkeyMonitor.start()
                         // Auto-start the demo session at launch so the
@@ -69,6 +73,9 @@ struct CodePetApp: App {
                         // selectable on first paint.
                         demoController.startSession()
                     }
+                }
+                .onChange(of: appState.uiLanguage) { _, lang in
+                    demoController.language = lang
                 }
                 .onChange(of: appState.demoModeEnabled) { _, enabled in
                     if enabled {

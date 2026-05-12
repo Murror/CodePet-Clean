@@ -17,6 +17,8 @@ struct ProfileView: View {
 
                 LanguageStyleSection()
 
+                DisplayLanguageSection()
+
                 DebugSection()
             }
             .padding(20)
@@ -324,6 +326,35 @@ private struct PersonaRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: - Display Language Section
+
+struct DisplayLanguageSection: View {
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Display Language")
+                .font(.pixelSystem(size: 14, weight: .semibold, design: .default))
+
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Switch the app's display language. Changes are immediate.")
+                    .font(.pixelSystem(size: 11))
+                    .foregroundColor(.secondary)
+
+                Picker("", selection: $appState.uiLanguage) {
+                    ForEach(AppLanguage.allCases) { lang in
+                        Text("\(lang.flag)  \(lang.displayName)").tag(lang)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+            .padding(16)
+            .pixelBox(fill: Color.white)
+        }
     }
 }
 
