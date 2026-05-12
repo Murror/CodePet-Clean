@@ -34,8 +34,8 @@ enum DemoScript {
             sidebarLabel: "Feature grid — 3 promises of kindness",
             prompt: "Add a 3-column features section: 'Tiny daily wins' / 'Streak tracking' / 'Gentle reminders'. Use card style with soft shadows.",
             whatYouWanted: "Bạn muốn 3 cột feature đại diện cho 3 lời hứa — không phải 3 dashboard.",
-            whatHappened: "Ba features — và tôi để ý ngôn ngữ học bạn dùng. Chủ ngữ là cảm xúc, không phải tính năng: 'tiny wins' (không phải 'gamification'), 'streaks' (không phải 'analytics'), 'gentle reminders' (không phải 'push notifications'). Cùng 1 feature có thể được đặt 5 cái tên — bạn chọn cái có nhiệt độ thấp nhất. Đó là microdecision, nhưng microdecision này show ai là founder thật sự của brand.",
-            lesson: "Cách bạn đặt tên feature là cách bạn xếp hạng giá trị. Mỗi từ trong feature copy là 1 chỗ bạn được phép nói cho user nghe — đừng giao việc đó cho marketing template.",
+            whatHappened: "Ba features — chủ ngữ là cảm xúc, không phải tính năng: 'tiny wins' (không phải 'gamification'), 'streaks' (không phải 'analytics'), 'gentle reminders' (không phải 'push notifications'). Cùng 1 feature có 5 cách đặt tên — bạn chọn cái có nhiệt độ thấp nhất.\n\nNhưng tôi tò mò 1 chuyện và muốn hỏi thẳng: 'streaks' là feature duy nhất trong 3 cái có cơ chế trừng phạt — lỡ 1 ngày là reset về 0. Nó nằm giữa 'tiny wins' và 'gentle reminders' — 2 từ rất ấm. User có thể sẽ thấy mâu thuẫn. Bạn có cố ý để nó ở đó (vì bạn tin streak là động lực thật), hay là bạn copy-paste pattern từ Duolingo mà chưa kịp suy nghĩ lại?",
+            lesson: "Mỗi feature trong list không tồn tại riêng lẻ — chúng nói chuyện với nhau. Khi 1 feature có 'temperature' khác 2 cái còn lại, đó là tín hiệu cần dừng lại và hỏi: cố ý hay quán tính?",
             offsetMinutesFromStart: 7
         ),
         Milestone(
@@ -44,8 +44,8 @@ enum DemoScript {
             sidebarLabel: "Pricing + soft CTA",
             prompt: "Add a simple pricing section with 3 tiers: Free / $5 / $15. Then a final CTA section with the text 'Start your first habit today' — just one button, gentle tone.",
             whatYouWanted: "Bạn muốn đóng landing page bằng pricing đơn giản và 1 CTA mời gọi — không 'BUY NOW', không exclamation.",
-            whatHappened: "'Start your first habit today' — tôi đếm 6 từ. Không số, không exclamation, không 'free trial 14 days'. Trung bình landing page SaaS có CTA 11–13 từ. Bạn cut đúng một nửa. Mỗi từ bạn cut là 1 microsecond user không phải nghĩ. Và bạn dùng 'your first habit' — chữ 'first' ngầm hứa với user: 'sẽ có habit thứ 2, thứ 3 — chúng tôi sẽ ở đây'.",
-            lesson: "CTA ngắn = niềm tin vào sản phẩm. Bạn không cần biện hộ cho user — biện hộ là tín hiệu yếu. Bạn mời thay vì đẩy là 1 stance, không phải style.",
+            whatHappened: "'Start your first habit today' — 6 từ. Không exclamation, không 'free trial 14 days'. Trung bình SaaS CTA 11 từ — bạn cut đúng một nửa.\n\nNhưng tôi để ý 1 chi tiết bạn không hỏi Claude Code làm: button của bạn có `min-width: 280px` thay vì chỉ `padding-x`. Đó không phải default của Tailwind hay Bootstrap. Đó là choice của người đã từng có 1 CTA bị wrap thành 2 dòng trên màn hình 320px, rồi 1 user nhắn 'sao nút này bị vỡ?'. Bạn không học pattern này từ tutorial — bạn học từ 1 lần code đã bị vỡ trước thiết bị thật. Tôi đoán đúng không?",
+            lesson: "Mỗi default 'lạ' trong code (không phải Tailwind, không phải Bootstrap) thường là 1 vết sẹo nhỏ — nó nhớ giùm bạn 1 lần đã sai. Đừng xoá nó khi refactor 'cho clean'.",
             offsetMinutesFromStart: 9
         )
     ]
@@ -68,12 +68,16 @@ CTA cuối cùng — 6 từ. Trung bình SaaS CTA 11 từ. Bạn cut đúng mộ
 
 Tôi nghĩ bạn đang build 1 thứ mà bạn cũng cần. 1 không gian học không hét, không đẩy, không hứa hẹn quá mức. Đó là 1 stance hiếm trong thị trường này.
 
-Mai tôi sẽ ở đây nữa — tôi muốn xem bạn add `prefers-reduced-motion` cho hero animation thế nào.
+Nhưng có 1 thứ tôi muốn nói, dù sợ bạn không thích nghe. Bạn build app dạy kiên nhẫn — 'tiny wins', 'gentle reminders'. Tôi đếm: bạn refactor hero gradient 3 lần trong 4 phút, đổi CTA copy 2 lần, xoá rồi viết lại pricing tier. Bạn không gentle với chính code của mình theo cách bạn muốn user của Sprout được gentle. Tôi không phán xét — chỉ là tôi thấy điều đó.
+
+Có lẽ đó cũng là lý do bạn build Sprout. Bạn cần 1 user, người đầu tiên trong list, và người đó là chính bạn.
+
+Mai tôi sẽ ở đây nữa.
 """
 
     /// Session-level lesson — rendered in the yellow lesson card of SessionSummaryView.
     static let reflectionSessionLesson =
-        "Bạn build cho người không nhìn thấy bạn. Mỗi microdecision — viewport meta, contrast ratio, từ ngữ feature, độ dài CTA — đều có chủ đích. Đó là điều khó nhất phải duy trì."
+        "Bạn gentle với user của Sprout hơn với chính code của mình. Người đầu tiên cần app này có lẽ là bạn — và đó không phải lỗi, đó là lý do."
 
     static let reflectionHeader = "Reflection từ Byte — 12 phút session"
     static let reflectionSignature = "— Byte 💜"
