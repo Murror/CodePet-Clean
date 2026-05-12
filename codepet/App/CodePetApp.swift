@@ -62,11 +62,21 @@ struct CodePetApp: App {
                     appState.syncFromMCP(mcpBridge)
 
                     demoHotkeyMonitor.bind(controller: demoController)
-                    if appState.demoModeEnabled { demoHotkeyMonitor.start() }
+                    if appState.demoModeEnabled {
+                        demoHotkeyMonitor.start()
+                        // Auto-start the demo session at launch so the
+                        // Reflection sidebar already has the demo session
+                        // selectable on first paint.
+                        demoController.startSession()
+                    }
                 }
                 .onChange(of: appState.demoModeEnabled) { _, enabled in
                     if enabled {
                         demoHotkeyMonitor.start()
+                        // Auto-start the session so the production sidebar
+                        // surfaces the demo session immediately — there's no
+                        // manual "Start session" button in the prod layout.
+                        demoController.startSession()
                     } else {
                         demoHotkeyMonitor.stop()
                         demoController.reset()

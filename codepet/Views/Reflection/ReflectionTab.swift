@@ -10,6 +10,7 @@ struct ReflectionTab: View {
     @EnvironmentObject var sessionEnricher: SessionSummaryEnricher
     @EnvironmentObject var chatStore: SessionChatStore
     @EnvironmentObject var chatController: SessionChatController
+    @EnvironmentObject var demo: DemoScriptController
 
     @State private var selectedSessionId: String? = nil
     @State private var hoveredSessionId: String? = nil
@@ -44,6 +45,12 @@ struct ReflectionTab: View {
     }
 
     private var allSessions: [Session] {
+        if appState.demoModeEnabled {
+            // Demo mode bypasses real polling. We surface the synthesized
+            // demo session (if any) alongside the welcome session so the
+            // production sidebar layout still has its WELCOME group.
+            return [Session.makeWelcome()] + (demo.demoSession.map { [$0] } ?? [])
+        }
         let real = TurnAssembler.assembleSessions(
             turns: allTurns,
             summaries: summaryStore.summaries
@@ -52,6 +59,11 @@ struct ReflectionTab: View {
     }
 
     private var selectedSession: Session? {
+        // In demo mode, auto-prefer the demo session over the welcome session
+        // so the presenter doesn't need to click into it.
+        if appState.demoModeEnabled, let demoSess = demo.demoSession {
+            return demoSess
+        }
         if let id = selectedSessionId,
            let match = allSessions.first(where: { $0.id == id }) {
             return match
@@ -62,11 +74,7 @@ struct ReflectionTab: View {
     // MARK: - Body
 
     var body: some View {
-        if appState.demoModeEnabled {
-            DemoReflectionView()
-        } else {
-            normalBody
-        }
+        normalBody
     }
 
     private var normalBody: some View {
@@ -136,6 +144,9 @@ struct ReflectionTab: View {
         }
         .animation(.easeOut(duration: 0.22), value: chatExpanded)
         .onChange(of: allSessions) { sessions in
+            // Demo mode never fires the live enricher — its data is purely
+            // synthesized from DemoScriptController.
+            guard !appState.demoModeEnabled else { return }
             // Per-turn narrative is still auto-generated when a turn closes —
             // it fires once per turn and the UI shows a loading bubble in the
             // meantime. Session-level summary is intentionally NOT
@@ -431,11 +442,16 @@ struct ReflectionTab: View {
             // Session header strip
             sessionHeaderStrip(for: session)
 
-            // Pet recap up top — high-level voice before the turn-by-turn detail
-            SessionSummaryView(summary: session.summary) {
-                let persona = currentPetPersona()
-                Task { await sessionEnricher.enrich(session: session, petPersona: persona) }
-            }
+            // Pet recap up top — high-level voice before the turn-by-turn detail.
+            // In demo mode the typewriter reveal replaces the live AI call.
+            SessionSummaryView(
+                summary: session.summary,
+                onTriggerSummary: {
+                    let persona = currentPetPersona()
+                    Task { await sessionEnricher.enrich(session: session, petPersona: persona) }
+                },
+                useTypewriter: appState.demoModeEnabled
+            )
 
             // Per-turn rendering (chronological, oldest first).
             // Avatar appears only on the newest turn — older turns share the
@@ -555,5 +571,6 @@ struct ReflectionTab: View {
         ))
         .environmentObject(chatStore)
         .environmentObject(chatController)
+        .environmentObject(DemoScriptController())
         .frame(width: 900, height: 800)
 }

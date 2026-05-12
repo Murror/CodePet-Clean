@@ -7,6 +7,10 @@ struct SessionSummaryView: View {
     @EnvironmentObject var appState: AppState
     let summary: SessionSummary?
     var onTriggerSummary: () -> Void = {}
+    /// When true, renders `summary.summary` via DemoTypewriterText (character
+    /// reveal) and hides the manual "Summarize now" button in loading state.
+    /// Used by Demo Mode for a one-shot dramatic reveal.
+    var useTypewriter: Bool = false
 
     @State private var petFloat = false
     @State private var petGlow: CGFloat = 0
@@ -64,11 +68,20 @@ struct SessionSummaryView: View {
                         .foregroundColor(Color(hex: "#7C3AED"))
                 }
 
-                Text(summary.summary)
-                    .font(CodepetTheme.body(14))
-                    .foregroundColor(Color(hex: "#2D2B26"))
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
+                if useTypewriter {
+                    DemoTypewriterText(
+                        text: summary.summary,
+                        charactersPerSecond: 28,
+                        font: CodepetTheme.body(14),
+                        foregroundColor: Color(hex: "#2D2B26")
+                    )
+                } else {
+                    Text(summary.summary)
+                        .font(CodepetTheme.body(14))
+                        .foregroundColor(Color(hex: "#2D2B26"))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 if !summary.lesson.isEmpty {
                     lessonRow(summary.lesson)
@@ -128,21 +141,25 @@ struct SessionSummaryView: View {
                 skeletonLine(width: 0.75)
                 skeletonLine(width: 0.55)
 
-                Text("Putting your story together…")
+                Text(useTypewriter
+                     ? "Press ⌥5 to reveal the reflection…"
+                     : "Putting your story together…")
                     .font(CodepetTheme.body(11))
                     .foregroundColor(Color(hex: "#77706 5"))
 
-                Button(action: onTriggerSummary) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "sparkle")
-                        Text("Summarize now")
+                if !useTypewriter {
+                    Button(action: onTriggerSummary) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "sparkle")
+                            Text("Summarize now")
+                        }
                     }
+                    .buttonStyle(PixelButtonStyle(
+                        fill: Color(hex: "#7C3AED"),
+                        font: .pixelSystem(size: 12, weight: .semibold)
+                    ))
+                    .padding(.top, 4)
                 }
-                .buttonStyle(PixelButtonStyle(
-                    fill: Color(hex: "#7C3AED"),
-                    font: .pixelSystem(size: 12, weight: .semibold)
-                ))
-                .padding(.top, 4)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
