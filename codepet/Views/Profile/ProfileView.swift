@@ -16,6 +16,8 @@ struct ProfileView: View {
                 YourPetSection()
 
                 LanguageStyleSection()
+
+                DebugSection()
             }
             .padding(20)
         }
@@ -322,6 +324,31 @@ private struct PersonaRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: - Debug Section
+
+struct DebugSection: View {
+    @EnvironmentObject var appState: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Debug")
+                .font(.pixelSystem(size: 14, weight: .semibold, design: .default))
+
+            Toggle(isOn: $appState.demoModeEnabled) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Demo Mode (Sprout × Byte)")
+                        .font(.body)
+                    Text("Replaces Reflection tab with hardcoded 13-min demo. ⌥1..⌥4 fires milestones, ⌥5 reveals reflection, ⌥0 resets.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(16)
+        .pixelBox(fill: Color.white)
     }
 }
 
