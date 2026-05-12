@@ -3,11 +3,12 @@ import FirebaseAuth
 
 struct ProfileView: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.uiLanguage) private var uiLanguage
 
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
-                Text("Profile")
+                Text(uiLanguage == .vi ? "Hồ sơ" : "Profile")
                     .font(.pixelSystem(size: 24, weight: .bold))
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -31,10 +32,11 @@ struct ProfileView: View {
 
 struct AccountSection: View {
     @EnvironmentObject var authManager: AuthManager
+    @Environment(\.uiLanguage) private var uiLanguage
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Account")
+            Text(uiLanguage == .vi ? "Tài khoản" : "Account")
                 .font(.pixelSystem(size: 14, weight: .semibold, design: .default))
 
             VStack(alignment: .leading, spacing: 14) {
@@ -67,7 +69,7 @@ struct AccountSection: View {
             }
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Signed in")
+                Text(uiLanguage == .vi ? "Đã đăng nhập" : "Signed in")
                     .font(.pixelSystem(size: 10, weight: .semibold))
                     .foregroundColor(Color(hex: "#3F8B6E"))
                     .tracking(0.6)
@@ -85,7 +87,7 @@ struct AccountSection: View {
             Spacer()
 
             Button(action: { authManager.signOut() }) {
-                Text("Sign out")
+                Text(uiLanguage == .vi ? "Đăng xuất" : "Sign out")
             }
             .buttonStyle(PixelButtonStyle(
                 fill: Color(hex: "#E04040").opacity(0.12),
@@ -143,7 +145,7 @@ struct AccountSection: View {
             Spacer()
 
             Button(action: { authManager.isGuestMode = false }) {
-                Text("Sign in")
+                Text(uiLanguage == .vi ? "Đăng nhập" : "Sign in")
             }
             .buttonStyle(PixelButtonStyle(
                 fill: Color(hex: "#7B6BD8"),
@@ -166,7 +168,7 @@ struct AccountSection: View {
             Circle()
                 .stroke(Color.secondary, lineWidth: 1.5)
                 .frame(width: 8, height: 8)
-            Text("Not signed in")
+            Text(uiLanguage == .vi ? "Chưa đăng nhập" : "Not signed in")
                 .font(.pixelSystem(size: 12, weight: .medium))
                 .foregroundColor(.secondary)
             Spacer()
@@ -178,16 +180,19 @@ struct AccountSection: View {
 
 struct YourPetSection: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.uiLanguage) private var uiLanguage
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 10), count: 4)
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Your Pet")
+            Text(uiLanguage == .vi ? "Pet của bạn" : "Your Pet")
                 .font(.pixelSystem(size: 14, weight: .semibold, design: .default))
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("Switch companions any time. Your progress stays.")
+                Text(uiLanguage == .vi
+                     ? "Đổi pet bất cứ lúc nào. Tiến độ của bạn vẫn được giữ."
+                     : "Switch companions any time. Your progress stays.")
                     .font(.pixelSystem(size: 11))
                     .foregroundColor(.secondary)
 
@@ -257,14 +262,17 @@ private struct PetGridCell: View {
 
 struct LanguageStyleSection: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.uiLanguage) private var uiLanguage
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Language Style")
+            Text(uiLanguage == .vi ? "Phong cách ngôn ngữ" : "Language Style")
                 .font(.pixelSystem(size: 14, weight: .semibold, design: .default))
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("Choose how the app talks to you. Switch any time.")
+                Text(uiLanguage == .vi
+                     ? "Chọn cách app trò chuyện với bạn. Đổi bất cứ lúc nào."
+                     : "Choose how the app talks to you. Switch any time.")
                     .font(.pixelSystem(size: 11))
                     .foregroundColor(.secondary)
 
@@ -333,14 +341,17 @@ private struct PersonaRow: View {
 
 struct DisplayLanguageSection: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.uiLanguage) private var uiLanguage
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Display Language")
+            Text(uiLanguage == .vi ? "Ngôn ngữ hiển thị" : "Display Language")
                 .font(.pixelSystem(size: 14, weight: .semibold, design: .default))
 
             VStack(alignment: .leading, spacing: 12) {
-                Text("Switch the app's display language. Changes are immediate.")
+                Text(uiLanguage == .vi
+                     ? "Đổi ngôn ngữ hiển thị của app. Thay đổi áp dụng ngay lập tức."
+                     : "Switch the app's display language. Changes are immediate.")
                     .font(.pixelSystem(size: 11))
                     .foregroundColor(.secondary)
 
@@ -362,17 +373,22 @@ struct DisplayLanguageSection: View {
 
 struct DebugSection: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.uiLanguage) private var uiLanguage
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Debug")
+            Text(uiLanguage == .vi ? "Gỡ lỗi" : "Debug")
                 .font(.pixelSystem(size: 14, weight: .semibold, design: .default))
 
             Toggle(isOn: $appState.demoModeEnabled) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Demo Mode (Sprout × Byte)")
+                    Text(uiLanguage == .vi
+                         ? "Chế độ Demo (Sprout × Byte)"
+                         : "Demo Mode (Sprout × Byte)")
                         .font(.body)
-                    Text("Replaces Reflection tab with hardcoded 13-min demo. ⌥1..⌥4 fires milestones, ⌥5 reveals reflection, ⌥0 panic-skips to summary.")
+                    Text(uiLanguage == .vi
+                         ? "Thay tab Reflection bằng demo 13 phút có sẵn. ⌥1..⌥4 bắn milestone, ⌥5 hiện reflection, ⌥0 nhảy thẳng tới summary."
+                         : "Replaces Reflection tab with hardcoded 13-min demo. ⌥1..⌥4 fires milestones, ⌥5 reveals reflection, ⌥0 panic-skips to summary.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

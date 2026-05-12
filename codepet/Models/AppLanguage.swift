@@ -41,3 +41,22 @@ struct L10n: Hashable {
         }
     }
 }
+
+// MARK: - SwiftUI environment integration
+
+import SwiftUI
+
+private struct UILanguageKey: EnvironmentKey {
+    static let defaultValue: AppLanguage = .vi
+}
+
+extension EnvironmentValues {
+    /// Current UI language injected by `CodePetApp` from `AppState.uiLanguage`.
+    /// Views can read this with `@Environment(\.uiLanguage)` and pass it to
+    /// `L10n` instances at render time. Cheap and avoids `@EnvironmentObject`
+    /// dependency just for a single string.
+    var uiLanguage: AppLanguage {
+        get { self[UILanguageKey.self] }
+        set { self[UILanguageKey.self] = newValue }
+    }
+}

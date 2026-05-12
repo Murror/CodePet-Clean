@@ -181,6 +181,7 @@ struct NavButton: View {
     var customIcon: (() -> AnyView)? = nil
 
     @State private var isHovered = false
+    @Environment(\.uiLanguage) private var uiLanguage
 
     var body: some View {
         Button(action: action) {
@@ -200,7 +201,7 @@ struct NavButton: View {
                         NavIconView(tab: tab, isActive: isSelected)
                     }
 
-                    Text(tab.rawValue)
+                    Text(tab.displayName(uiLanguage))
                         .font(CodepetTheme.pixel(9))
                         .foregroundColor(isSelected ? Color(hex: "#2D2B26") : Color(hex: "#B0A898"))
                 }

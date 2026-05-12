@@ -3,6 +3,7 @@ import SwiftUI
 struct SplashView: View {
     var onContinue: (() -> Void)? = nil
 
+    @Environment(\.uiLanguage) private var uiLanguage
     @State private var opacity: Double = 0
     @State private var scale: Double = 0.9
     @State private var showChars = false
@@ -87,11 +88,11 @@ struct SplashView: View {
                     .padding(.bottom, h * 0.02)
 
                     // Taglines
-                    Text("Your AI coding companions are waiting.")
+                    Text(uiLanguage == .vi ? "Người bạn AI lập trình của bạn đang chờ." : "Your AI coding companions are waiting.")
                         .font(.pixelSystem(size: taglineFont))
                         .foregroundColor(.secondary)
 
-                    Text("7 characters. 16 skills. One journey.")
+                    Text(uiLanguage == .vi ? "7 nhân vật. 16 kỹ năng. Một hành trình." : "7 characters. 16 skills. One journey.")
                         .font(.pixelSystem(size: subTaglineFont))
                         .foregroundColor(.secondary.opacity(0.7))
                         .padding(.top, 2)
@@ -101,7 +102,7 @@ struct SplashView: View {
                     if let onContinue = onContinue {
                         Button(action: onContinue) {
                             HStack(spacing: 6) {
-                                Text("Meet Your Pet")
+                                Text(uiLanguage == .vi ? "Gặp Pet Của Bạn" : "Meet Your Pet")
                                 Text("→")
                             }
                             .frame(maxWidth: buttonWidth)

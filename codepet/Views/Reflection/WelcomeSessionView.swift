@@ -2,6 +2,7 @@ import SwiftUI
 
 struct WelcomeSessionView: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.uiLanguage) private var uiLanguage
 
     @State private var projectBrief: String = ""
     @State private var savedConfirmation: Date? = nil
@@ -33,20 +34,26 @@ struct WelcomeSessionView: View {
             heroBanner
             stepCard(
                 number: "1",
-                title: "Install Claude Code hooks",
-                description: "Run this once in Terminal — it sets up four scripts that capture your prompts, tools, and session boundaries.",
+                title: uiLanguage == .vi ? "Cài hook cho Claude Code" : "Install Claude Code hooks",
+                description: uiLanguage == .vi
+                    ? "Chạy lệnh này 1 lần trong Terminal — nó cài 4 script để ghi lại prompt, tool, và mốc đầu/cuối phiên."
+                    : "Run this once in Terminal — it sets up four scripts that capture your prompts, tools, and session boundaries.",
                 code: Self.installCommand
             )
             stepCard(
                 number: "2",
-                title: "Paste the hook config",
-                description: "Open ~/.claude/settings.json and merge this snippet under the top-level \"hooks\" key.",
+                title: uiLanguage == .vi ? "Dán đoạn cấu hình hook" : "Paste the hook config",
+                description: uiLanguage == .vi
+                    ? "Mở ~/.claude/settings.json và dán đoạn dưới vào dưới key \"hooks\" ở cấp ngoài cùng."
+                    : "Open ~/.claude/settings.json and merge this snippet under the top-level \"hooks\" key.",
                 code: Self.settingsSnippet
             )
             stepCard(
                 number: "3",
-                title: "(Optional) Connect MCP",
-                description: "If you use the Model Context Protocol, add CodePet's MCP server so Claude can read your project context. Run:",
+                title: uiLanguage == .vi ? "(Tuỳ chọn) Kết nối MCP" : "(Optional) Connect MCP",
+                description: uiLanguage == .vi
+                    ? "Nếu bạn dùng Model Context Protocol, thêm server MCP của CodePet để Claude đọc được context project. Chạy:"
+                    : "If you use the Model Context Protocol, add CodePet's MCP server so Claude can read your project context. Run:",
                 code: "claude mcp add codepet -- npx -y @murror/codepet-mcp"
             )
             briefCard
@@ -67,10 +74,14 @@ struct WelcomeSessionView: View {
                     .shadow(color: pet.color.opacity(0.4), radius: 10, y: 4)
             }
             VStack(alignment: .leading, spacing: 6) {
-                Text("Hi, I'm \(petName) \u{1F44B}")
+                Text(uiLanguage == .vi
+                     ? "Chào, tôi là \(petName) \u{1F44B}"
+                     : "Hi, I'm \(petName) \u{1F44B}")
                     .font(ReflectionTheme.serif(24, weight: .medium))
                     .foregroundColor(ReflectionTheme.primaryText)
-                Text("Let's get your reflection journal connected. Three quick steps.")
+                Text(uiLanguage == .vi
+                     ? "Kết nối nhật ký reflection của bạn nào. Chỉ 3 bước nhanh."
+                     : "Let's get your reflection journal connected. Three quick steps.")
                     .font(ReflectionTheme.sans(13))
                     .foregroundColor(ReflectionTheme.mutedText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -139,12 +150,14 @@ struct WelcomeSessionView: View {
                     .font(.pixelSystem(size: 15, weight: .medium))
                     .foregroundColor(ReflectionTheme.accent)
                     .frame(width: 26, height: 26)
-                Text("Tell me about your project")
+                Text(uiLanguage == .vi ? "Kể tôi nghe về project của bạn" : "Tell me about your project")
                     .font(ReflectionTheme.serif(17, weight: .medium))
                     .foregroundColor(ReflectionTheme.primaryText)
                 Spacer()
             }
-            Text("A short brief — what you're building, who it's for, what stage you're at. I'll use this as context when summarizing your sessions.")
+            Text(uiLanguage == .vi
+                 ? "1 brief ngắn — bạn đang build gì, cho ai, đang ở giai đoạn nào. Tôi dùng nó làm context khi tóm tắt phiên của bạn."
+                 : "A short brief — what you're building, who it's for, what stage you're at. I'll use this as context when summarizing your sessions.")
                 .font(ReflectionTheme.sans(13))
                 .foregroundColor(ReflectionTheme.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
@@ -164,7 +177,7 @@ struct WelcomeSessionView: View {
 
             HStack(spacing: 10) {
                 Button(action: saveBrief) {
-                    Text("Save brief")
+                    Text(uiLanguage == .vi ? "Lưu brief" : "Save brief")
                 }
                 .buttonStyle(PixelButtonStyle(
                     fill: ReflectionTheme.accent,
@@ -184,7 +197,7 @@ struct WelcomeSessionView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(ReflectionTheme.moodCalm)
-                        Text("Saved")
+                        Text(uiLanguage == .vi ? "Đã lưu" : "Saved")
                             .font(ReflectionTheme.sans(11, weight: .medium))
                             .foregroundColor(ReflectionTheme.secondaryText)
                     }
@@ -203,7 +216,9 @@ struct WelcomeSessionView: View {
             Image(systemName: "info.circle")
                 .font(.pixelSystem(size: 12))
                 .foregroundColor(ReflectionTheme.mutedText)
-            Text("After Step 1 + 2, restart Claude Code. Your turns will start landing here automatically.")
+            Text(uiLanguage == .vi
+                 ? "Sau Bước 1 + 2, khởi động lại Claude Code. Các turn sẽ tự động xuất hiện ở đây."
+                 : "After Step 1 + 2, restart Claude Code. Your turns will start landing here automatically.")
                 .font(ReflectionTheme.sans(12))
                 .foregroundColor(ReflectionTheme.mutedText)
                 .fixedSize(horizontal: false, vertical: true)

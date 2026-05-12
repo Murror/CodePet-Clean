@@ -32,6 +32,7 @@ struct CodePetApp: App {
         WindowGroup {
             ContentView()
                 .environment(\.font, CodepetTheme.body(13))
+                .environment(\.uiLanguage, appState.uiLanguage)
                 .environmentObject(appState)
                 .environmentObject(authManager)
                 .environmentObject(gameState)

@@ -11,6 +11,7 @@ struct ReflectionTab: View {
     @EnvironmentObject var chatStore: SessionChatStore
     @EnvironmentObject var chatController: SessionChatController
     @EnvironmentObject var demo: DemoScriptController
+    @Environment(\.uiLanguage) private var uiLanguage
 
     @State private var selectedSessionId: String? = nil
     @State private var hoveredSessionId: String? = nil
@@ -194,11 +195,15 @@ struct ReflectionTab: View {
     private var emptyState: some View {
         VStack(alignment: .center, spacing: 12) {
             Spacer()
-            Text("Nothing to reflect on yet.")
+            Text(uiLanguage == .vi
+                 ? "Chưa có gì để nhìn lại."
+                 : "Nothing to reflect on yet.")
                 .font(ReflectionTheme.serif(20, weight: .medium))
                 .foregroundColor(ReflectionTheme.primaryText)
                 .multilineTextAlignment(.center)
-            Text("Open Claude Code and start coding — your story will appear here after each working session.")
+            Text(uiLanguage == .vi
+                 ? "Mở Claude Code và bắt đầu code — câu chuyện của bạn sẽ hiện ở đây sau mỗi phiên làm việc."
+                 : "Open Claude Code and start coding — your story will appear here after each working session.")
                 .font(ReflectionTheme.sans(13))
                 .foregroundColor(ReflectionTheme.mutedText)
                 .multilineTextAlignment(.center)
@@ -257,16 +262,23 @@ struct ReflectionTab: View {
         let newestTurn = session.turns.last
         if let title = newestTurn?.narrative?.title { return title }
         // 3. Fallback: "Session HH:mm"
-        return "Session \(timeDisplay(session.startedAt))"
+        let prefix = uiLanguage == .vi ? "Phiên" : "Session"
+        return "\(prefix) \(timeDisplay(session.startedAt))"
     }
 
     private func sessionMetaLabel(for session: Session) -> String {
         let turnCount = session.turns.count
-        let turnWord = turnCount == 1 ? "turn" : "turns"
-        var parts = ["Session \(timeDisplay(session.startedAt))", "\(turnCount) \(turnWord)"]
+        let sessionWord = uiLanguage == .vi ? "Phiên" : "Session"
+        let turnWord: String
+        switch uiLanguage {
+        case .vi: turnWord = "lượt"
+        case .en: turnWord = turnCount == 1 ? "turn" : "turns"
+        }
+        let minWord = uiLanguage == .vi ? "phút" : "min"
+        var parts = ["\(sessionWord) \(timeDisplay(session.startedAt))", "\(turnCount) \(turnWord)"]
         if let ended = session.endedAt {
             let mins = Int(ended.timeIntervalSince(session.startedAt) / 60)
-            if mins > 0 { parts.append("\(mins) min") }
+            if mins > 0 { parts.append("\(mins) \(minWord)") }
         }
         return parts.joined(separator: " · ")
     }
@@ -274,7 +286,7 @@ struct ReflectionTab: View {
     private var sessionsSidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Text("Sessions")
+                Text(uiLanguage == .vi ? "Phiên" : "Sessions")
                     .font(ReflectionTheme.serif(16, weight: .medium))
                     .foregroundColor(ReflectionTheme.primaryText)
                 Spacer()
@@ -287,7 +299,7 @@ struct ReflectionTab: View {
                 VStack(alignment: .leading, spacing: 18) {
                     // Welcome group — always pinned at top
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("WELCOME")
+                        Text(uiLanguage == .vi ? "CHÀO MỪNG" : "WELCOME")
                             .font(CodepetTheme.pixel(12))
                             .tracking(1.0)
                             .foregroundColor(ReflectionTheme.mutedText)
@@ -300,7 +312,7 @@ struct ReflectionTab: View {
                     let groups = groupedSessions()
                     ForEach(groups) { group in
                         VStack(alignment: .leading, spacing: 10) {
-                            Text(group.label)
+                            Text(localizedDayGroupLabel(group.label))
                                 .font(CodepetTheme.pixel(12))
                                 .tracking(1.0)
                                 .foregroundColor(ReflectionTheme.mutedText)
@@ -334,10 +346,12 @@ struct ReflectionTab: View {
                         Circle().fill(ReflectionTheme.accent.opacity(0.12))
                     )
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Get started")
+                    Text(uiLanguage == .vi ? "Bắt đầu" : "Get started")
                         .font(ReflectionTheme.sans(12.5, weight: .semibold))
                         .foregroundColor(ReflectionTheme.primaryText)
-                    Text("Connect Claude Code to begin")
+                    Text(uiLanguage == .vi
+                         ? "Kết nối Claude Code để bắt đầu"
+                         : "Connect Claude Code to begin")
                         .font(ReflectionTheme.sans(10.5))
                         .foregroundColor(ReflectionTheme.mutedText)
                 }
@@ -492,7 +506,7 @@ struct ReflectionTab: View {
                     if let ended = turn.endedAt {
                         Text("·")
                             .foregroundColor(ReflectionTheme.mutedText)
-                        Text("\(Int(ended.timeIntervalSince(turn.startedAt) / 60)) min")
+                        Text("\(Int(ended.timeIntervalSince(turn.startedAt) / 60)) \(uiLanguage == .vi ? "phút" : "min")")
                             .font(ReflectionTheme.sans(12))
                             .foregroundColor(ReflectionTheme.mutedText)
                     }
@@ -525,7 +539,9 @@ struct ReflectionTab: View {
     private var footer: some View {
         HStack {
             Spacer()
-            Eyebrow(text: "CodePet v1.0 · reflection · captured quietly. shown on request.")
+            Eyebrow(text: uiLanguage == .vi
+                ? "CodePet v1.0 · reflection · ghi nhận âm thầm. chỉ hiện khi bạn yêu cầu."
+                : "CodePet v1.0 · reflection · captured quietly. shown on request.")
             Spacer()
         }
         .padding(.top, 12)
@@ -543,6 +559,18 @@ struct ReflectionTab: View {
         let f = DateFormatter()
         f.dateFormat = "EEEE · MMMM d"
         return f.string(from: date)
+    }
+
+    /// Map internal day-group keys (used as dictionary keys for bucketing)
+    /// to localized sidebar labels.
+    private func localizedDayGroupLabel(_ key: String) -> String {
+        switch (key, uiLanguage) {
+        case ("TODAY",     .vi): return "HÔM NAY"
+        case ("YESTERDAY", .vi): return "HÔM QUA"
+        case ("THIS WEEK", .vi): return "TUẦN NÀY"
+        case ("EARLIER",   .vi): return "TRƯỚC ĐÓ"
+        default: return key
+        }
     }
 }
 

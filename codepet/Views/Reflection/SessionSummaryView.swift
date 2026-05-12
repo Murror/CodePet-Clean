@@ -5,6 +5,7 @@ import SwiftUI
 /// one continuous narration from the pet, not a separate report card.
 struct SessionSummaryView: View {
     @EnvironmentObject var appState: AppState
+    @Environment(\.uiLanguage) private var uiLanguage
     let summary: SessionSummary?
     var onTriggerSummary: () -> Void = {}
     /// When true, renders `summary.summary` via DemoTypewriterText (character
@@ -62,7 +63,7 @@ struct SessionSummaryView: View {
                         Text("·")
                             .foregroundColor(Color(hex: "#77706 5"))
                     }
-                    Text("SESSION RECAP")
+                    Text(uiLanguage == .vi ? "TÓM TẮT PHIÊN" : "SESSION RECAP")
                         .font(.pixelSystem(size: 10))
                         .tracking(1.4)
                         .foregroundColor(Color(hex: "#7C3AED"))
@@ -131,7 +132,7 @@ struct SessionSummaryView: View {
                         Text("·")
                             .foregroundColor(Color(hex: "#77706 5"))
                     }
-                    Text("SESSION RECAP")
+                    Text(uiLanguage == .vi ? "TÓM TẮT PHIÊN" : "SESSION RECAP")
                         .font(.pixelSystem(size: 10))
                         .tracking(1.4)
                         .foregroundColor(Color(hex: "#77706 5"))
@@ -141,9 +142,7 @@ struct SessionSummaryView: View {
                 skeletonLine(width: 0.75)
                 skeletonLine(width: 0.55)
 
-                Text(useTypewriter
-                     ? "Press ⌥5 to reveal the reflection…"
-                     : "Putting your story together…")
+                Text(loadingHint)
                     .font(CodepetTheme.body(11))
                     .foregroundColor(Color(hex: "#77706 5"))
 
@@ -151,7 +150,7 @@ struct SessionSummaryView: View {
                     Button(action: onTriggerSummary) {
                         HStack(spacing: 6) {
                             Image(systemName: "sparkle")
-                            Text("Summarize now")
+                            Text(uiLanguage == .vi ? "Tóm tắt ngay" : "Summarize now")
                         }
                     }
                     .buttonStyle(PixelButtonStyle(
@@ -219,5 +218,14 @@ struct SessionSummaryView: View {
             .frame(maxWidth: .infinity)
             .frame(height: 14)
             .scaleEffect(x: width, y: 1, anchor: .leading)
+    }
+
+    private var loadingHint: String {
+        switch (useTypewriter, uiLanguage) {
+        case (true,  .vi): return "Bấm ⌥5 để hiện reflection…"
+        case (true,  .en): return "Press ⌥5 to reveal the reflection…"
+        case (false, .vi): return "Đang ghép câu chuyện của bạn…"
+        case (false, .en): return "Putting your story together…"
+        }
     }
 }

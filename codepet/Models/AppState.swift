@@ -95,6 +95,28 @@ class AppState: ObservableObject {
         case dictionary = "Dictionary"
         case profile = "Profile"
 
+        /// Localized display name for the sidebar nav label.
+        func displayName(_ lang: AppLanguage) -> String {
+            switch (self, lang) {
+            case (.home,       .vi): return "Trang chủ"
+            case (.home,       .en): return "Home"
+            case (.skills,     .vi): return "Kỹ năng"
+            case (.skills,     .en): return "Skills"
+            case (.sessions,   .vi): return "Phiên"
+            case (.sessions,   .en): return "Sessions"
+            case (.insights,   .vi): return "Thống kê"
+            case (.insights,   .en): return "Insights"
+            case (.reflection, .vi): return "Nhật ký"
+            case (.reflection, .en): return "Reflection"
+            case (.tips,       .vi): return "Mẹo"
+            case (.tips,       .en): return "Tips"
+            case (.dictionary, .vi): return "Từ điển"
+            case (.dictionary, .en): return "Dictionary"
+            case (.profile,    .vi): return "Hồ sơ"
+            case (.profile,    .en): return "Profile"
+            }
+        }
+
         var icon: String {
             switch self {
             case .home: return "house.fill"
