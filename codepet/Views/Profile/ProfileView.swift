@@ -341,7 +341,7 @@ struct DebugSection: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Demo Mode (Sprout × Byte)")
                         .font(.body)
-                    Text("Replaces Reflection tab with hardcoded 13-min demo. ⌥1..⌥4 fires milestones, ⌥5 reveals reflection, ⌥0 resets.")
+                    Text("Replaces Reflection tab with hardcoded 13-min demo. ⌥1..⌥4 fires milestones, ⌥5 reveals reflection, ⌥0 panic-skips to summary.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

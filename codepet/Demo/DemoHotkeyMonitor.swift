@@ -50,10 +50,7 @@ final class DemoHotkeyMonitor: ObservableObject {
         case 20: controller?.fireMilestone(index: 3); return nil
         case 21: controller?.fireMilestone(index: 4); return nil
         case 23: controller?.revealReflection();     return nil
-        case 29:
-            controller?.reset()
-            controller?.startSession()
-            return nil
+        case 29: controller?.panicSkip(); return nil
         default: return event
         }
     }
