@@ -11,6 +11,8 @@ struct CodePetApp: App {
     @StateObject private var reflectionComposition: ReflectionComposition
     @StateObject private var chatStore: SessionChatStore
     @StateObject private var chatController: SessionChatController
+    @StateObject private var demoController = DemoScriptController()
+    @StateObject private var demoHotkeyMonitor = DemoHotkeyMonitor()
     private var notificationManager = NotificationManager()
 
     init() {
@@ -42,6 +44,7 @@ struct CodePetApp: App {
                 .environmentObject(reflectionComposition.sessionEnricher)
                 .environmentObject(chatStore)
                 .environmentObject(chatController)
+                .environmentObject(demoController)
                 .frame(minWidth: 400, minHeight: 700)
                 .themed(isDark: appState.isDarkMode)
                 .task { reflectionComposition.start() }
@@ -57,6 +60,17 @@ struct CodePetApp: App {
                     // Sync real coding XP from MCP server
                     mcpBridge.refresh()
                     appState.syncFromMCP(mcpBridge)
+
+                    demoHotkeyMonitor.bind(controller: demoController)
+                    if appState.demoModeEnabled { demoHotkeyMonitor.start() }
+                }
+                .onChange(of: appState.demoModeEnabled) { _, enabled in
+                    if enabled {
+                        demoHotkeyMonitor.start()
+                    } else {
+                        demoHotkeyMonitor.stop()
+                        demoController.reset()
+                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in
                     // Save game state when app goes to background
