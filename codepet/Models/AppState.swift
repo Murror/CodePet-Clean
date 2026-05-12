@@ -51,6 +51,15 @@ class AppState: ObservableObject {
     @Published var pendingKingdomId: Int? = nil
     @Published var petEnergy: Int = 60
     @Published var petMood: String = "Idle"
+    /// When true, Reflection tab shows the hardcoded "Sprout × Byte" demo
+    /// instead of the live polling-driven UI. Toggled via Profile > Debug
+    /// or launch arg `-demoMode YES`. Persists to UserDefaults key
+    /// `cp_demo_mode`.
+    @Published var demoModeEnabled: Bool = false {
+        didSet {
+            UserDefaults.standard.set(demoModeEnabled, forKey: "cp_demo_mode")
+        }
+    }
 
     // Phase 5: Theme & Sound
     @Published var isDarkMode: Bool = false
@@ -109,6 +118,17 @@ class AppState: ObservableObject {
                 guard let self = self else { return }
                 PersistenceManager.shared.save(self)
             }
+
+        // DemoMode hydration: launch arg wins, else UserDefaults.
+        // This runs after PersistenceManager.load so it always reflects the
+        // most recent intent.
+        if let demoIdx = CommandLine.arguments.firstIndex(of: "-demoMode"),
+           demoIdx + 1 < CommandLine.arguments.count,
+           CommandLine.arguments[demoIdx + 1].uppercased() == "YES" {
+            self.demoModeEnabled = true
+        } else {
+            self.demoModeEnabled = UserDefaults.standard.bool(forKey: "cp_demo_mode")
+        }
     }
 
     // MARK: - XP & Level Helpers
