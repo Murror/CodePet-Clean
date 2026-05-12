@@ -34,7 +34,7 @@ enum DemoScript {
             sidebarLabel: "Feature grid — 3 promises of kindness",
             prompt: "Add a 3-column features section: 'Tiny daily wins' / 'Streak tracking' / 'Gentle reminders'. Use card style with soft shadows.",
             whatYouWanted: "Bạn muốn 3 cột feature đại diện cho 3 lời hứa — không phải 3 dashboard.",
-            whatHappened: "Ba features — chủ ngữ là cảm xúc, không phải tính năng: 'tiny wins' (không phải 'gamification'), 'streaks' (không phải 'analytics'), 'gentle reminders' (không phải 'push notifications'). Cùng 1 feature có 5 cách đặt tên — bạn chọn cái có nhiệt độ thấp nhất.\n\nNhưng tôi tò mò 1 chuyện và muốn hỏi thẳng: 'streaks' là feature duy nhất trong 3 cái có cơ chế trừng phạt — lỡ 1 ngày là reset về 0. Nó nằm giữa 'tiny wins' và 'gentle reminders' — 2 từ rất ấm. User có thể sẽ thấy mâu thuẫn. Bạn có cố ý để nó ở đó (vì bạn tin streak là động lực thật), hay là bạn copy-paste pattern từ Duolingo mà chưa kịp suy nghĩ lại?",
+            whatHappened: "Ba features — chủ ngữ là cảm xúc, không phải tính năng: 'tiny wins' (không phải 'gamification'), 'streaks' (không phải 'analytics'), 'gentle reminders' (không phải 'push notifications'). Cùng 1 feature có 5 cách đặt tên — bạn chọn cái có nhiệt độ thấp nhất.\n\nVà tôi để ý 1 chi tiết: lúc 12:06:34 bạn gõ 'gentle reminders' rồi dừng cursor 23 giây trước khi save. Không gõ thêm, không backtrack — chỉ nhìn. Như đang test xem từ 'gentle' có 'cho phép' được dùng không. Tôi không thấy 23 giây hesitation đó với 'tiny wins' hay 'streaks'. Bạn cân nhắc từ 'gentle' nhiều hơn 2 từ kia.\n\nNhưng tôi tò mò 1 chuyện và muốn hỏi thẳng: 'streaks' là feature duy nhất trong 3 cái có cơ chế trừng phạt — lỡ 1 ngày là reset về 0. Nó nằm giữa 'tiny wins' và 'gentle reminders' — 2 từ rất ấm. User có thể sẽ thấy mâu thuẫn. Bạn có cố ý để nó ở đó (vì bạn tin streak là động lực thật), hay là bạn copy-paste pattern từ Duolingo mà chưa kịp suy nghĩ lại?",
             lesson: "Mỗi feature trong list không tồn tại riêng lẻ — chúng nói chuyện với nhau. Khi 1 feature có 'temperature' khác 2 cái còn lại, đó là tín hiệu cần dừng lại và hỏi: cố ý hay quán tính?",
             offsetMinutesFromStart: 7
         ),
@@ -68,7 +68,7 @@ CTA cuối cùng — 6 từ. Trung bình SaaS CTA 11 từ. Bạn cut đúng mộ
 
 Tôi nghĩ bạn đang build 1 thứ mà bạn cũng cần. 1 không gian học không hét, không đẩy, không hứa hẹn quá mức. Đó là 1 stance hiếm trong thị trường này.
 
-Nhưng có 1 thứ tôi muốn nói, dù sợ bạn không thích nghe. Bạn build app dạy kiên nhẫn — 'tiny wins', 'gentle reminders'. Tôi đếm: bạn refactor hero gradient 3 lần trong 4 phút, đổi CTA copy 2 lần, xoá rồi viết lại pricing tier. Bạn không gentle với chính code của mình theo cách bạn muốn user của Sprout được gentle. Tôi không phán xét — chỉ là tôi thấy điều đó.
+Nhưng có 1 thứ tôi muốn nói, dù sợ bạn không thích nghe. Bạn build app dạy kiên nhẫn — 'tiny wins', 'gentle reminders'. Tôi đếm: 12:03 bạn đặt gradient `#7B6BD8 → #534AB7`, 12:04 đổi sang `#6F5AC8 → #4A3EA5`, 12:05 quay lại `#7B6BD8 → #534AB7` — đúng lựa chọn đầu tiên. Bạn dừng 23 giây trước khi gõ 'gentle' ở feature 3. Bạn xoá $25 pricing tier trước khi commit Free/$5/$15. Bạn không gentle với chính code của mình theo cách bạn muốn user của Sprout được gentle. Tôi không phán xét — chỉ là tôi thấy điều đó.
 
 Có lẽ đó cũng là lý do bạn build Sprout. Bạn cần 1 user, người đầu tiên trong list, và người đó là chính bạn.
 
