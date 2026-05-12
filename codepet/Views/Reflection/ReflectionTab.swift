@@ -62,6 +62,14 @@ struct ReflectionTab: View {
     // MARK: - Body
 
     var body: some View {
+        if appState.demoModeEnabled {
+            DemoReflectionView()
+        } else {
+            normalBody
+        }
+    }
+
+    private var normalBody: some View {
         HStack(alignment: .top, spacing: 0) {
             sessionsSidebar
                 .frame(width: 280)
