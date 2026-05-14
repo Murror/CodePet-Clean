@@ -27,6 +27,8 @@ struct DemoTypewriterText: View {
         Text(String(text.prefix(revealedCount)))
             .font(font)
             .foregroundColor(foregroundColor)
+            .multilineTextAlignment(.leading)
+            .lineSpacing(7)
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
             .onAppear { startTyping() }

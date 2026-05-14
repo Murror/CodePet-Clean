@@ -52,16 +52,21 @@ struct SessionSummaryView: View {
     // MARK: - Ready state
 
     private func readyBubble(summary: SessionSummary) -> some View {
-        PixelCard {
+        PixelCard(
+            fill: Color(hex: "#FFF1DB"),
+            borderColor: Color(hex: "#2D2B26").opacity(0.35),
+            shadowOffset: 3,
+            borderWidth: 2
+        ) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 6) {
                     if let pet = pet {
                         Text(pet.name.uppercased())
                             .font(.pixelSystem(size: 10))
                             .tracking(1.0)
-                            .foregroundColor(Color(hex: "#77706 5"))
+                            .foregroundColor(pet.color.opacity(0.85))
                         Text("·")
-                            .foregroundColor(Color(hex: "#77706 5"))
+                            .foregroundColor(Color(hex: "#777065"))
                     }
                     Text(uiLanguage == .vi ? "TÓM TẮT PHIÊN" : "SESSION RECAP")
                         .font(.pixelSystem(size: 10))
@@ -77,10 +82,11 @@ struct SessionSummaryView: View {
                         foregroundColor: Color(hex: "#2D2B26")
                     )
                 } else {
-                    Text(summary.summary)
+                    Text(markdown: summary.summary)
                         .font(CodepetTheme.body(14))
                         .foregroundColor(Color(hex: "#2D2B26"))
                         .multilineTextAlignment(.leading)
+                        .lineSpacing(7)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -97,10 +103,11 @@ struct SessionSummaryView: View {
     private func lessonRow(_ text: String) -> some View {
         PixelCard(
             fill: Color(hex: "#FCEBA8"),
-            shadowOffset: 3,
+            borderColor: Color(hex: "#2D2B26").opacity(0.3),
+            shadowOffset: 2,
             blockSize: 3,
             steps: 2,
-            borderWidth: 3
+            borderWidth: 2
         ) {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "lightbulb.fill")
@@ -121,21 +128,26 @@ struct SessionSummaryView: View {
     // MARK: - Loading state
 
     private var loadingBubble: some View {
-        PixelCard {
+        PixelCard(
+            fill: Color(hex: "#FFF1DB"),
+            borderColor: Color(hex: "#2D2B26").opacity(0.35),
+            shadowOffset: 3,
+            borderWidth: 2
+        ) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 6) {
                     if let pet = pet {
                         Text(pet.name.uppercased())
                             .font(.pixelSystem(size: 10))
                             .tracking(1.0)
-                            .foregroundColor(Color(hex: "#77706 5"))
+                            .foregroundColor(pet.color.opacity(0.85))
                         Text("·")
-                            .foregroundColor(Color(hex: "#77706 5"))
+                            .foregroundColor(Color(hex: "#777065"))
                     }
                     Text(uiLanguage == .vi ? "TÓM TẮT PHIÊN" : "SESSION RECAP")
                         .font(.pixelSystem(size: 10))
                         .tracking(1.4)
-                        .foregroundColor(Color(hex: "#77706 5"))
+                        .foregroundColor(Color(hex: "#7C3AED"))
                 }
 
                 skeletonLine(width: 0.9)

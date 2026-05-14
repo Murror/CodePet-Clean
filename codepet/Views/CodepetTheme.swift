@@ -50,6 +50,7 @@ enum CodepetTheme {
     static let accentGold   = Color(red: 0xFD / 255.0, green: 0xB0 / 255.0, blue: 0x22 / 255.0)
     static let accentTeal   = Color(red: 0x2D / 255.0, green: 0xD4 / 255.0, blue: 0xBF / 255.0)
     static let accentOrange = Color(red: 0xFF / 255.0, green: 0x8C / 255.0, blue: 0x42 / 255.0)
+    static let accentBlue   = Color(red: 0x25 / 255.0, green: 0x63 / 255.0, blue: 0xEB / 255.0)
 
     // MARK: Geometry
 
@@ -239,5 +240,78 @@ extension View {
     /// Wrap a TextField in soft input chrome.
     func codepetInput() -> some View {
         modifier(CodepetInputBackground())
+    }
+}
+
+// MARK: - Markdown Text rendering
+
+extension Text {
+    /// Render a plain `String` containing inline Markdown into a colored `Text`.
+    /// Each inline style maps to a distinct accent color, so emphasis pops the
+    /// way it would in a code editor:
+    ///
+    /// - `` `code` ``        → accent **purple** + monospaced (handled by SwiftUI)
+    /// - `**bold**`          → accent **pink**
+    /// - `*italic*`          → accent **blue**
+    /// - `~~strike~~`        → accent **orange** (kept struck through)
+    /// - `[tag](anything)`   → accent **gold** (link target is ignored — purely a
+    ///                          visual marker so writers can highlight phrases
+    ///                          without inventing custom syntax)
+    ///
+    /// Preserves whitespace and line breaks. Falls back to the plain string
+    /// if parsing fails.
+    init(markdown raw: String) {
+        let opts = AttributedString.MarkdownParsingOptions(
+            interpretedSyntax: .inlineOnlyPreservingWhitespace
+        )
+        guard var attr = try? AttributedString(markdown: raw, options: opts) else {
+            self.init(raw)
+            return
+        }
+
+        // Collect ranges first to avoid mutating the AttributedString while
+        // iterating its runs.
+        var codeRanges: [Range<AttributedString.Index>] = []
+        var boldRanges: [Range<AttributedString.Index>] = []
+        var italicRanges: [Range<AttributedString.Index>] = []
+        var strikeRanges: [Range<AttributedString.Index>] = []
+        var linkRanges: [Range<AttributedString.Index>] = []
+
+        for run in attr.runs {
+            if run.link != nil {
+                linkRanges.append(run.range)
+                continue
+            }
+            guard let intent = run.inlinePresentationIntent else { continue }
+            if intent.contains(.code) {
+                codeRanges.append(run.range)
+            } else if intent.contains(.strikethrough) {
+                strikeRanges.append(run.range)
+            } else if intent.contains(.stronglyEmphasized) {
+                boldRanges.append(run.range)
+            } else if intent.contains(.emphasized) {
+                italicRanges.append(run.range)
+            }
+        }
+
+        for r in codeRanges {
+            attr[r].foregroundColor = CodepetTheme.accentPurple
+        }
+        for r in boldRanges {
+            attr[r].foregroundColor = CodepetTheme.accentPink
+        }
+        for r in italicRanges {
+            attr[r].foregroundColor = CodepetTheme.accentBlue
+        }
+        for r in strikeRanges {
+            attr[r].foregroundColor = CodepetTheme.accentOrange
+        }
+        for r in linkRanges {
+            attr[r].foregroundColor = CodepetTheme.accentGold
+            attr[r].link = nil       // strip the URL so taps don't navigate
+            attr[r].underlineStyle = nil
+        }
+
+        self.init(attr)
     }
 }

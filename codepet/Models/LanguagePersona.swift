@@ -45,3 +45,22 @@ struct PersonaText {
         }
     }
 }
+
+/// Localized variant of `PersonaText` — each persona carries an `L10n` pair.
+/// Use this when copy must vary on BOTH the persona axis (student/productOwner/
+/// developer) AND the UI language axis (vi/en).
+struct PersonaTextL10n {
+    let student: L10n
+    let productOwner: L10n
+    let developer: L10n
+
+    func value(for persona: LanguagePersona, language: AppLanguage) -> String {
+        let pair: L10n
+        switch persona {
+        case .student:      pair = student
+        case .productOwner: pair = productOwner
+        case .developer:    pair = developer
+        }
+        return pair(language)
+    }
+}

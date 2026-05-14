@@ -2,6 +2,8 @@ import SwiftUI
 
 struct DictionaryView: View {
 
+    @Environment(\.uiLanguage) private var uiLanguage
+
     @State private var selectedTopicId: String = DictionaryContent.topics.first!.id
     @State private var searchQuery: String = ""
     @State private var expandedTermIds: Set<String> = []
@@ -37,7 +39,7 @@ struct DictionaryView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("DICTIONARY")
+            Text(uiLanguage == .vi ? "TỪ ĐIỂN" : "DICTIONARY")
                 .font(CodepetTheme.pixel(11))
                 .tracking(1.2)
                 .foregroundColor(CodepetTheme.mutedText)
@@ -67,7 +69,7 @@ struct DictionaryView: View {
                 Image(systemName: topic.icon)
                     .frame(width: 18)
                     .foregroundColor(isSelected ? .white : CodepetTheme.bodyText)
-                Text(topic.title)
+                Text(topic.title(uiLanguage))
                     .font(CodepetTheme.pixel(13))
                     .foregroundColor(isSelected ? .white : CodepetTheme.primaryText)
                 Spacer()
@@ -94,14 +96,16 @@ struct DictionaryView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(isSearching ? "Search results" : currentTopicTitle)
+            Text(isSearching
+                 ? (uiLanguage == .vi ? "Kết quả tìm kiếm" : "Search results")
+                 : currentTopicTitle)
                 .font(CodepetTheme.display(22, weight: .bold))
                 .foregroundColor(CodepetTheme.primaryText)
 
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .foregroundColor(CodepetTheme.mutedText)
-                TextField("Search all terms…", text: $searchQuery)
+                TextField(uiLanguage == .vi ? "Tìm kiếm trong từ điển…" : "Search all terms…", text: $searchQuery)
                     .textFieldStyle(.plain)
                     .font(CodepetTheme.body(13))
                     .foregroundColor(CodepetTheme.primaryText)
@@ -123,7 +127,8 @@ struct DictionaryView: View {
     }
 
     private var currentTopicTitle: String {
-        DictionaryContent.topics.first { $0.id == selectedTopicId }?.title ?? "Dictionary"
+        DictionaryContent.topics.first { $0.id == selectedTopicId }?.title(uiLanguage)
+            ?? (uiLanguage == .vi ? "Từ điển" : "Dictionary")
     }
 
     @ViewBuilder
@@ -153,7 +158,9 @@ struct DictionaryView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 28))
                 .foregroundColor(CodepetTheme.mutedText)
-            Text("No matches for \u{201C}\(searchQuery)\u{201D}.")
+            Text(uiLanguage == .vi
+                 ? "Không có kết quả cho \u{201C}\(searchQuery)\u{201D}."
+                 : "No matches for \u{201C}\(searchQuery)\u{201D}.")
                 .font(CodepetTheme.body(13))
                 .foregroundColor(CodepetTheme.mutedText)
             Spacer()

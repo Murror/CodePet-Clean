@@ -2,6 +2,8 @@ import SwiftUI
 
 struct DictionaryCard: View {
 
+    @Environment(\.uiLanguage) private var uiLanguage
+
     let term: DictionaryTerm
     let isExpanded: Bool
     let onToggleExpand: () -> Void
@@ -9,11 +11,11 @@ struct DictionaryCard: View {
     var body: some View {
         PixelCard {
             VStack(alignment: .leading, spacing: 12) {
-                Text(term.title)
+                Text(term.title(uiLanguage))
                     .font(CodepetTheme.display(18, weight: .bold))
                     .foregroundColor(CodepetTheme.primaryText)
 
-                Text(term.shortDefinition)
+                Text(markdown: term.shortDefinition(uiLanguage))
                     .font(CodepetTheme.body(13))
                     .foregroundColor(CodepetTheme.bodyText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -27,7 +29,9 @@ struct DictionaryCard: View {
                     Spacer()
                     Button(action: onToggleExpand) {
                         HStack(spacing: 4) {
-                            Text(isExpanded ? "Show less" : "Learn more")
+                            Text(isExpanded
+                                 ? (uiLanguage == .vi ? "Thu gọn" : "Show less")
+                                 : (uiLanguage == .vi ? "Tìm hiểu thêm" : "Learn more"))
                             Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                                 .font(.system(size: 10, weight: .semibold))
                         }
@@ -48,7 +52,7 @@ struct DictionaryCard: View {
     @ViewBuilder
     private var deepDive: some View {
         VStack(alignment: .leading, spacing: 16) {
-            section(title: "Analogy", body: term.analogy)
+            section(title: uiLanguage == .vi ? "Ví dụ ẩn dụ" : "Analogy", body: term.analogy(uiLanguage))
 
             if let code = term.codeExample {
                 VStack(alignment: .leading, spacing: 6) {
@@ -70,7 +74,7 @@ struct DictionaryCard: View {
             }
 
             if let when = term.whenToUse {
-                section(title: "When to use", body: when)
+                section(title: uiLanguage == .vi ? "Khi nào dùng" : "When to use", body: when(uiLanguage))
             }
         }
         .padding(.top, 4)
@@ -79,7 +83,7 @@ struct DictionaryCard: View {
     private func section(title: String, body: String) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             sectionLabel(title)
-            Text(body)
+            Text(markdown: body)
                 .font(CodepetTheme.body(13))
                 .foregroundColor(CodepetTheme.bodyText)
                 .fixedSize(horizontal: false, vertical: true)

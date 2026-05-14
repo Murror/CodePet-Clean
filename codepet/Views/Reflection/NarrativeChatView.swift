@@ -16,9 +16,18 @@ struct NarrativeChatTurnView: View {
     // Pet animation tracks (premium = restrained)
     @State private var petFloat = false
     @State private var petGlow: CGFloat = 0
+    /// One-shot wiggle when the bubble first appears (0 → 1 → 0). Combines
+    /// with petFloat as a multiplicative scaleEffect.
+    @State private var petWiggle: CGFloat = 0
 
     // Bubble entry animation
     @State private var didAppear = false
+    // Staggered section reveals (header → whatYouWanted → whatHappened → lesson).
+    // Each block fades in + slides up slightly.
+    @State private var headerVisible = false
+    @State private var whatYouWantedVisible = false
+    @State private var whatHappenedVisible = false
+    @State private var lessonVisible = false
 
     private var pet: PetCharacter? {
         PetCharacter.all[appState.activeChar]
@@ -41,8 +50,30 @@ struct NarrativeChatTurnView: View {
     }
 
     private func startAnimations() {
+        // Bubble container scales in.
         withAnimation(.spring(response: 0.55, dampingFraction: 0.65).delay(0.05)) {
             didAppear = true
+        }
+        // Pet wiggle: up to 1, then spring back to 0 — a one-shot "Byte is
+        // speaking" emote synced with bubble entry.
+        withAnimation(.easeOut(duration: 0.2).delay(0.1)) {
+            petWiggle = 1
+        }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.45).delay(0.3)) {
+            petWiggle = 0
+        }
+        // Stagger the content sections so the bubble feels alive.
+        withAnimation(.easeOut(duration: 0.3).delay(0.2)) {
+            headerVisible = true
+        }
+        withAnimation(.easeOut(duration: 0.4).delay(0.5)) {
+            whatYouWantedVisible = true
+        }
+        withAnimation(.easeOut(duration: 0.45).delay(0.95)) {
+            whatHappenedVisible = true
+        }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(1.4)) {
+            lessonVisible = true
         }
         withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) {
             petFloat = true
@@ -55,35 +86,52 @@ struct NarrativeChatTurnView: View {
     // MARK: - Pet bubble (single voice)
 
     private var petBubble: some View {
-        PixelCard {
+        PixelCard(
+            fill: Color(hex: "#FFF1DB"),
+            borderColor: Color(hex: "#2D2B26").opacity(0.35),
+            shadowOffset: 3,
+            borderWidth: 2
+        ) {
             VStack(alignment: .leading, spacing: 10) {
                 if let pet = pet {
                     Text(pet.name.uppercased())
                         .font(.pixelSystem(size: 10))
                         .tracking(1.0)
                         .foregroundColor(petColor.opacity(0.85))
+                        .opacity(headerVisible ? 1 : 0)
+                        .offset(y: headerVisible ? 0 : 6)
                 }
 
-                Text(narrative.whatYouWanted)
+                Text(markdown: narrative.whatYouWanted)
                     .font(CodepetTheme.body(14))
                     .foregroundColor(Color(hex: "#2D2B26"))
                     .multilineTextAlignment(.leading)
+                    .lineSpacing(6)
                     .fixedSize(horizontal: false, vertical: true)
+                    .opacity(whatYouWantedVisible ? 1 : 0)
+                    .offset(y: whatYouWantedVisible ? 0 : 10)
 
                 Rectangle()
                     .fill(Color(hex: "#2D2B26").opacity(0.25))
                     .frame(height: 2)
                     .padding(.vertical, 2)
+                    .opacity(whatHappenedVisible ? 1 : 0)
 
-                Text(narrative.whatHappened)
+                Text(markdown: narrative.whatHappened)
                     .font(CodepetTheme.body(14))
                     .foregroundColor(Color(hex: "#2D2B26"))
                     .multilineTextAlignment(.leading)
+                    .lineSpacing(6)
                     .fixedSize(horizontal: false, vertical: true)
+                    .opacity(whatHappenedVisible ? 1 : 0)
+                    .offset(y: whatHappenedVisible ? 0 : 10)
 
                 if !narrative.lesson.isEmpty {
                     lessonRow(narrative.lesson)
                         .padding(.top, 4)
+                        .opacity(lessonVisible ? 1 : 0)
+                        .scaleEffect(lessonVisible ? 1.0 : 0.85, anchor: .topLeading)
+                        .offset(y: lessonVisible ? 0 : 8)
                 }
             }
             .padding(.horizontal, 14)
@@ -95,20 +143,22 @@ struct NarrativeChatTurnView: View {
     private func lessonRow(_ text: String) -> some View {
         PixelCard(
             fill: Color(hex: "#FCEBA8"),
-            shadowOffset: 3,
+            borderColor: Color(hex: "#2D2B26").opacity(0.3),
+            shadowOffset: 2,
             blockSize: 3,
             steps: 2,
-            borderWidth: 3
+            borderWidth: 2
         ) {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "lightbulb.fill")
                     .font(.pixelSystem(size: 12, weight: .medium))
                     .foregroundColor(Color(hex: "#B6850A"))
                     .padding(.top, 2)
-                Text(text)
+                Text(markdown: text)
                     .font(CodepetTheme.body(13, weight: .medium))
                     .foregroundColor(Color(hex: "#2D2B26"))
                     .multilineTextAlignment(.leading)
+                    .lineSpacing(5)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)
@@ -136,6 +186,8 @@ struct NarrativeChatTurnView: View {
                     .clipShape(Circle())
                     .overlay(Circle().stroke(pet.color.opacity(0.55), lineWidth: 1.5))
                     .scaleEffect(petFloat ? 1.02 : 0.98)
+                    .scaleEffect(1.0 + petWiggle * 0.18)
+                    .rotationEffect(.degrees(Double(petWiggle) * -4))
                     .offset(y: petFloat ? -2 : 2)
                     .shadow(
                         color: pet.color.opacity(petFloat ? 0.45 : 0.3),

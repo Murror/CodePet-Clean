@@ -7,6 +7,7 @@ private let logger = Logger(subsystem: "app.murror.codepet", category: "ContentV
 struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var authManager: AuthManager
+    @EnvironmentObject var demoController: DemoScriptController
     @State private var isLoadingCloudData = false
     @State private var showSplash = true
 
@@ -33,6 +34,13 @@ struct ContentView: View {
                 MainTabView()
             }
         }
+        .overlay {
+            if let stage = demoController.activeHealthModal {
+                HealthNudgeModal(stage: stage)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: demoController.activeHealthModal)
         .animation(.easeInOut(duration: 0.3), value: showSplash)
         .animation(.easeInOut(duration: 0.3), value: appState.onboardingComplete)
         .animation(.easeInOut(duration: 0.3), value: authManager.currentUser == nil)

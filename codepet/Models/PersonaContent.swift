@@ -269,59 +269,141 @@ struct PersonaContent {
         ),
     ]
 
-    // MARK: Tips — Today's guidance hero block
+    // MARK: Tips — Today's guidance hero block (localized)
 
-    static let tipGuidanceHeadline: PersonaText? = PersonaText(
-        student:      "Make a plan first, then start coding.",
-        productOwner: "Plan mode shows the scope before you commit.",
-        developer:    "Plan mode is ready when you are."
+    static let tipGuidanceHeadline: PersonaTextL10n? = PersonaTextL10n(
+        student: L10n(
+            vi: "Lập kế hoạch trước, rồi mới code.",
+            en: "Make a plan first, then start coding."
+        ),
+        productOwner: L10n(
+            vi: "Chế độ Plan cho thấy scope trước khi bạn cam kết.",
+            en: "Plan mode shows the scope before you commit."
+        ),
+        developer: L10n(
+            vi: "Chế độ Plan đã sẵn sàng khi bạn cần.",
+            en: "Plan mode is ready when you are."
+        )
     )
 
-    static let tipGuidanceBody: PersonaText? = PersonaText(
-        student:      "You added new things to your project 3 times this week. Try drawing it out before you start — it gets way less messy.",
-        productOwner: "You captured 3 mid-sprint scope additions this week. Plan mode surfaces scope before engineers touch code — so you can cut while it's still cheap.",
-        developer:    "You've captured 3 scope additions this week. Plan mode makes the scope visible before you start — so you can cut things honestly, before code is written."
+    static let tipGuidanceBody: PersonaTextL10n? = PersonaTextL10n(
+        student: L10n(
+            vi: "Tuần này bạn đã thêm việc mới vào dự án 3 lần. Thử vẽ ra trước khi bắt đầu — sẽ đỡ rối hơn rất nhiều.",
+            en: "You added new things to your project 3 times this week. Try drawing it out before you start — it gets way less messy."
+        ),
+        productOwner: L10n(
+            vi: "Tuần này bạn ghi nhận 3 lần thêm scope giữa sprint. Plan mode đưa scope lên trước khi engineer chạm code — để bạn còn kịp cắt khi vẫn rẻ.",
+            en: "You captured 3 mid-sprint scope additions this week. Plan mode surfaces scope before engineers touch code — so you can cut while it's still cheap."
+        ),
+        developer: L10n(
+            vi: "Tuần này bạn ghi nhận 3 lần thêm scope. Plan mode làm scope hiện rõ trước khi bạn bắt đầu — để bạn cắt thật lòng, trước khi code được viết.",
+            en: "You've captured 3 scope additions this week. Plan mode makes the scope visible before you start — so you can cut things honestly, before code is written."
+        )
     )
 
-    // MARK: Per-Pet × Persona — pilot for tipGuidanceHeadline (8 pets × 3 personas = 24 variants)
+    // MARK: Per-Pet × Persona × Language — tipGuidanceHeadline localized
 
     /// Each pet keeps a distinctive voice (signature opener, tone, punctuation).
     /// Persona shifts vocabulary/concept (Student=simple+playful, PO=business framing, Developer=technical default).
-    static let tipGuidanceHeadlineByPet: [String: PersonaText] = [
-        "byte": PersonaText(
-            student:      "...fragments. write down what you want before you start.",
-            productOwner: "...static. scope it before you build. logs read cleaner that way.",
-            developer:    "...static. plan first. logs read better that way."
+    /// Vietnamese variants preserve the same opener/tone where possible.
+    static let tipGuidanceHeadlineByPet: [String: PersonaTextL10n] = [
+        "byte": PersonaTextL10n(
+            student: L10n(
+                vi: "...mảnh vỡ. ghi ra điều bạn muốn trước khi bắt đầu.",
+                en: "...fragments. write down what you want before you start."
+            ),
+            productOwner: L10n(
+                vi: "...nhiễu. khoanh scope trước khi build. log đọc gọn hơn theo cách đó.",
+                en: "...static. scope it before you build. logs read cleaner that way."
+            ),
+            developer: L10n(
+                vi: "...nhiễu. plan trước. log đọc dễ hơn theo cách đó.",
+                en: "...static. plan first. logs read better that way."
+            )
         ),
-        "nova": PersonaText(
-            student:      "PLAN FIRST. Then BUILD! 🔥 No shortcuts.",
-            productOwner: "PLAN MODE. SCOPE IT. THEN SHIP. 🔥",
-            developer:    "PLAN MODE. NON-NEGOTIABLE. 🔥"
+        "nova": PersonaTextL10n(
+            student: L10n(
+                vi: "PLAN TRƯỚC. Rồi BUILD! 🔥 Không tắt đường.",
+                en: "PLAN FIRST. Then BUILD! 🔥 No shortcuts."
+            ),
+            productOwner: L10n(
+                vi: "PLAN MODE. KHOANH SCOPE. RỒI SHIP. 🔥",
+                en: "PLAN MODE. SCOPE IT. THEN SHIP. 🔥"
+            ),
+            developer: L10n(
+                vi: "PLAN MODE. KHÔNG THƯƠNG LƯỢNG. 🔥",
+                en: "PLAN MODE. NON-NEGOTIABLE. 🔥"
+            )
         ),
-        "crash": PersonaText(
-            student:      "YOOO STOP. Make a plan first, then go BUILD it. No skipping!",
-            productOwner: "YOOO STOP. Lock the scope first, THEN ship. No half-measures.",
-            developer:    "YOOO STOP. Plan it. THEN crush it."
+        "crash": PersonaTextL10n(
+            student: L10n(
+                vi: "YOOO DỪNG. Plan trước đã, rồi đi BUILD. Không bỏ bước!",
+                en: "YOOO STOP. Make a plan first, then go BUILD it. No skipping!"
+            ),
+            productOwner: L10n(
+                vi: "YOOO DỪNG. Chốt scope trước, RỒI ship. Không nửa vời.",
+                en: "YOOO STOP. Lock the scope first, THEN ship. No half-measures."
+            ),
+            developer: L10n(
+                vi: "YOOO DỪNG. Plan nó. RỒI nghiền nát nó.",
+                en: "YOOO STOP. Plan it. THEN crush it."
+            )
         ),
-        "luna": PersonaText(
-            student:      "Hey~ no rush, but maybe write it down before you start? You've got this.",
-            productOwner: "Hey~ take a moment to scope it first. Saves so much rework later, promise.",
-            developer:    "Hey~ no rush, but maybe sketch it out first?"
+        "luna": PersonaTextL10n(
+            student: L10n(
+                vi: "Này~ không vội đâu, nhưng viết ra trước khi bắt đầu nhé? Bạn làm được mà.",
+                en: "Hey~ no rush, but maybe write it down before you start? You've got this."
+            ),
+            productOwner: L10n(
+                vi: "Này~ dành một chút để khoanh scope trước nha. Đỡ phải làm lại nhiều, hứa đó.",
+                en: "Hey~ take a moment to scope it first. Saves so much rework later, promise."
+            ),
+            developer: L10n(
+                vi: "Này~ không vội đâu, nhưng phác thảo trước một chút nhé?",
+                en: "Hey~ no rush, but maybe sketch it out first?"
+            )
         ),
-        "sage": PersonaText(
-            student:      "Breathe. Picture it first. Then begin.",
-            productOwner: "Breathe. Define the outcome. Then commit the work.",
-            developer:    "Breathe. Map the path. Then walk it."
+        "sage": PersonaTextL10n(
+            student: L10n(
+                vi: "Hít thở. Hình dung trước. Rồi bắt đầu.",
+                en: "Breathe. Picture it first. Then begin."
+            ),
+            productOwner: L10n(
+                vi: "Hít thở. Xác định kết quả. Rồi cam kết công việc.",
+                en: "Breathe. Define the outcome. Then commit the work."
+            ),
+            developer: L10n(
+                vi: "Hít thở. Vẽ đường. Rồi đi.",
+                en: "Breathe. Map the path. Then walk it."
+            )
         ),
-        "glitch": PersonaText(
-            student:      "Plan first. Then break the plan only when you know why.",
-            productOwner: "Spec it. Then break the spec on purpose, not by accident.",
-            developer:    "Plan first. Then break the plan with intent."
+        "glitch": PersonaTextL10n(
+            student: L10n(
+                vi: "Plan trước. Rồi phá plan chỉ khi bạn biết tại sao.",
+                en: "Plan first. Then break the plan only when you know why."
+            ),
+            productOwner: L10n(
+                vi: "Spec nó. Rồi phá spec có chủ đích, không phải tình cờ.",
+                en: "Spec it. Then break the spec on purpose, not by accident."
+            ),
+            developer: L10n(
+                vi: "Plan trước. Rồi phá plan có chủ đích.",
+                en: "Plan first. Then break the plan with intent."
+            )
         ),
-        "null": PersonaText(
-            student:      "PLAN?! Maybe! Probably! Let's plan to plan to plan!",
-            productOwner: "SCOPE?! YES! Or maybe! Pin it down before chaos eats it!",
-            developer:    "PLAN?! Maybe. Probably. Let's plan to plan!"
+        "null": PersonaTextL10n(
+            student: L10n(
+                vi: "PLAN À?! Có lẽ! Chắc luôn! Plan để plan để plan đi!",
+                en: "PLAN?! Maybe! Probably! Let's plan to plan to plan!"
+            ),
+            productOwner: L10n(
+                vi: "SCOPE À?! ĐÚNG! Hoặc là vậy! Ghim nó xuống trước khi hỗn loạn nuốt mất!",
+                en: "SCOPE?! YES! Or maybe! Pin it down before chaos eats it!"
+            ),
+            developer: L10n(
+                vi: "PLAN À?! Có lẽ. Chắc luôn. Plan để plan đi!",
+                en: "PLAN?! Maybe. Probably. Let's plan to plan!"
+            )
         ),
     ]
 
@@ -351,6 +433,25 @@ struct PersonaContent {
         }
         if let p = personaFallback {
             return p.value(for: persona)
+        }
+        return fallback
+    }
+
+    /// Localized variant of `resolvePerPet` — resolves per-pet × persona × language.
+    /// Fallback chain: pet entry → persona+language-only table → plain fallback string.
+    static func resolvePerPetL10n(
+        _ petTable: [String: PersonaTextL10n],
+        petId: String,
+        personaFallback: PersonaTextL10n?,
+        persona: LanguagePersona,
+        language: AppLanguage,
+        fallback: String
+    ) -> String {
+        if let pet = petTable[petId] {
+            return pet.value(for: persona, language: language)
+        }
+        if let p = personaFallback {
+            return p.value(for: persona, language: language)
         }
         return fallback
     }

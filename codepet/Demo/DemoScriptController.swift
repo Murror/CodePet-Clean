@@ -11,6 +11,11 @@ final class DemoScriptController: ObservableObject {
     @Published private(set) var reflectionRevealed: Bool = false
     @Published private(set) var sessionStartedAt: Date? = nil
 
+    /// Currently-displayed health-nudge modal (⌥6/⌥7/⌥8). Modal-style — pops
+    /// up over the app instead of being logged as a Turn. Set by
+    /// `fireHealthStage`, cleared by `dismissHealthModal`.
+    @Published var activeHealthModal: DemoScript.HealthStage? = nil
+
     /// Display language for resolving L10n fields when synthesizing
     /// `demoSession`. Driven by `AppState.uiLanguage` via CodePetApp.
     @Published var language: AppLanguage = .vi
@@ -19,6 +24,7 @@ final class DemoScriptController: ObservableObject {
         sessionStartedAt = now
         firedMilestones = []
         reflectionRevealed = false
+        activeHealthModal = nil
     }
 
     func fireMilestone(index: Int) {
@@ -26,6 +32,20 @@ final class DemoScriptController: ObservableObject {
         guard let milestone = DemoScript.milestones.first(where: { $0.index == index }) else { return }
         guard !firedMilestones.contains(where: { $0.index == index }) else { return }
         firedMilestones.append(milestone)
+    }
+
+    /// Fires one of the 3 health-rhythm stages (⌥6/⌥7/⌥8). Pops up a modal
+    /// over the app — does NOT log a Turn into the chat history. Replaces
+    /// any currently-active modal so consecutive ⌥6→⌥7→⌥8 just swap content.
+    func fireHealthStage(index: Int) {
+        guard sessionStartedAt != nil else { return }
+        guard let stage = DemoScript.healthStages.first(where: { $0.index == index }) else { return }
+        activeHealthModal = stage
+    }
+
+    /// Dismiss the health-nudge modal (Đóng button / Esc / click outside).
+    func dismissHealthModal() {
+        activeHealthModal = nil
     }
 
     func revealReflection() {
@@ -37,6 +57,7 @@ final class DemoScriptController: ObservableObject {
         firedMilestones = []
         reflectionRevealed = false
         sessionStartedAt = nil
+        activeHealthModal = nil
     }
 
     /// "Panic" skip: forces all 4 milestones to be fired + reveals the

@@ -1,7 +1,7 @@
 import AppKit
 import Combine
 
-/// Listens for ⌥1..⌥5 and ⌥0 while the app is frontmost and DemoMode is on.
+/// Listens for ⌥1..⌥8 and ⌥0 while the app is frontmost and DemoMode is on.
 /// Routes the keys to `DemoScriptController`. Uses a local NSEvent monitor
 /// so we don't grab keys when the app is in the background.
 @MainActor
@@ -42,7 +42,7 @@ final class DemoHotkeyMonitor: ObservableObject {
         guard let chars = event.charactersIgnoringModifiers, chars.count == 1 else { return event }
         // ⌥+digit on US keyboards produces special chars (¡™£¢…) so we use
         // event.keyCode instead. Mapping:
-        //   18=1, 19=2, 20=3, 21=4, 23=5, 29=0
+        //   18=1, 19=2, 20=3, 21=4, 23=5, 22=6, 26=7, 28=8, 29=0
         let keyCode = event.keyCode
         switch keyCode {
         case 18: controller?.fireMilestone(index: 1); return nil
@@ -50,6 +50,9 @@ final class DemoHotkeyMonitor: ObservableObject {
         case 20: controller?.fireMilestone(index: 3); return nil
         case 21: controller?.fireMilestone(index: 4); return nil
         case 23: controller?.revealReflection();     return nil
+        case 22: controller?.fireHealthStage(index: 1); return nil
+        case 26: controller?.fireHealthStage(index: 2); return nil
+        case 28: controller?.fireHealthStage(index: 3); return nil
         case 29: controller?.panicSkip(); return nil
         default: return event
         }
