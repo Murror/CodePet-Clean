@@ -77,16 +77,16 @@ struct SessionSummaryView: View {
                 if useTypewriter {
                     DemoTypewriterText(
                         text: summary.summary,
-                        charactersPerSecond: 28,
-                        font: CodepetTheme.body(14),
+                        charactersPerSecond: 70,
+                        font: CodepetTheme.body(18),
                         foregroundColor: Color(hex: "#2D2B26")
                     )
                 } else {
                     Text(markdown: summary.summary)
-                        .font(CodepetTheme.body(14))
+                        .font(CodepetTheme.body(18))
                         .foregroundColor(Color(hex: "#2D2B26"))
                         .multilineTextAlignment(.leading)
-                        .lineSpacing(7)
+                        .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -115,7 +115,7 @@ struct SessionSummaryView: View {
                     .foregroundColor(Color(hex: "#B6850A"))
                     .padding(.top, 2)
                 Text(text)
-                    .font(CodepetTheme.body(13, weight: .medium))
+                    .font(CodepetTheme.body(16, weight: .medium))
                     .foregroundColor(Color(hex: "#2D2B26"))
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)

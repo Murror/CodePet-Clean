@@ -50,29 +50,31 @@ struct NarrativeChatTurnView: View {
     }
 
     private func startAnimations() {
-        // Bubble container scales in.
-        withAnimation(.spring(response: 0.55, dampingFraction: 0.65).delay(0.05)) {
+        // Bubble container scales in (slower spring for premium feel).
+        withAnimation(.spring(response: 0.7, dampingFraction: 0.7).delay(0.05)) {
             didAppear = true
         }
         // Pet wiggle: up to 1, then spring back to 0 — a one-shot "Byte is
         // speaking" emote synced with bubble entry.
-        withAnimation(.easeOut(duration: 0.2).delay(0.1)) {
+        withAnimation(.easeOut(duration: 0.25).delay(0.15)) {
             petWiggle = 1
         }
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.45).delay(0.3)) {
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.45).delay(0.4)) {
             petWiggle = 0
         }
-        // Stagger the content sections so the bubble feels alive.
-        withAnimation(.easeOut(duration: 0.3).delay(0.2)) {
+        // Stagger the content sections — slower, more breathing room. Each
+        // section uses a longer fade + slide to feel deliberate, not rushed.
+        withAnimation(.easeOut(duration: 0.5).delay(0.4)) {
             headerVisible = true
         }
-        withAnimation(.easeOut(duration: 0.4).delay(0.5)) {
+        withAnimation(.easeOut(duration: 0.6).delay(0.9)) {
             whatYouWantedVisible = true
         }
-        withAnimation(.easeOut(duration: 0.45).delay(0.95)) {
+        withAnimation(.easeOut(duration: 0.6).delay(1.6)) {
             whatHappenedVisible = true
         }
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.7).delay(1.4)) {
+        // Lesson lands last with a bouncy spring + subtle rotation correction.
+        withAnimation(.spring(response: 0.65, dampingFraction: 0.6).delay(2.8)) {
             lessonVisible = true
         }
         withAnimation(.easeInOut(duration: 3.2).repeatForever(autoreverses: true)) {
@@ -92,51 +94,75 @@ struct NarrativeChatTurnView: View {
             shadowOffset: 3,
             borderWidth: 2
         ) {
-            VStack(alignment: .leading, spacing: 10) {
-                if let pet = pet {
-                    Text(pet.name.uppercased())
-                        .font(.pixelSystem(size: 10))
-                        .tracking(1.0)
-                        .foregroundColor(petColor.opacity(0.85))
-                        .opacity(headerVisible ? 1 : 0)
-                        .offset(y: headerVisible ? 0 : 6)
-                }
+            bubbleContent
+        }
+    }
 
-                Text(markdown: narrative.whatYouWanted)
-                    .font(CodepetTheme.body(14))
-                    .foregroundColor(Color(hex: "#2D2B26"))
-                    .multilineTextAlignment(.leading)
-                    .lineSpacing(6)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .opacity(whatYouWantedVisible ? 1 : 0)
-                    .offset(y: whatYouWantedVisible ? 0 : 10)
+    private var bubbleContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            headerView
+            whatYouWantedView
+            dividerView
+            whatHappenedView
+            lessonView
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-                Rectangle()
-                    .fill(Color(hex: "#2D2B26").opacity(0.25))
-                    .frame(height: 2)
-                    .padding(.vertical, 2)
-                    .opacity(whatHappenedVisible ? 1 : 0)
+    @ViewBuilder
+    private var headerView: some View {
+        if let pet = pet {
+            Text(pet.name.uppercased())
+                .font(.pixelSystem(size: 10))
+                .tracking(1.0)
+                .foregroundColor(petColor.opacity(0.85))
+                .opacity(headerVisible ? 1 : 0)
+                .offset(x: headerVisible ? 0 : -8, y: headerVisible ? 0 : 4)
+        }
+    }
 
-                Text(markdown: narrative.whatHappened)
-                    .font(CodepetTheme.body(14))
-                    .foregroundColor(Color(hex: "#2D2B26"))
-                    .multilineTextAlignment(.leading)
-                    .lineSpacing(6)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .opacity(whatHappenedVisible ? 1 : 0)
-                    .offset(y: whatHappenedVisible ? 0 : 10)
+    private var whatYouWantedView: some View {
+        Text(markdown: narrative.whatYouWanted)
+            .font(CodepetTheme.body(18))
+            .foregroundColor(Color(hex: "#2D2B26"))
+            .multilineTextAlignment(.leading)
+            .lineSpacing(3)
+            .fixedSize(horizontal: false, vertical: true)
+            .opacity(whatYouWantedVisible ? 1 : 0)
+            .offset(x: whatYouWantedVisible ? 0 : -12, y: whatYouWantedVisible ? 0 : 8)
+    }
 
-                if !narrative.lesson.isEmpty {
-                    lessonRow(narrative.lesson)
-                        .padding(.top, 4)
-                        .opacity(lessonVisible ? 1 : 0)
-                        .scaleEffect(lessonVisible ? 1.0 : 0.85, anchor: .topLeading)
-                        .offset(y: lessonVisible ? 0 : 8)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
+    private var dividerView: some View {
+        Rectangle()
+            .fill(Color(hex: "#2D2B26").opacity(0.25))
+            .frame(height: 2)
+            .padding(.vertical, 2)
+            .opacity(whatHappenedVisible ? 1 : 0)
+            .scaleEffect(x: whatHappenedVisible ? 1.0 : 0.3, y: 1.0, anchor: .leading)
+    }
+
+    private var whatHappenedView: some View {
+        MarkdownTypewriterText(
+            markdown: narrative.whatHappened,
+            charactersPerSecond: 150,
+            font: CodepetTheme.body(18),
+            isActive: whatHappenedVisible
+        )
+        .opacity(whatHappenedVisible ? 1 : 0)
+        .offset(x: whatHappenedVisible ? 0 : -12, y: whatHappenedVisible ? 0 : 8)
+    }
+
+    @ViewBuilder
+    private var lessonView: some View {
+        if !narrative.lesson.isEmpty {
+            lessonRow(narrative.lesson)
+                .padding(.top, 4)
+                .opacity(lessonVisible ? 1 : 0)
+                .scaleEffect(lessonVisible ? 1.0 : 0.7, anchor: .topLeading)
+                .rotationEffect(.degrees(lessonVisible ? 0 : -4), anchor: .topLeading)
+                .offset(y: lessonVisible ? 0 : 12)
         }
     }
 
@@ -155,10 +181,10 @@ struct NarrativeChatTurnView: View {
                     .foregroundColor(Color(hex: "#B6850A"))
                     .padding(.top, 2)
                 Text(markdown: text)
-                    .font(CodepetTheme.body(13, weight: .medium))
+                    .font(CodepetTheme.body(16, weight: .medium))
                     .foregroundColor(Color(hex: "#2D2B26"))
                     .multilineTextAlignment(.leading)
-                    .lineSpacing(5)
+                    .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)

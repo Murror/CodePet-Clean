@@ -28,7 +28,7 @@ struct DemoTypewriterText: View {
             .font(font)
             .foregroundColor(foregroundColor)
             .multilineTextAlignment(.leading)
-            .lineSpacing(7)
+            .lineSpacing(3)
             .frame(maxWidth: .infinity, alignment: .leading)
             .fixedSize(horizontal: false, vertical: true)
             .onAppear { startTyping() }

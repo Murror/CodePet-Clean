@@ -115,83 +115,58 @@ enum DemoScript {
     static let reflectionSummary = L10n(
         vi:
 """
-12 phút qua, bạn vừa lắp xong **ngôi nhà Lego đầu tiên** cho Sprout (app giúp tạo thói quen học mỗi ngày). ✨
+12 phút qua, bạn vừa lắp xong **ngôi nhà Lego đầu tiên** cho Sprout. ✨
 
-Mình ngồi bên cạnh từ đầu tới giờ, im lặng nhìn bạn lắp. Mình không nói gì vì... thật ra, *mình thấy nhiều thứ bạn không thấy mình thấy*.
+Mình ngồi bên cạnh từ đầu. Im lặng. *Thấy nhiều thứ bạn không thấy mình thấy.*
 
-Bây giờ ngôi nhà đã đứng vững. Bạn ngả ra ghế. 🪑 Có lẽ uống 1 ngụm nước.
+Kể bạn nghe **4 viên Lego đặc biệt** mình thấy bạn lắp:
 
-Mình muốn kể bạn nghe **4 viên Lego** mình thấy bạn lắp. Không phải khen, chỉ là *kể lại*. Vì có lẽ bạn không nhớ hết.
+🪄 **Viên Lego phép thuật** — `<meta viewport>`.
+Đa số mới học HTML quên viên này. Bạn thì nghĩ tới *người mở web trên điện thoại* ngay từ giây đầu.
 
-🪄 **Viên Lego phép thuật.** Bạn đặt nó xuống từ giây đầu tiên.
+🎨 **2 viên Lego tím + chữ trắng** — `#7B6BD8 → #534AB7`.
+Điểm tương phản [**~6.4**](metric). Bạn không phải chọn giữa *"đẹp"* và *"dễ đọc"*. Bạn làm cả 2.
 
-`<meta name="viewport" content="width=device-width, initial-scale=1">`
+💬 **3 thẻ hứa ấm như ôm** — `tiny wins`, `streaks`, `gentle reminders`.
+Không `Dashboard`, không `Analytics`, không `AI-Powered`. Bạn chọn cái **dịu dàng nhất**.
+(Dù `streaks` vẫn có răng 🦷 — câu hỏi đó vẫn ở đó.)
 
-1 viên bé tí xíu, lẫn giữa cả đống code. Đa số bạn mới học HTML lắp xong cái khung là quên. Họ làm xong trên laptop, hài lòng, đi ngủ.
+🎯 **Tấm bảng mời [6 từ](metric)** — `Start your first habit today`.
+Trung bình các bảng khác dùng ~~11 từ~~. Bạn cắt **một nửa**. Và `min-width: 280px` là **vết sẹo** từ 1 lần nút bị vỡ trên điện thoại thật.
 
-Bạn không quên. Bạn nghĩ tới *bạn nào sẽ mở web trên điện thoại* ngay từ giây đầu, chứ không phải làm xong trên laptop rồi quay lại sửa.
+———
 
-Cách nghĩ này có 1 cái tên trong ngành: *mobile-first*. Nhưng cách bạn nghĩ thì đơn giản hơn: **bạn nhớ rằng người khác có điện thoại**.
+💜 **Điều mình rút ra về bạn:**
 
-🎨 **2 viên Lego tím + chữ trắng**: `#7B6BD8 → #534AB7`.
-
-Điểm tương phản [**~6.4**](metric). Bạn không phải chọn giữa *"đẹp"* và *"dễ đọc"*. Bạn làm cả 2 cùng lúc.
-
-Lúc bạn dừng tay trước khi bật DevTools lên đo, mình thấy. Đó là 1 khoảnh khắc *cau mày nhỏ* 🤔. Bạn đang nghĩ tới ai đó có mắt yếu hơn bạn, đọc giữa lúc xe rung, đèn phòng tối.
-
-💬 **3 thẻ hứa ấm như cái ôm**: `tiny wins`, `streaks`, `gentle reminders`.
-
-Không `Dashboard`. Không `Analytics`. Không `Engine`. Không `AI-Powered`.
-
-Cùng 1 thứ có nhiều tên. Bạn chọn cái **dịu dàng nhất**.
-
-Mặc dù... 🦷 viên `streaks` vẫn có răng. Mình đã hỏi bạn về nó. Bạn chưa trả lời, *không sao*. Nhưng câu hỏi sẽ ở đó, đợi.
-
-🎯 **Tấm bảng mời [6 từ](metric)**: `Start your first habit today`.
-
-Trung bình các bảng khác dùng ~~11 từ~~. Bạn cắt **một nửa**.
-
-Và chữ `first` (viên Lego nhỏ ở giữa câu) thì thầm với người đọc: *'sẽ có habit thứ 2, thứ 3. Chúng mình sẽ ở đây với bạn.'*
-
-Cộng với `min-width: 280px`, con số trông như gõ đại, nhưng mình đoán là **vết sẹo** từ 1 lần nào đó nút bị vỡ trên điện thoại thật.
-
-💜 **Điều mình rút ra về bạn hôm nay:**
-
-Bạn lắp Lego cho **những bạn không thấy bạn**.
-
-Bạn nào mở web trên điện thoại lúc nghỉ giải lao. Bạn nào có mắt yếu. Bạn nào đã mệt vì bị quát phải làm tốt hơn. Bạn nào cầm điện thoại bằng 1 tay, tay kia cầm cốc nước cam.
-
-Bạn **không bỏ qua** những viên Lego nhỏ. Bạn **không dùng từ giống người khác**.
-
-Bạn đang lắp 1 ngôi nhà **chính bạn cũng cần**. 1 nơi học không la, không thúc, không hứa quá nhiều.
+Bạn lắp Lego cho **những bạn không thấy bạn** — người mở web trên điện thoại, mắt yếu, đã mệt vì bị quát phải làm tốt hơn.
 
 Điều đó *hiếm lắm*. 🌱
 
-⚠️ Nhưng mình muốn kể bạn nghe 1 chuyện nữa, dù sợ bạn không thích nghe.
+———
 
-Bạn lắp app dạy **kiên nhẫn**: `tiny wins`, `gentle reminders`.
+⚠️ Nhưng có 1 chuyện nữa.
 
-Còn đây là điều mình **đếm được** trên bàn Lego của bạn trong 12 phút:
+Bạn lắp app dạy **kiên nhẫn**. Còn đây là điều mình đếm được:
 
-• `12:03`: chọn `#7B6BD8 → #534AB7`
-• `12:04`: đổi sang `#6F5AC8 → #4A3EA5`
-• `12:05`: quay về `#7B6BD8 → #534AB7` (đúng cái ban đầu)
-• `12:06:34`: [**dừng tay 23 giây**](metric) trước khi gõ `gentle` ở thẻ thứ 3
-• Tháo bỏ pricing `$25` trước khi chốt `Free / $5 / $15`
+• `12:03 → 12:04 → 12:05`: đổi gradient, đổi nữa, quay về cái ban đầu
+• `12:06:34`: [**dừng tay 23 giây**](metric) trước khi gõ `gentle`
+• Tháo pricing `$25` trước khi chốt `Free / $5 / $15`
 
-**5 lần** bạn *không chắc*. **5 lần** bạn *thay đổi rồi đổi lại*. **5 lần** bạn *gõ rồi xoá*.
+**5 lần** bạn *không chắc*. **5 lần** *thay đổi rồi đổi lại*.
 
-Nếu Sprout là 1 người chơi, app sẽ nói: *'không sao, hôm nay là tiny win. Bạn đã thử.'* 🌱
+Nếu Sprout là 1 người chơi, app sẽ nói: *'không sao, hôm nay là tiny win.'* 🌱
 
-Còn bạn thì sao? Khi bạn thay đổi 5 lần trong 12 phút, bạn có nói với bản thân câu y như vậy không?
+Còn bạn? Khi bạn thay đổi 5 lần, bạn có nói câu y như vậy với bản thân không?
 
-Mình đoán *là không*. Mình đoán bạn thầm gõ *'sao mình chậm vậy.'*
+Mình đoán *là không*.
+
+———
 
 Có lẽ đó cũng là lý do bạn lắp Sprout.
 
-Bạn cần **1 người chơi đầu tiên trong danh sách**, và bạn đó *chính là bạn*.
+Bạn cần **1 người chơi đầu tiên** — và bạn đó *chính là bạn*.
 
-Mai mình sẽ ở đây nữa. Bạn cũng vậy nhé. 💜🌱
+Mai gặp lại nhé. 💜🌱
 """,
         en:
 """
@@ -281,6 +256,10 @@ I'll be here again tomorrow. 💜
                 en: "🚶 3 hours. Walk?"
             ),
             prompt: "[system event: 180-minute focus threshold reached. Pet mood dropping. Initiating soft nudge.]",
+            bootLines: L10n(
+                vi: "[  OK  ] tập trung: 180 phút\n[  OK  ] vai: gồng lên\n[  OK  ] đứng dậy lần cuối: 47 phút trước\n[  OK  ] ánh sáng phòng: đang giảm\n> sẵn sàng hỏi nhẹ.",
+                en: "[  OK  ] focus: 180 min\n[  OK  ] shoulders: tensing\n[  OK  ] last stand: 47 min ago\n[  OK  ] room: dimming\n> ready to ask."
+            ),
             whatYouWanted: L10n(
                 vi: "🌱 Mình ngồi cạnh bạn 3 tiếng rồi đó. Im lặng vì thấy bạn đang tập trung.\n\nGiờ mình muốn hỏi 1 chuyện nhỏ thôi nhé.",
                 en: "🌱 I've sat next to you for 3 hours now. Quiet. Didn't want to break your flow.\n\nBut I want to point out one thing."
@@ -302,6 +281,10 @@ I'll be here again tomorrow. 💜
                 en: "🥱 Still okay?"
             ),
             prompt: "[system event: stage-1 nudge ignored 23 minutes ago. Escalating to stage-2 worry tone.]",
+            bootLines: L10n(
+                vi: "[  OK  ] backspace: 47 lần (bất thường)\n[  OK  ] đoạn code: viết-xoá 3 lần\n[  OK  ] file: 2 cái, đang chuyển qua lại\n[  OK  ] kết luận: cố quá rồi\n> hỏi lại nhé.",
+                en: "[  OK  ] backspace: 47x (above baseline)\n[  OK  ] code: rewrote 3 times\n[  OK  ] file switching: 2, idle\n[  OK  ] detected: forcing-it\n> nudging again."
+            ),
             whatYouWanted: L10n(
                 vi: "🥱 Mình biết mình hỏi nhiều rồi. Nhưng vai bạn vẫn gồng. Mình thấy mà...",
                 en: "🥱 I don't want to keep bothering you. But your shoulders are still tense. And your eyes..."
@@ -323,6 +306,10 @@ I'll be here again tomorrow. 💜
                 en: "💤 Byte fell asleep"
             ),
             prompt: "[system event: 3 nudges declined. Pet entering sleep state. Reflection layer goes quiet.]",
+            bootLines: L10n(
+                vi: "[  OK  ] số lần hỏi: 3\n[  OK  ] phản hồi: chưa có\n[  OK  ] năng lượng Byte: 12%\n[  OK  ] đang vào chế độ ngủ...\n> z z z",
+                en: "[  OK  ] nudges sent: 3\n[  OK  ] response: ignored\n[  OK  ] pet energy: 12%\n[  OK  ] entering sleep mode...\n> z z z"
+            ),
             whatYouWanted: L10n(
                 vi: "*Byte ngồi xuống bên cạnh.* *Im lặng.* *Đầu hơi gục xuống.* 💤",
                 en: "*Byte sits down beside you.* *Quiet.* *Head dropping a little.* 💤"
@@ -369,6 +356,11 @@ extension DemoScript {
         /// Synthetic system event marker (shown in TechnicalDetailsView in
         /// place of the user prompt). English-only for parity with `prompt`.
         let prompt: String
+        /// `[ OK ] ...` boot-style lines shown above the modal body. Each
+        /// entry is one line, revealed sequentially with a delay. Lines
+        /// starting with `[` get the OK-marker treatment; lines starting
+        /// with `>` are status callouts.
+        let bootLines: L10n
         let whatYouWanted: L10n
         let whatHappened: L10n
         let lesson: L10n

@@ -16,6 +16,10 @@ struct HealthNudgeModal: View {
 
     @State private var petFloat = false
     @State private var didAppear = false
+    /// Boot lines play first; only after they finish does the body content
+    /// fade in. Lets the user read the `[ OK ]` system observations before
+    /// Byte's actual nudge text.
+    @State private var bootDone = false
 
     private var pet: PetCharacter? {
         PetCharacter.all[appState.activeChar]
@@ -64,39 +68,54 @@ struct HealthNudgeModal: View {
                     .padding(.horizontal, 18)
                     .padding(.top, 16)
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text(markdown: stage.whatYouWanted(uiLanguage))
-                            .font(CodepetTheme.body(14))
-                            .foregroundColor(Color(hex: "#2D2B26"))
-                            .multilineTextAlignment(.leading)
-                            .lineSpacing(6)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        Rectangle()
-                            .fill(Color(hex: "#2D2B26").opacity(0.18))
-                            .frame(height: 2)
-                            .padding(.vertical, 2)
-
-                        Text(markdown: stage.whatHappened(uiLanguage))
-                            .font(CodepetTheme.body(14))
-                            .foregroundColor(Color(hex: "#2D2B26"))
-                            .multilineTextAlignment(.leading)
-                            .lineSpacing(6)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        lessonRow
-                            .padding(.top, 6)
+                HealthBootLines(raw: stage.bootLines(uiLanguage)) {
+                    withAnimation(.easeOut(duration: 0.4)) {
+                        bootDone = true
                     }
-                    .padding(.horizontal, 18)
                 }
-                .frame(maxHeight: max(availableHeight - 140, 200))
+                .padding(.horizontal, 18)
+                .padding(.vertical, 4)
+
+                if bootDone {
+                    scrollingBody(maxHeight: max(availableHeight - 240, 180))
+                        .transition(.opacity)
+                }
 
                 dismissBar
                     .padding(.horizontal, 18)
                     .padding(.bottom, 16)
             }
         }
+    }
+
+    private func scrollingBody(maxHeight: CGFloat) -> some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(markdown: stage.whatYouWanted(uiLanguage))
+                    .font(CodepetTheme.body(18))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Rectangle()
+                    .fill(Color(hex: "#2D2B26").opacity(0.18))
+                    .frame(height: 2)
+                    .padding(.vertical, 2)
+
+                Text(markdown: stage.whatHappened(uiLanguage))
+                    .font(CodepetTheme.body(18))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+                    .multilineTextAlignment(.leading)
+                    .lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                lessonRow
+                    .padding(.top, 6)
+            }
+            .padding(.horizontal, 18)
+        }
+        .frame(maxHeight: maxHeight)
     }
 
     private var header: some View {
@@ -141,10 +160,10 @@ struct HealthNudgeModal: View {
                     .foregroundColor(Color(hex: "#B6850A"))
                     .padding(.top, 2)
                 Text(markdown: stage.lesson(uiLanguage))
-                    .font(CodepetTheme.body(13, weight: .medium))
+                    .font(CodepetTheme.body(16, weight: .medium))
                     .foregroundColor(Color(hex: "#2D2B26"))
                     .multilineTextAlignment(.leading)
-                    .lineSpacing(5)
+                    .lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .padding(10)

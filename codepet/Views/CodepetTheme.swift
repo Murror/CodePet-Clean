@@ -261,12 +261,20 @@ extension Text {
     /// Preserves whitespace and line breaks. Falls back to the plain string
     /// if parsing fails.
     init(markdown raw: String) {
+        self.init(CodepetMarkdown.attributedString(from: raw))
+    }
+}
+
+/// Shared markdown → AttributedString tinting used by both `Text(markdown:)`
+/// and `MarkdownTypewriterText`. Lifted out so the typewriter can reveal a
+/// fully-tinted attributed prefix character-by-character without re-parsing.
+enum CodepetMarkdown {
+    static func attributedString(from raw: String) -> AttributedString {
         let opts = AttributedString.MarkdownParsingOptions(
             interpretedSyntax: .inlineOnlyPreservingWhitespace
         )
         guard var attr = try? AttributedString(markdown: raw, options: opts) else {
-            self.init(raw)
-            return
+            return AttributedString(raw)
         }
 
         // Collect ranges first to avoid mutating the AttributedString while
@@ -312,6 +320,6 @@ extension Text {
             attr[r].underlineStyle = nil
         }
 
-        self.init(attr)
+        return attr
     }
 }
