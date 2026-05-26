@@ -118,9 +118,9 @@ struct KingdomInteriorView: View {
             }) {
                 HStack(spacing: 6) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.pixelSystem(size: 14, weight: .bold))
                     Text("World Map")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.pixelSystem(size: 13, weight: .semibold))
                 }
                 .foregroundColor(.white)
                 .padding(.horizontal, 12)
@@ -137,10 +137,10 @@ struct KingdomInteriorView: View {
             // Progress pill
             HStack(spacing: 6) {
                 Text("\(completedCount)/\(tier.skills.count)")
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 12, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
                 Image(systemName: "star.fill")
-                    .font(.system(size: 10))
+                    .font(.pixelSystem(size: 10))
                     .foregroundColor(Color(hex: "#FFD700"))
             }
             .padding(.horizontal, 12)
@@ -181,12 +181,12 @@ struct KingdomInteriorView: View {
                 // Title overlay on the fade
                 VStack(spacing: 4) {
                     Text(tier.kingdom)
-                        .font(.system(size: 24, weight: .bold))
+                        .font(.pixelSystem(size: 24, weight: .bold))
                         .foregroundColor(.white)
                         .shadow(color: .black.opacity(0.4), radius: 4, y: 2)
 
                     Text("Tier \(tier.id) · \(tier.name)")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.pixelSystem(size: 13, weight: .medium))
                         .foregroundColor(.white.opacity(0.85))
                         .shadow(color: .black.opacity(0.3), radius: 2, y: 1)
                 }
@@ -288,16 +288,16 @@ struct KingdomInteriorView: View {
                     .shadow(color: Color(hex: "#FFD700").opacity(0.4), radius: 8, y: 2)
 
                 Image(systemName: "crown.fill")
-                    .font(.system(size: 22))
+                    .font(.pixelSystem(size: 22))
                     .foregroundColor(.white)
             }
 
             Text("Kingdom Mastered!")
-                .font(.system(size: 15, weight: .bold))
+                .font(.pixelSystem(size: 15, weight: .bold))
                 .foregroundColor(.white)
 
             Text("+50 XP Bonus")
-                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                .font(.pixelSystem(size: 11, weight: .semibold, design: .monospaced))
                 .foregroundColor(Color(hex: "#FFD700"))
                 .padding(.horizontal, 10)
                 .padding(.vertical, 4)
@@ -322,12 +322,12 @@ struct KingdomInteriorView: View {
                     )
 
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 16))
+                    .font(.pixelSystem(size: 16))
                     .foregroundColor(.white.opacity(0.4))
             }
 
             Text("Complete all challenges\nto master this kingdom")
-                .font(.system(size: 10))
+                .font(.pixelSystem(size: 10))
                 .foregroundColor(.white.opacity(0.4))
                 .multilineTextAlignment(.center)
         }
@@ -385,7 +385,7 @@ struct KingdomCharacterView: View {
             // Speech bubble (shows during celebration)
             if isCelebrating {
                 Text(celebrationEmoji)
-                    .font(.system(size: 22))
+                    .font(.pixelSystem(size: 22))
                     .padding(6)
                     .background(
                         RoundedRectangle(cornerRadius: 10)

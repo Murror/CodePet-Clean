@@ -71,12 +71,12 @@ struct PortalTransitionView: View {
                     .overlay(Circle().stroke(tier.kingdomColor.opacity(0.5), lineWidth: 2))
 
                 Text(tier.kingdom)
-                    .font(.system(size: 24, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 24, weight: .bold, design: .monospaced))
                     .foregroundColor(.white)
                     .shadow(color: tier.kingdomColor.opacity(0.8), radius: 12)
 
                 Text("Entering world...")
-                    .font(.system(size: 12, design: .monospaced))
+                    .font(.pixelSystem(size: 12, design: .monospaced))
                     .foregroundColor(.white.opacity(0.6))
             }
             .opacity(phase >= 2 ? 1 : 0)

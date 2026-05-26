@@ -1,0 +1,19 @@
+flowchart LR
+    subgraph tabs["MainTabView — selectedTab"]
+        H["HomeView"]
+        SK["SkillsView"]
+        SE["SessionsView"]
+        IN["InsightsView"]
+        PR["ProfileView"]
+    end
+
+    HUD["GameHUDBar — home/skills/sessions only"]
+    HUD --> H
+    HUD --> SK
+    HUD --> SE
+
+    subgraph overlays["Overlays"]
+        LU["LevelUpOverlay"]
+        TU["TierUnlockOverlay"]
+        WB["WelcomeBackView"]
+    end

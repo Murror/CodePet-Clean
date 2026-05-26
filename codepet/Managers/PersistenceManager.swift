@@ -16,6 +16,7 @@ class PersistenceManager {
         static let skillLevel = "cp_skillLevel"
         static let dailyGoalMinutes = "cp_dailyGoalMinutes"
         static let preferredLanguage = "cp_preferredLanguage"
+        static let languagePersona = "cp_languagePersona"
         static let displayName = "cp_displayName"
         static let activeChar = "cp_activeChar"
         static let userInterests = "cp_userInterests"
@@ -38,6 +39,9 @@ class PersistenceManager {
         static let isDarkMode = "cp_isDarkMode"
         static let soundEnabled = "cp_soundEnabled"
         static let hasSavedBefore = "cp_hasSavedBefore"
+        static let lessonReviewDates = "cp_lessonReviewDates"
+        static let lessonReviewCounts = "cp_lessonReviewCounts"
+        static let dailySnapshots = "cp_dailySnapshots"
         static let currentUserId = "cp_currentUserId"
 
         // MCP Bridge sync tracking
@@ -73,6 +77,7 @@ class PersistenceManager {
         defaults.set(state.skillLevel, forKey: Key.skillLevel)
         defaults.set(state.dailyGoalMinutes, forKey: Key.dailyGoalMinutes)
         defaults.set(state.preferredLanguage, forKey: Key.preferredLanguage)
+        defaults.set(state.languagePersona.rawValue, forKey: Key.languagePersona)
 
         // User
         defaults.set(state.displayName, forKey: Key.displayName)
@@ -113,6 +118,20 @@ class PersistenceManager {
         defaults.set(state.petEnergy, forKey: Key.petEnergy)
         defaults.set(state.petMood, forKey: Key.petMood)
 
+        // Review / Spaced Repetition
+        let reviewDatesEncoded = state.lessonReviewDates.mapValues { $0.timeIntervalSince1970 }
+        if let data = try? JSONEncoder().encode(reviewDatesEncoded) {
+            defaults.set(data, forKey: Key.lessonReviewDates)
+        }
+        if let data = try? JSONEncoder().encode(state.lessonReviewCounts) {
+            defaults.set(data, forKey: Key.lessonReviewCounts)
+        }
+
+        // Daily Snapshots
+        if let data = try? JSONEncoder().encode(state.dailySnapshots) {
+            defaults.set(data, forKey: Key.dailySnapshots)
+        }
+
         // Theme & Sound
         defaults.set(state.isDarkMode, forKey: Key.isDarkMode)
         defaults.set(state.soundEnabled, forKey: Key.soundEnabled)
@@ -141,6 +160,12 @@ class PersistenceManager {
             state.dailyGoalMinutes = defaults.integer(forKey: Key.dailyGoalMinutes)
         }
         state.preferredLanguage = defaults.string(forKey: Key.preferredLanguage) ?? "javascript"
+
+        // Language persona — device pref, loads regardless of onboarding state
+        if let raw = defaults.string(forKey: Key.languagePersona),
+           let persona = LanguagePersona(rawValue: raw) {
+            state.languagePersona = persona
+        }
 
         // User
         state.displayName = defaults.string(forKey: Key.displayName) ?? ""
@@ -199,6 +224,22 @@ class PersistenceManager {
         state.isDarkMode = defaults.bool(forKey: Key.isDarkMode)
         state.soundEnabled = defaults.object(forKey: Key.soundEnabled) == nil ? true : defaults.bool(forKey: Key.soundEnabled)
 
+        // Review / Spaced Repetition
+        if let data = defaults.data(forKey: Key.lessonReviewDates),
+           let decoded = try? JSONDecoder().decode([String: Double].self, from: data) {
+            state.lessonReviewDates = decoded.mapValues { Date(timeIntervalSince1970: $0) }
+        }
+        if let data = defaults.data(forKey: Key.lessonReviewCounts),
+           let decoded = try? JSONDecoder().decode([String: Int].self, from: data) {
+            state.lessonReviewCounts = decoded
+        }
+
+        // Daily Snapshots
+        if let data = defaults.data(forKey: Key.dailySnapshots),
+           let snapshots = try? JSONDecoder().decode([DailySnapshot].self, from: data) {
+            state.dailySnapshots = snapshots
+        }
+
         // Streak check — if more than 1 day since last visit, reset streak
         updateStreakOnLoad(state)
 
@@ -245,7 +286,7 @@ class PersistenceManager {
     /// and the stored current user ID.
     func clearProgress() {
         let keysToPreserve: Set<String> = [
-            Key.isDarkMode, Key.soundEnabled, Key.currentUserId
+            Key.isDarkMode, Key.soundEnabled, Key.currentUserId, Key.languagePersona
         ]
         let progressKeys = [
             Key.onboardingComplete, Key.userAge, Key.obWho, Key.obDesire, Key.obGoal,

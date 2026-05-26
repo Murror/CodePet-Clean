@@ -182,4 +182,4 @@ codepet-extension/
 
 ## License
 
-MIT — see the root [LICENSE](../LICENSE) file.
+MIT

@@ -37,6 +37,12 @@ export interface LessonCard {
   petCoachTip: string;
   xpEarned: number;
   skillsProgressed: { skillId: string; xpAdded: number }[];
+  /** Product-thinking sections for daily recap cards */
+  sections?: { heading: string; text: string }[];
+  /** Date string for display (e.g., "Mon, Apr 13") */
+  dateLabel?: string;
+  /** Type of lesson card */
+  cardType?: "session" | "daily-recap";
 }
 
 export class SidebarProvider implements vscode.WebviewViewProvider {
@@ -51,6 +57,32 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   private userProfile: { totalXP: number; userLevel: number; streak: number; completedLessons: string[] } | null = null;
   private isCloudLinked: boolean = false; // whether the macOS app account is detected
   private lessonFeed: LessonCard[] = []; // cached lesson cards for the feed
+  private companionWatchingMsg: string = ""; // current watching status message
+  private companionMessageQueue: any[] = []; // queued messages for when webview isn't ready yet
+
+  /** Callbacks for companion chat — set by CompanionService */
+  public onCompanionMessage?: (text: string, attachments?: any[]) => void;
+  public onCompanionClear?: () => void;
+  public onAttachmentPin?: (attachId: string, pinned: boolean) => void;
+  public onAttachmentRemove?: (attachId: string) => void;
+  public onAttachmentAdded?: (attachment: { id: string; type: string; name: string; content: string }) => void;
+
+  /** Transcribe an audio blob (base64 data URL) to text. Returns transcript or throws. */
+  public transcribeAudio?: (audioDataUrl: string, mimeType: string, durationSec: number) => Promise<string>;
+
+  /** Native recording hooks (wired in extension.ts using ffmpeg/sox) */
+  public nativeRecordDetect?: () => Promise<"ffmpeg" | "sox" | null>;
+  public nativeRecordStart?: () => Promise<void>;
+  public nativeRecordStop?: () => Promise<{ audioDataUrl: string; mimeType: string; durationSec: number }>;
+  public nativeRecordAbort?: () => void;
+
+  /** ElevenLabs TTS (for voice chat mode) — returns an audio data URL. */
+  public ttsSpeak?: (text: string) => Promise<string>;
+
+  /** Post an arbitrary message to the webview (used for transcription status). */
+  public postMessageToWebview(msg: any): void {
+    if (this.view) this.view.webview.postMessage(msg);
+  }
 
   constructor(
     private extensionUri: vscode.Uri,
@@ -86,6 +118,31 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         type: "lesson_new",
         data: card,
       });
+    }
+  }
+
+  /** Post a watching status update to the webview */
+  postWatchingStatus(active: boolean, message?: string): void {
+    this.companionWatchingMsg = active ? (message ?? "Watching your coding session...") : "";
+    // Also send via direct message (may or may not work depending on webview state)
+    if (this.view) {
+      this.view.webview.postMessage({
+        type: "companion_watching",
+        data: { active, message: this.companionWatchingMsg },
+      });
+    }
+  }
+
+  /** Post a companion message to the webview (queues if webview not ready) */
+  postCompanionMessage(msg: { role: string; text: string; timestamp: string; options?: string[]; allowCustom?: boolean }): void {
+    if (this.view) {
+      this.view.webview.postMessage({
+        type: "companion_message",
+        data: msg,
+      });
+    } else {
+      // Queue the message — will be flushed when webview resolves
+      this.companionMessageQueue.push(msg);
     }
   }
 
@@ -162,6 +219,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this.getHtml(webviewView.webview, this.pendingWelcome ?? undefined);
 
+    // Force-refresh HTML whenever the sidebar becomes visible
+    // This ensures layout changes (like input position) take effect even with caching
+    this.disposables.push(
+      webviewView.onDidChangeVisibility(() => {
+        if (webviewView.visible) {
+          webviewView.webview.html = this.getHtml(webviewView.webview, this.pendingWelcome ?? undefined);
+        }
+      })
+    );
+
     // Listen for messages from webview
     this.disposables.push(
       webviewView.webview.onDidReceiveMessage(async (msg) => {
@@ -178,6 +245,168 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             break;
           case "saveLesson":
             vscode.commands.executeCommand("codepet.saveLesson");
+            break;
+          case "companionMessage":
+            if (msg.text && this.onCompanionMessage) {
+              this.onCompanionMessage(msg.text, msg.attachments);
+            }
+            break;
+          case "attachRequest":
+            await this.handleAttachRequest(msg.type);
+            break;
+          case "attachUrl":
+            await this.handleAttachUrl(msg.url);
+            break;
+          case "attachTogglePin":
+            if (this.onAttachmentPin) {
+              this.onAttachmentPin(msg.attachId, msg.pinned);
+            }
+            break;
+          case "voiceMessage": {
+            const dur = typeof msg.duration === "number" ? msg.duration : 0;
+            // If a transcriber is wired, use it; otherwise fall back to a placeholder.
+            if (this.transcribeAudio && typeof msg.audioData === "string") {
+              this.postMessageToWebview({ command: "voiceTranscribing" });
+              try {
+                const transcript = await this.transcribeAudio(
+                  msg.audioData,
+                  msg.mimeType || "audio/webm",
+                  dur
+                );
+                const clean = (transcript || "").trim();
+                if (clean) {
+                  this.postMessageToWebview({ command: "voiceTranscriptDone", text: clean });
+                  if (this.onCompanionMessage) this.onCompanionMessage(clean);
+                } else {
+                  this.postMessageToWebview({
+                    command: "voiceTranscriptError",
+                    message: "No speech detected",
+                  });
+                }
+              } catch (err: any) {
+                const message = (err && err.message) ? String(err.message) : String(err);
+                this.postMessageToWebview({ command: "voiceTranscriptError", message });
+                vscode.window.showWarningMessage(`Codepet voice: ${message}`);
+              }
+            } else if (this.onCompanionMessage) {
+              this.onCompanionMessage(
+                `🎙 [Voice note recorded · ${dur.toFixed(1)}s — set your OpenAI key with the "Codepet: Set OpenAI API Key" command to enable live transcription.]`
+              );
+            }
+            break;
+          }
+          case "nativeRecordStart": {
+            if (!this.nativeRecordStart || !this.nativeRecordDetect) {
+              this.postMessageToWebview({
+                command: "voiceTranscriptError",
+                message: "Native recording not wired.",
+              });
+              break;
+            }
+            const tool = await this.nativeRecordDetect();
+            if (!tool) {
+              this.postMessageToWebview({
+                command: "voiceTranscriptError",
+                message: "No recorder found",
+                installHint: true,
+              });
+              break;
+            }
+            try {
+              await this.nativeRecordStart();
+              this.postMessageToWebview({ command: "nativeRecordStarted", tool });
+            } catch (err: any) {
+              const message = (err && err.message) ? String(err.message) : String(err);
+              this.postMessageToWebview({ command: "voiceTranscriptError", message });
+            }
+            break;
+          }
+          case "nativeRecordStop": {
+            if (!this.nativeRecordStop) {
+              this.postMessageToWebview({
+                command: "voiceTranscriptError",
+                message: "Native recording not wired.",
+              });
+              break;
+            }
+            try {
+              this.postMessageToWebview({ command: "voiceTranscribing" });
+              const rec = await this.nativeRecordStop();
+              if (!this.transcribeAudio) {
+                this.postMessageToWebview({
+                  command: "voiceTranscriptError",
+                  message: "No transcription key set.",
+                });
+                break;
+              }
+              const transcript = await this.transcribeAudio(
+                rec.audioDataUrl,
+                rec.mimeType,
+                rec.durationSec
+              );
+              const clean = (transcript || "").trim();
+              if (clean) {
+                // Post voiceTranscriptDone FIRST so the webview sets up suppression
+                // before the companion_message echo (from onCompanionMessage) arrives.
+                this.postMessageToWebview({ command: "voiceTranscriptDone", text: clean });
+                if (this.onCompanionMessage) this.onCompanionMessage(clean);
+              } else {
+                this.postMessageToWebview({
+                  command: "voiceTranscriptError",
+                  message: "No speech detected",
+                });
+              }
+            } catch (err: any) {
+              const message = (err && err.message) ? String(err.message) : String(err);
+              this.postMessageToWebview({ command: "voiceTranscriptError", message });
+              vscode.window.showWarningMessage(`Codepet voice: ${message}`);
+            }
+            break;
+          }
+          case "nativeRecordAbort": {
+            if (this.nativeRecordAbort) this.nativeRecordAbort();
+            break;
+          }
+          case "ttsRequest": {
+            if (!this.ttsSpeak || typeof msg.text !== "string" || !msg.text.trim()) {
+              this.postMessageToWebview({ command: "ttsError", message: "TTS unavailable" });
+              break;
+            }
+            try {
+              const audioDataUrl = await this.ttsSpeak(msg.text);
+              this.postMessageToWebview({
+                command: "ttsReady",
+                audioDataUrl,
+                requestId: msg.requestId,
+              });
+            } catch (err: any) {
+              const message = (err && err.message) ? String(err.message) : String(err);
+              this.postMessageToWebview({
+                command: "ttsError",
+                message,
+                requestId: msg.requestId,
+              });
+            }
+            break;
+          }
+          case "attachRemove":
+            if (this.onAttachmentRemove) {
+              this.onAttachmentRemove(msg.attachId);
+            }
+            break;
+          case "runCommand":
+            if (typeof msg.commandId === "string") {
+              try {
+                await vscode.commands.executeCommand(msg.commandId);
+              } catch (e) {
+                // swallow — command may not be registered yet
+              }
+            }
+            break;
+          case "clearCompanion":
+            if (this.onCompanionClear) {
+              this.onCompanionClear();
+            }
             break;
           case "goToError": {
             // Jump to the error line in the active editor
@@ -402,6 +631,16 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
             if (this.userProfile) {
               this.setUserProfile(this.userProfile);
             }
+            // Flush any queued companion messages
+            if (this.companionMessageQueue.length > 0) {
+              for (const queuedMsg of this.companionMessageQueue) {
+                this.view?.webview.postMessage({
+                  type: "companion_message",
+                  data: queuedMsg,
+                });
+              }
+              this.companionMessageQueue = [];
+            }
             break;
           }
         }
@@ -523,6 +762,8 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         totalSkillXP: this.fileWatcher.totalSkillXP,
         activeDays: this.fileWatcher.activeDaysCount,
         todayEventCount: this.fileWatcher.todayEvents.length,
+        // Companion watching status — sent with every update so it survives webview refreshes
+        companionWatching: this.companionWatchingMsg || null,
       },
     });
   }
@@ -577,6 +818,141 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   /** Check if a finding code is auto-fixable by Codepet */
   private canAutoFix(code: string): boolean {
     return SidebarProvider.AUTO_FIXABLE.has(code);
+  }
+
+  /**
+   * Handle attachment request from webview — opens file picker, image picker, etc.
+   */
+  private async handleAttachRequest(type: string): Promise<void> {
+    const fs = await import("fs");
+
+    if (type === "file") {
+      // Open file picker scoped to workspace
+      const uris = await vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: true,
+        openLabel: "Attach to Byte",
+        filters: {
+          "All files": ["*"],
+          "Code": ["ts", "tsx", "js", "jsx", "py", "swift", "html", "css", "json", "md"],
+          "Documents": ["pdf", "txt", "md", "csv"],
+        },
+      });
+      if (!uris || uris.length === 0) return;
+
+      for (const uri of uris) {
+        const name = uri.fsPath.split("/").pop() ?? uri.fsPath;
+        const id = "file_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
+        let content = "";
+        try {
+          const stat = fs.statSync(uri.fsPath);
+          if (stat.size > 500_000) {
+            content = `[File too large: ${name} (${(stat.size / 1024).toFixed(0)}KB) — only first 500KB read]`;
+            content += fs.readFileSync(uri.fsPath, "utf-8").substring(0, 500_000);
+          } else {
+            content = fs.readFileSync(uri.fsPath, "utf-8");
+          }
+        } catch {
+          content = `[Could not read file: ${name}]`;
+        }
+
+        // Send to webview for preview
+        this.view?.webview.postMessage({ type: "attachment_added", data: { id, type: "file", name } });
+        // Notify companion service
+        if (this.onAttachmentAdded) {
+          this.onAttachmentAdded({ id, type: "file", name, content });
+        }
+      }
+    }
+
+    if (type === "image") {
+      const uris = await vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: true,
+        openLabel: "Attach Image",
+        filters: {
+          "Images": ["png", "jpg", "jpeg", "gif", "svg", "webp"],
+        },
+      });
+      if (!uris || uris.length === 0) return;
+
+      for (const uri of uris) {
+        const name = uri.fsPath.split("/").pop() ?? uri.fsPath;
+        const id = "img_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
+        let content = "";
+        try {
+          // For images, store the path — Byte will reference it
+          content = `[Image: ${name}] Path: ${uri.fsPath}`;
+        } catch {
+          content = `[Could not read image: ${name}]`;
+        }
+
+        this.view?.webview.postMessage({ type: "attachment_added", data: { id, type: "image", name } });
+        if (this.onAttachmentAdded) {
+          this.onAttachmentAdded({ id, type: "image", name, content });
+        }
+      }
+    }
+
+    if (type === "knowledge") {
+      const uris = await vscode.window.showOpenDialog({
+        canSelectFiles: true,
+        canSelectFolders: false,
+        canSelectMany: true,
+        openLabel: "Add Knowledge Doc",
+        filters: {
+          "Documents": ["pdf", "md", "txt", "doc", "docx", "csv"],
+          "All files": ["*"],
+        },
+      });
+      if (!uris || uris.length === 0) return;
+
+      for (const uri of uris) {
+        const name = uri.fsPath.split("/").pop() ?? uri.fsPath;
+        const id = "doc_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
+        let content = "";
+        try {
+          const stat = fs.statSync(uri.fsPath);
+          if (stat.size > 500_000) {
+            content = fs.readFileSync(uri.fsPath, "utf-8").substring(0, 500_000);
+          } else {
+            content = fs.readFileSync(uri.fsPath, "utf-8");
+          }
+        } catch {
+          content = `[Could not read: ${name}]`;
+        }
+
+        this.view?.webview.postMessage({ type: "attachment_added", data: { id, type: "knowledge", name } });
+        if (this.onAttachmentAdded) {
+          this.onAttachmentAdded({ id, type: "knowledge", name, content });
+        }
+      }
+    }
+
+    if (type === "url") {
+      // Prompt user to enter a URL in the input box
+      this.view?.webview.postMessage({ type: "attachment_url_prompt" });
+    }
+  }
+
+  /**
+   * Handle URL attachment — fetch the URL content
+   */
+  private async handleAttachUrl(url: string): Promise<void> {
+    if (!url || !url.match(/^https?:\/\//)) return;
+
+    const name = url.length > 50 ? url.substring(0, 50) + "..." : url;
+    const id = "url_" + Date.now() + "_" + Math.random().toString(36).substring(2, 6);
+
+    // Show in preview immediately
+    this.view?.webview.postMessage({ type: "attachment_added", data: { id, type: "url", name } });
+
+    // Notify companion service with the URL (it can fetch later if needed)
+    if (this.onAttachmentAdded) {
+      this.onAttachmentAdded({ id, type: "url", name: url, content: `[URL: ${url}] — Content will be fetched when referenced.` });
+    }
   }
 
   /**
@@ -1091,6 +1467,7 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     const initialPetKey = this.resolvedPetName.toLowerCase();
     const initialAvatarUri = charUris[initialPetKey] || charUris["nova"] || "";
+    const petNameCap = this.resolvedPetName.charAt(0).toUpperCase() + this.resolvedPetName.slice(1);
 
     return /*html*/ `<!DOCTYPE html>
 <html lang="en">
@@ -1098,7 +1475,12 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta http-equiv="Content-Security-Policy"
-    content="default-src 'none'; img-src ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';" />
+    content="default-src 'none';
+      img-src ${webview.cspSource} data: blob:;
+      style-src ${webview.cspSource} 'unsafe-inline';
+      script-src 'nonce-${nonce}';
+      media-src ${webview.cspSource} blob: data:;
+      connect-src ${webview.cspSource} blob: data:;" />
   <title>Codepet v0.9.2</title>
   <style>
     /* ───── Reset & Base ───── */
@@ -1160,17 +1542,56 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       border-radius: 6px;
       padding: 12px;
       margin-bottom: 10px;
+      overflow: hidden;
     }
     .card-title {
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.6px;
       color: var(--vscode-descriptionForeground);
       margin-bottom: 8px;
     }
+    /* ───── Per-section title accents (coordinated vibrant palette) ───── */
+    .card-title.ct-lavender {
+      background: linear-gradient(135deg, #C8BDFF 0%, #A89BF2 55%, #7B6BD8 100%);
+      -webkit-background-clip: text;
+              background-clip: text;
+      color: transparent;
+      text-shadow: 0 0 24px rgba(168, 155, 242, 0.15);
+    }
+    .card-title.ct-pink {
+      background: linear-gradient(135deg, #FFB3E6 0%, #F06EC7 55%, #C94BA7 100%);
+      -webkit-background-clip: text;
+              background-clip: text;
+      color: transparent;
+    }
+    .card-title.ct-teal {
+      background: linear-gradient(135deg, #7DF5C2 0%, #34D399 55%, #10B981 100%);
+      -webkit-background-clip: text;
+              background-clip: text;
+      color: transparent;
+    }
+    .card-title.ct-amber {
+      background: linear-gradient(135deg, #FFE29A 0%, #F5B547 55%, #D98A1F 100%);
+      -webkit-background-clip: text;
+              background-clip: text;
+      color: transparent;
+    }
+    .card-title.ct-violet {
+      background: linear-gradient(135deg, #E6C6FF 0%, #C084FC 55%, #9333EA 100%);
+      -webkit-background-clip: text;
+              background-clip: text;
+      color: transparent;
+    }
+    .card-title.ct-cyan {
+      background: linear-gradient(135deg, #A6EEFF 0%, #60D8F2 55%, #22A8C8 100%);
+      -webkit-background-clip: text;
+              background-clip: text;
+      color: transparent;
+    }
 
-    /* ───── Lesson Feed ───── */
+    /* ───── Lesson Feed (Swipeable Cards) ───── */
     .lesson-feed-header {
       display: flex;
       justify-content: space-between;
@@ -1182,80 +1603,184 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       color: var(--vscode-descriptionForeground);
       opacity: 0.7;
     }
-    .lesson-card {
-      background: var(--vscode-editor-background);
-      border: 1px solid var(--vscode-panel-border, #333);
-      border-radius: 6px;
-      padding: 10px;
+
+    /* Swipe container */
+    .lesson-swipe-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 10px;
       margin-bottom: 8px;
-      animation: lessonSlideIn 0.3s ease-out;
     }
-    @keyframes lessonSlideIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .lesson-title-row {
+    .lesson-swipe-track {
       display: flex;
+      transition: transform 0.35s cubic-bezier(0.25, 0.1, 0.25, 1);
+      will-change: transform;
+    }
+    .lesson-swipe-track.dragging {
+      transition: none;
+    }
+
+    /* Remove the outer wrapper border on the Lesson Feed section — save space,
+       let the inner lesson card stand alone */
+    #lesson-feed-section {
+      border: none !important;
+      background: transparent !important;
+      padding: 0 !important;
+    }
+    #lesson-feed-section .lesson-feed-header {
+      padding: 0 4px 8px;
+    }
+
+    /* Individual swipe card — glassmorphic gradient */
+    .lesson-card {
+      position: relative;
+      min-width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
+      background:
+        radial-gradient(120% 80% at 0% 0%, rgba(168, 155, 242, 0.18) 0%, transparent 55%),
+        radial-gradient(120% 90% at 100% 100%, rgba(236, 72, 153, 0.12) 0%, transparent 60%),
+        linear-gradient(155deg, rgba(48, 36, 96, 0.92) 0%, rgba(26, 20, 54, 0.96) 60%, rgba(16, 12, 36, 0.98) 100%);
+      border: 1px solid rgba(168, 155, 242, 0.18);
+      border-radius: 18px;
+      padding: 18px 16px 16px;
+      flex-shrink: 0;
+      box-shadow:
+        0 10px 28px -12px rgba(83, 74, 183, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      overflow: hidden;
+    }
+    .lesson-card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 18px;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(168, 155, 242, 0.45), rgba(123, 107, 216, 0) 40%, rgba(236, 72, 153, 0.25) 100%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      pointer-events: none;
+    }
+
+    /* Date label */
+    .lesson-date-label {
+      font-size: 10px;
+      font-weight: 500;
+      color: #8b8b9e;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+
+    /* Card type badge — vibrant pill */
+    .lesson-type-badge {
+      display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 4px;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 12px;
+      box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+    .lesson-type-badge.daily-recap {
+      background: linear-gradient(135deg, #8B7BE8 0%, #534AB7 100%);
+      color: #fff;
+    }
+    .lesson-type-badge.session {
+      background: linear-gradient(135deg, #34d399 0%, #059669 100%);
+      color: #fff;
+    }
+
+    /* Title */
+    .lesson-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: #e8e6f0;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+
+    /* Sections — compact inline layout */
+    .lesson-section {
       margin-bottom: 6px;
     }
-    .lesson-kingdom-icon {
-      font-size: 14px;
-      flex-shrink: 0;
+    .lesson-section-heading {
+      font-size: 9px;
+      font-weight: 700;
+      color: #A89BF2;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 2px;
+    }
+    .lesson-section-text {
+      font-size: 11.5px;
+      color: #c4c0d8;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    /* Tighter divider between sections */
+    .lesson-section + .lesson-section {
+      padding-top: 6px;
+      border-top: 1px solid transparent;
+      border-image: linear-gradient(90deg, transparent 0%, rgba(168, 155, 242, 0.25) 50%, transparent 100%) 1;
+    }
+
+    /* When a card has structured sections, the pet narration footer is redundant — hide it */
+    .lesson-card:has(.lesson-section) .lesson-pet-section {
+      display: none;
+    }
+    /* Compact the lesson card container itself */
+    .lesson-card {
+      padding: 12px 14px !important;
     }
     .lesson-title {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--vscode-foreground);
-      flex: 1;
+      font-size: 14px !important;
+      margin-bottom: 8px !important;
     }
-    .lesson-difficulty {
-      font-size: 9px;
-      font-weight: 600;
-      padding: 1px 5px;
-      border-radius: 3px;
-      text-transform: uppercase;
-      flex-shrink: 0;
-    }
-    .lesson-difficulty.beginner { background: #3fb95033; color: #3fb950; }
-    .lesson-difficulty.intermediate { background: #e3b34133; color: #e3b341; }
-    .lesson-difficulty.advanced { background: #f8514933; color: #f85149; }
+
+    /* Legacy fields (takeaway, snippet, pet) — still supported */
     .lesson-takeaway {
-      font-size: 11px;
-      color: var(--vscode-foreground);
-      opacity: 0.9;
-      margin-bottom: 8px;
-      line-height: 1.4;
+      font-size: 12px;
+      color: #c4c0d8;
+      line-height: 1.5;
+      margin-bottom: 10px;
     }
     .lesson-snippet {
-      background: var(--vscode-textBlockQuote-background, #1e1e1e);
-      border: 1px solid var(--vscode-panel-border, #333);
-      border-radius: 4px;
-      padding: 8px;
+      background: #12121f;
+      border: 1px solid rgba(123, 107, 216, 0.15);
+      border-radius: 6px;
+      padding: 10px;
       font-family: var(--vscode-editor-font-family);
       font-size: 11px;
       line-height: 1.4;
       overflow-x: auto;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
       white-space: pre;
-      color: var(--vscode-editor-foreground);
+      color: #c4c0d8;
     }
     .lesson-snippet-lang {
       font-size: 9px;
-      color: var(--vscode-descriptionForeground);
+      color: #8b8b9e;
       text-transform: uppercase;
       margin-bottom: 4px;
     }
     .lesson-pet-section {
-      border-top: 1px solid var(--vscode-panel-border, #333);
-      padding-top: 8px;
-      margin-top: 4px;
+      border-top: 1px solid rgba(123, 107, 216, 0.1);
+      padding-top: 10px;
+      margin-top: 6px;
     }
     .lesson-pet-narration {
       font-size: 11px;
       font-style: italic;
-      color: var(--vscode-foreground);
+      color: #c4c0d8;
       opacity: 0.85;
       margin-bottom: 4px;
     }
@@ -1269,13 +1794,17 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       color: #e3b341;
       margin-top: 4px;
     }
+
+    /* Footer */
     .lesson-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(123, 107, 216, 0.1);
       font-size: 10px;
-      color: var(--vscode-descriptionForeground);
+      color: #8b8b9e;
     }
     .lesson-xp {
       font-weight: 600;
@@ -1286,27 +1815,80 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       gap: 4px;
       flex-wrap: wrap;
     }
+
+    /* Swipe dot indicators */
+    .lesson-swipe-dots {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 0 2px;
+    }
+    .lesson-swipe-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: rgba(123, 107, 216, 0.25);
+      transition: all 0.25s ease;
+      cursor: pointer;
+    }
+    .lesson-swipe-dot.active {
+      background: #7b6bd8;
+      transform: scale(1.3);
+    }
+
+    /* Empty state */
+    .lesson-empty {
+      font-size: 11px;
+      color: #8b8b9e;
+      text-align: center;
+      padding: 16px 8px;
+    }
     .lesson-tag {
       font-size: 9px;
-      padding: 1px 5px;
-      border-radius: 3px;
-      background: var(--vscode-badge-background, #333);
-      color: var(--vscode-badge-foreground, #ccc);
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(168, 155, 242, 0.22), rgba(123, 107, 216, 0.12));
+      color: #d7d0ff;
+      border: 1px solid rgba(168, 155, 242, 0.28);
+      letter-spacing: 0.2px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    .lesson-tag:nth-child(3n+2) {
+      background: linear-gradient(135deg, rgba(236, 72, 153, 0.22), rgba(168, 85, 247, 0.12));
+      color: #ffd1e8;
+      border-color: rgba(236, 72, 153, 0.32);
+    }
+    .lesson-tag:nth-child(3n+3) {
+      background: linear-gradient(135deg, rgba(52, 211, 153, 0.22), rgba(20, 184, 166, 0.12));
+      color: #b7f7dd;
+      border-color: rgba(52, 211, 153, 0.32);
     }
     .save-lesson-btn {
       width: 100%;
-      padding: 8px;
-      margin-top: 4px;
-      font-size: 11px;
-      font-weight: 600;
-      background: linear-gradient(135deg, #7B6BD8, #534AB7);
+      padding: 11px;
+      margin-top: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      background: linear-gradient(135deg, #A89BF2 0%, #7B6BD8 45%, #534AB7 100%);
       color: #fff;
       border: none;
-      border-radius: 6px;
+      border-radius: 14px;
       cursor: pointer;
-      transition: opacity 0.2s;
+      transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s;
+      box-shadow:
+        0 8px 20px -8px rgba(123, 107, 216, 0.75),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
     }
-    .save-lesson-btn:hover { opacity: 0.85; }
+    .save-lesson-btn:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+      box-shadow:
+        0 12px 24px -8px rgba(123, 107, 216, 0.9),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+    .save-lesson-btn:active { transform: translateY(0); }
     .lesson-empty {
       text-align: center;
       font-size: 11px;
@@ -1315,67 +1897,2004 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       opacity: 0.6;
     }
 
-    /* ───── Pet Widget ───── */
-    .pet-widget {
-      text-align: center;
-      padding: 16px 12px;
+    /* ───── Companion Chat ───── */
+    /* ═══ Codepet Companion — Modern Purple Theme ═══ */
+    /* Palette: #7B6BD8 (primary purple), #534AB7 (deep purple), #A89BF2 (light purple) */
+
+    .companion-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow: visible;
+      position: relative;
+      background: linear-gradient(165deg, rgba(123, 107, 216, 0.04) 0%, rgba(83, 74, 183, 0.02) 40%, transparent 100%);
+      border-radius: 14px;
+      padding: 4px;
     }
-    .pet-avatar {
-      width: 80px;
-      height: 100px;
-      margin: 0 auto 8px;
+    .companion-section::before {
+      content: "";
+      position: absolute;
+      top: -40px;
+      right: -30px;
+      width: 180px;
+      height: 180px;
+      background: radial-gradient(circle, rgba(168, 155, 242, 0.12) 0%, transparent 65%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .companion-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      order: 0;
+      padding: 6px 10px;
+      position: relative;
+      z-index: 2;
+      cursor: pointer;
+      border-radius: 12px;
+      transition: background 0.2s ease;
+    }
+    .companion-header:hover {
+      background: rgba(168, 155, 242, 0.06);
+    }
+    .companion-header-title-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .companion-header-chevron {
+      width: 14px;
+      height: 14px;
+      color: #A89BF2;
+      transform: rotate(-90deg);
+      transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+      flex-shrink: 0;
+    }
+    .companion-section.expanded .companion-header-chevron {
+      transform: rotate(0deg);
+    }
+    .companion-section .companion-header .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      background: linear-gradient(90deg, #A89BF2 0%, #7B6BD8 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 0;
+    }
+    /* ───── Collapsible state: hide messages + input when not expanded ───── */
+    .companion-section:not(.expanded) .companion-messages,
+    .companion-section:not(.expanded) .companion-attach-preview,
+    .companion-section:not(.expanded) .companion-input-row {
+      max-height: 0;
+      opacity: 0;
+      margin: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      overflow: hidden;
+      pointer-events: none;
+      border-width: 0;
+      transition:
+        max-height 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.3s ease,
+        padding 0.35s ease,
+        margin 0.35s ease,
+        border-width 0.3s ease;
+    }
+    .companion-section.expanded .companion-messages,
+    .companion-section.expanded .companion-attach-preview,
+    .companion-section.expanded .companion-input-row {
+      transition:
+        max-height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.35s ease 0.08s,
+        padding 0.4s ease,
+        margin 0.4s ease,
+        border-width 0.35s ease;
+    }
+    /* ═══ Ask Codepet dock — fixed at bottom of sidebar, JS computes exact expand height ═══ */
+    .companion-section {
+      position: fixed;
+      left: 12px;
+      right: 12px;
+      bottom: 12px;
+      z-index: 20;
+      /* Default cap — JS sets the exact height when expanded */
+      max-height: 320px;
+      overflow: hidden;
+      background: linear-gradient(165deg, rgba(30, 20, 60, 0.98) 0%, rgba(18, 12, 38, 0.99) 100%);
+      border: 1px solid rgba(168, 155, 242, 0.22);
+      border-radius: 16px;
+      box-shadow:
+        0 -10px 32px -8px rgba(8, 6, 18, 0.75),
+        0 14px 32px -16px rgba(83, 74, 183, 0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    /* Reserve bottom padding so the lesson feed's last content isn't hidden behind the collapsed dock */
+    body {
+      padding-bottom: 80px;
+    }
+    /* When expanded: messages area sized to fit inside the 320px dock.
+       320px dock - 45px header - 48px input - 30px padding = ~197px for messages. */
+    .companion-section.expanded .companion-messages {
+      max-height: 195px;
+      opacity: 1;
+    }
+    .companion-section.expanded {
+      border-color: rgba(168, 155, 242, 0.32);
+    }
+    .companion-section.expanded .companion-input-row {
+      opacity: 1;
+      max-height: 200px;
+      /* padding restored via original .companion-input-row rule */
+    }
+    /* Clear button should only be visible when expanded */
+    .companion-section:not(.expanded) .companion-clear-btn {
+      display: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .companion-section .companion-messages,
+      .companion-section .companion-input-row,
+      .companion-section .companion-attach-preview,
+      .companion-header-chevron {
+        transition: none !important;
+      }
+    }
+    .companion-messages {
+      max-height: 180px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 6px 2px;
+      order: 1;
+      position: relative;
+      z-index: 1;
+    }
+    .companion-messages::-webkit-scrollbar { width: 4px; }
+    .companion-messages::-webkit-scrollbar-thumb {
+      background: rgba(123, 107, 216, 0.3);
+      border-radius: 4px;
+    }
+    .companion-messages::-webkit-scrollbar-thumb:hover {
+      background: rgba(123, 107, 216, 0.5);
+    }
+    .companion-msg {
+      padding: 10px 14px;
+      border-radius: 18px;
+      font-size: 12px;
+      line-height: 1.55;
+      max-width: 88%;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      white-space: pre-wrap;
+      box-sizing: border-box;
+      animation: msg-fade-in 0.25s ease-out;
+      position: relative;
+    }
+    @keyframes msg-fade-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .companion-msg strong {
+      font-weight: 700;
+      color: #C8BDFF;
+    }
+    .companion-msg em {
+      color: #A89BF2;
+      font-style: italic;
+    }
+    .companion-msg-user {
+      background: linear-gradient(135deg, #7B6BD8 0%, #534AB7 100%);
+      color: #FFFFFF;
+      align-self: flex-end;
+      border-bottom-right-radius: 6px;
+      box-shadow: 0 4px 14px rgba(83, 74, 183, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      font-weight: 500;
+    }
+    .companion-msg-pet {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--vscode-foreground);
+      align-self: flex-start;
+      border-bottom-left-radius: 6px;
+      border: 1px solid rgba(168, 155, 242, 0.12);
+      backdrop-filter: blur(8px);
+      box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+    .companion-msg-pet strong {
+      color: #A89BF2;
+    }
+    /* Rotating bubble tints — lavender → peach → mint → pink (course-card palette) */
+    .companion-msg-pet.tint-lavender {
+      background:
+        radial-gradient(120% 90% at 0% 0%, rgba(168, 155, 242, 0.22) 0%, transparent 55%),
+        linear-gradient(155deg, rgba(123, 107, 216, 0.16) 0%, rgba(255, 255, 255, 0.035) 100%);
+      border-color: rgba(168, 155, 242, 0.28);
+    }
+    .companion-msg-pet.tint-lavender strong { color: #C8BDFF; }
+    .companion-msg-pet.tint-lavender em     { color: #A89BF2; }
+
+    .companion-msg-pet.tint-peach {
+      background:
+        radial-gradient(120% 90% at 0% 0%, rgba(245, 181, 71, 0.22) 0%, transparent 55%),
+        linear-gradient(155deg, rgba(245, 181, 71, 0.14) 0%, rgba(255, 255, 255, 0.035) 100%);
+      border-color: rgba(245, 181, 71, 0.28);
+    }
+    .companion-msg-pet.tint-peach strong { color: #FFD58A; }
+    .companion-msg-pet.tint-peach em     { color: #F5B547; }
+
+    .companion-msg-pet.tint-mint {
+      background:
+        radial-gradient(120% 90% at 0% 0%, rgba(52, 211, 153, 0.22) 0%, transparent 55%),
+        linear-gradient(155deg, rgba(52, 211, 153, 0.14) 0%, rgba(255, 255, 255, 0.035) 100%);
+      border-color: rgba(52, 211, 153, 0.3);
+    }
+    .companion-msg-pet.tint-mint strong { color: #9FF3D1; }
+    .companion-msg-pet.tint-mint em     { color: #34D399; }
+
+    .companion-msg-pet.tint-pink {
+      background:
+        radial-gradient(120% 90% at 0% 0%, rgba(236, 110, 199, 0.22) 0%, transparent 55%),
+        linear-gradient(155deg, rgba(236, 110, 199, 0.14) 0%, rgba(255, 255, 255, 0.035) 100%);
+      border-color: rgba(236, 110, 199, 0.3);
+    }
+    .companion-msg-pet.tint-pink strong { color: #FFB3E6; }
+    .companion-msg-pet.tint-pink em     { color: #F06EC7; }
+    .companion-msg-pet p {
+      margin: 4px 0;
+    }
+    .companion-msg-pet ul, .companion-msg-pet ol {
+      margin: 4px 0 4px 16px;
+      padding: 0;
+    }
+    .companion-msg-pet li {
+      margin: 2px 0;
+    }
+    .companion-thinking {
+      font-size: 11px;
+      color: var(--vscode-descriptionForeground);
+      opacity: 0.7;
+      padding: 6px 10px;
+      font-style: italic;
+    }
+    .companion-attach-bar {
+      display: none;
+    }
+    .companion-plus-btn {
+      background: rgba(168, 155, 242, 0.08);
+      border: 1px solid rgba(168, 155, 242, 0.15);
+      color: #A89BF2;
+      font-size: 16px;
+      cursor: pointer;
+      width: 26px;
+      height: 26px;
+      padding: 0;
+      border-radius: 50%;
+      line-height: 1;
+      flex-shrink: 0;
       display: flex;
       align-items: center;
       justify-content: center;
+      transition: all 0.2s ease;
     }
+    .companion-plus-btn:hover {
+      color: #C8BDFF;
+      background: rgba(168, 155, 242, 0.18);
+      border-color: rgba(168, 155, 242, 0.3);
+      transform: rotate(90deg);
+    }
+    /* (composer-row wrapper removed — vc-btn now sits inside input-row directly) */
+
+    /* ───── Mic ↔ Send shared slot (swap based on input state) ───── */
+    .mic-send-slot {
+      position: relative;
+      width: 30px;
+      height: 30px;
+      flex-shrink: 0;
+    }
+    .mic-send-slot > .companion-mic-btn,
+    .mic-send-slot > .companion-send-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      transition: opacity 0.22s ease, transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    /* Default (empty input): mic visible, send hidden */
+    .companion-input-row:not(.has-text) .mic-send-slot > .companion-send-btn {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.5) rotate(-20deg);
+      pointer-events: none;
+    }
+    /* Typing: send visible, mic hidden */
+    .companion-input-row.has-text .mic-send-slot > .companion-mic-btn {
+      opacity: 0;
+      transform: translate(-50%, -50%) scale(0.5) rotate(20deg);
+      pointer-events: none;
+    }
+    /* Hover on send keeps the centered transform */
+    .mic-send-slot > .companion-send-btn:hover {
+      transform: translate(-50%, -50%) translateY(-1px);
+    }
+    .mic-send-slot > .companion-send-btn:active {
+      transform: translate(-50%, -50%) translateY(0) scale(0.95);
+    }
+    .mic-send-slot > .companion-mic-btn:hover {
+      transform: translate(-50%, -50%) scale(1.12);
+    }
+    .mic-send-slot > .companion-mic-btn:active {
+      transform: translate(-50%, -50%) scale(1.04);
+    }
+
+    /* ───── Voice Icon — Glowing Aurora Ring ───── */
+    .companion-mic-btn {
+      position: relative;
+      background: radial-gradient(circle at 50% 55%, #1a1430 0%, #0c0822 100%);
+      border: 1px solid rgba(140, 180, 255, 0.15);
+      color: #ffffff;
+      cursor: pointer;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 50%;
+      line-height: 1;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  box-shadow 0.3s ease,
+                  border-color 0.3s ease;
+      isolation: isolate;
+      z-index: 0;
+    }
+    .companion-mic-btn .mic-icon {
+      width: 13px;
+      height: 13px;
+      transition: transform 0.3s ease, filter 0.3s ease;
+      filter: drop-shadow(0 0 2px rgba(200, 220, 255, 0.5));
+    }
+    /* Aurora ring — purple → cyan gradient with blur + slow rotation */
+    .companion-mic-btn::before {
+      content: "";
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      background: conic-gradient(from 140deg,
+        #8B5CF6 0deg,
+        #A78BFA 55deg,
+        transparent 110deg,
+        transparent 215deg,
+        #22D3EE 285deg,
+        #67E8F9 340deg,
+        #8B5CF6 360deg);
+      filter: blur(4px);
+      opacity: 0.75;
+      transition: opacity 0.3s ease, filter 0.3s ease, inset 0.3s ease;
+      z-index: -2;
+      animation: mic-ring-rotate 6s linear infinite;
+    }
+    /* Outer soft bloom */
+    .companion-mic-btn::after {
+      content: "";
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      background: conic-gradient(from 140deg,
+        rgba(139, 92, 246, 0.55) 0deg,
+        rgba(167, 139, 250, 0.45) 55deg,
+        transparent 110deg,
+        transparent 215deg,
+        rgba(34, 211, 238, 0.55) 285deg,
+        rgba(103, 232, 249, 0.45) 340deg,
+        rgba(139, 92, 246, 0.55) 360deg);
+      filter: blur(9px);
+      opacity: 0.6;
+      z-index: -3;
+      animation: mic-ring-rotate 6s linear infinite;
+      pointer-events: none;
+    }
+    .companion-mic-btn:hover {
+      transform: scale(1.12);
+      border-color: rgba(180, 210, 255, 0.35);
+      box-shadow:
+        0 0 18px 2px rgba(139, 92, 246, 0.45),
+        0 0 22px 4px rgba(34, 211, 238, 0.35);
+    }
+    .companion-mic-btn:hover .mic-icon {
+      transform: scale(1.05);
+      filter: drop-shadow(0 0 4px rgba(200, 220, 255, 0.9));
+    }
+    .companion-mic-btn:hover::before {
+      opacity: 1;
+      filter: blur(3px);
+      animation-duration: 3s;
+    }
+    .companion-mic-btn:hover::after {
+      opacity: 0.95;
+      filter: blur(12px);
+      animation-duration: 3s;
+    }
+    .companion-mic-btn:active {
+      transform: scale(1.04);
+      transition-duration: 0.08s;
+    }
+    @keyframes mic-ring-rotate {
+      to { transform: rotate(360deg); }
+    }
+    .companion-mic-btn.recording {
+      color: #fff;
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      border-color: transparent;
+      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3);
+      animation: pulse-mic 1.2s infinite;
+    }
+    @keyframes pulse-mic {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* ═════════ Voice Chat entry button (next to mic) ═════════ */
+    .companion-vc-btn {
+      position: relative;
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle at 50% 55%, rgba(52, 211, 153, 0.22), rgba(16, 185, 129, 0.08));
+      border: 1px solid rgba(52, 211, 153, 0.38);
+      color: #9FF3D1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease, background 0.2s;
+    }
+    .companion-vc-btn:hover {
+      transform: scale(1.1);
+      color: #B6F5DD;
+      background: radial-gradient(circle at 50% 55%, rgba(52, 211, 153, 0.4), rgba(16, 185, 129, 0.12));
+      box-shadow: 0 0 16px 2px rgba(52, 211, 153, 0.45);
+    }
+    .companion-vc-btn.active {
+      color: #fff;
+      background: linear-gradient(135deg, #34D399 0%, #10B981 100%);
+      border-color: transparent;
+      box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.3), 0 0 18px 2px rgba(52, 211, 153, 0.5);
+      animation: pulse-mic 1.4s infinite;
+    }
+    /* Waveform idle animation — bars subtly pulse to read as "voice" */
+    .companion-vc-btn .vc-waveform line {
+      transform-origin: center;
+      transform-box: fill-box;
+    }
+    .companion-vc-btn .vc-waveform line:nth-child(1) { animation: cp-vc-bar 1.1s ease-in-out infinite; animation-delay: 0.0s; }
+    .companion-vc-btn .vc-waveform line:nth-child(2) { animation: cp-vc-bar 1.1s ease-in-out infinite; animation-delay: 0.15s; }
+    .companion-vc-btn .vc-waveform line:nth-child(3) { animation: cp-vc-bar 1.1s ease-in-out infinite; animation-delay: 0.3s; }
+    .companion-vc-btn .vc-waveform line:nth-child(4) { animation: cp-vc-bar 1.1s ease-in-out infinite; animation-delay: 0.45s; }
+    @keyframes cp-vc-bar {
+      0%, 100% { transform: scaleY(0.45); }
+      50%      { transform: scaleY(1); }
+    }
+    .companion-vc-btn:hover .vc-waveform line {
+      animation-duration: 0.6s;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .companion-vc-btn .vc-waveform line { animation: none !important; }
+    }
+
+    /* ═════════ Inline Voice-Record Capsule (in composer) ═════════ */
+    .voice-capsule {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      min-width: 0;
+      padding: 5px 6px 5px 12px;
+      border-radius: 999px;
+      background:
+        radial-gradient(110% 140% at 0% 0%, rgba(168,155,242,0.22), transparent 60%),
+        linear-gradient(135deg, rgba(123,107,216,0.18), rgba(42,30,85,0.55));
+      border: 1px solid rgba(168,155,242,0.45);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 4px 12px -4px rgba(83,74,183,0.35);
+    }
+    .companion-input-row.recording .voice-capsule { display: flex; }
+    .companion-input-row.recording > .companion-plus-btn,
+    .companion-input-row.recording > .companion-input,
+    .companion-input-row.recording > .companion-char-count,
+    .companion-input-row.recording > .mic-send-slot,
+    .companion-input-row.recording > .companion-vc-btn { display: none; }
+
+    .vc-pulse {
+      width: 9px; height: 9px; border-radius: 50%;
+      background: #F87171;
+      animation: vc-dot-pulse 1.2s ease-in-out infinite;
+      flex-shrink: 0;
+      box-shadow: 0 0 8px rgba(248, 113, 113, 0.65);
+    }
+    @keyframes vc-dot-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.45; transform: scale(0.82); }
+    }
+    .vc-timer {
+      font-size: 11px;
+      font-weight: 600;
+      color: #E6DEFF;
+      font-variant-numeric: tabular-nums;
+      min-width: 32px;
+      flex-shrink: 0;
+      letter-spacing: 0.3px;
+    }
+    .vc-wave {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      height: 18px;
+      overflow: hidden;
+      min-width: 0;
+    }
+    .vc-wave span {
+      width: 2px;
+      border-radius: 1px;
+      background: linear-gradient(180deg, #E6DEFF 0%, #A89BF2 60%, #7B6BD8 100%);
+      height: 10%;
+      transition: height 0.08s cubic-bezier(0.4,0,0.2,1);
+      flex-shrink: 0;
+    }
+    .vc-btn {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: 1px solid transparent;
+      flex-shrink: 0;
+      transition: transform 0.15s ease, filter 0.15s ease, box-shadow 0.2s ease;
+    }
+    .vc-btn:hover { transform: scale(1.08); }
+    .vc-btn.cancel {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.14);
+      color: #D7D0FF;
+    }
+    .vc-btn.cancel:hover { background: rgba(255,255,255,0.14); color: #fff; }
+    .vc-btn.send {
+      background: linear-gradient(135deg, #34D399 0%, #10B981 100%);
+      color: #fff;
+      box-shadow: 0 4px 12px -4px rgba(16, 185, 129, 0.55), inset 0 1px 0 rgba(255,255,255,0.18);
+    }
+    .vc-btn.send:hover { filter: brightness(1.08); }
+
+    /* ═════════ Voice Message Bubble (in chat) ═════════ */
+    .companion-msg.companion-msg-voice {
+      padding: 10px 12px;
+      background:
+        radial-gradient(120% 100% at 0% 0%, rgba(168,155,242,0.28), transparent 55%),
+        linear-gradient(135deg, rgba(123,107,216,0.28), rgba(83,74,183,0.2));
+      border: 1px solid rgba(168,155,242,0.42);
+      border-radius: 18px;
+      border-bottom-right-radius: 6px;
+      align-self: flex-end;
+      max-width: 88%;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .vb-player {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .vb-play {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #E6DEFF 0%, #A89BF2 60%, #7B6BD8 100%);
+      color: #1E1848;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 10px -3px rgba(83,74,183,0.6), inset 0 1px 0 rgba(255,255,255,0.35);
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+    .vb-play:hover { transform: scale(1.08); filter: brightness(1.06); }
+    .vb-play svg { width: 12px; height: 12px; }
+    .vb-wave {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      height: 20px;
+      min-width: 0;
+      overflow: hidden;
+      cursor: pointer;
+    }
+    .vb-wave span {
+      width: 2px;
+      border-radius: 1px;
+      background: linear-gradient(180deg, #E6DEFF, #A89BF2);
+      flex-shrink: 0;
+      opacity: 0.85;
+      transition: opacity 0.2s;
+    }
+    .vb-wave span.played { opacity: 0.4; }
+    .vb-duration {
+      font-size: 10px;
+      font-weight: 600;
+      color: #D7D0FF;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+      letter-spacing: 0.3px;
+    }
+    .vb-transcript {
+      font-size: 11.5px;
+      color: #FFFFFF;
+      opacity: 0.9;
+      line-height: 1.4;
+      padding: 0 2px;
+    }
+
+    /* ═════════ Listening Mode Overlay ═════════ */
+    .voice-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background:
+        radial-gradient(120% 80% at 50% 0%, rgba(139, 92, 246, 0.25) 0%, transparent 55%),
+        radial-gradient(100% 70% at 50% 100%, rgba(34, 211, 238, 0.18) 0%, transparent 60%),
+        linear-gradient(180deg, rgba(14, 10, 32, 0.94) 0%, rgba(8, 6, 22, 0.98) 100%);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 6px;
+      padding: 8px 10px 10px;
+      opacity: 0;
+      pointer-events: none;
+      transform: scale(0.98);
+      transition: opacity 0.28s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+      z-index: 20;
+      overflow: hidden;
+    }
+    .voice-overlay.active {
+      opacity: 1;
+      pointer-events: none; /* background lets clicks pass through to composer below */
+      transform: scale(1);
+    }
+    /* Re-enable interactivity on the overlay's interactive children */
+    .voice-overlay.active > * { pointer-events: auto; }
+
+    .voice-overlay-top {
+      flex-shrink: 0;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      z-index: 2;
+      min-height: 24px;
+    }
+    .voice-status {
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      background: linear-gradient(135deg, #E6DEFF 0%, #C8BDFF 55%, #A89BF2 100%);
+      -webkit-background-clip: text;
+              background-clip: text;
+      color: transparent;
+      display: inline-flex;
+      align-items: baseline;
+      gap: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: calc(100% - 34px);
+    }
+    .voice-ellipsis {
+      display: inline-flex;
+      gap: 2px;
+      margin-left: 3px;
+    }
+    .voice-ellipsis span {
+      color: #A89BF2;
+      animation: voice-dot 1.3s ease-in-out infinite;
+    }
+    .voice-ellipsis span:nth-child(2) { animation-delay: 0.18s; }
+    .voice-ellipsis span:nth-child(3) { animation-delay: 0.36s; }
+    @keyframes voice-dot {
+      0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+      30%           { opacity: 1;    transform: translateY(-1px); }
+    }
+    .voice-close-btn {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #D7D0FF;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.18s, color 0.18s, transform 0.18s;
+    }
+    .voice-close-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #fff;
+      transform: rotate(90deg);
+    }
+
+    /* ───── Orb ───── */
+    .voice-orb-wrap {
+      flex: 1 1 auto;
+      min-height: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      position: relative;
+      padding: 4px 0;
+    }
+    .voice-orb {
+      --orb-scale: 1;
+      --orb-size: clamp(50px, 16vh, 72px);
+      position: relative;
+      width: var(--orb-size);
+      height: var(--orb-size);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transform: scale(var(--orb-scale));
+      transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    /* Core soft blob */
+    .orb-core {
+      position: absolute;
+      inset: 18%;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 30% 30%, #F0B4FF 0%, #A78BFA 35%, #6366F1 70%, #312E81 100%);
+      filter: blur(2px);
+      box-shadow:
+        inset 0 0 40px rgba(255, 255, 255, 0.25),
+        0 0 60px rgba(167, 139, 250, 0.55);
+      animation: orb-core-breathe 3.6s ease-in-out infinite;
+    }
+    @keyframes orb-core-breathe {
+      0%, 100% { transform: scale(1); filter: blur(2px) hue-rotate(0deg); }
+      50%      { transform: scale(1.04); filter: blur(3px) hue-rotate(20deg); }
+    }
+    /* Concentric glowing rings */
+    .orb-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      filter: blur(8px);
+      opacity: 0.8;
+      mix-blend-mode: screen;
+    }
+    .orb-ring-a {
+      background: conic-gradient(from 0deg,
+        #F472B6 0deg, #A78BFA 90deg, transparent 180deg,
+        transparent 270deg, #22D3EE 340deg, #F472B6 360deg);
+      animation: orb-ring-spin 8s linear infinite;
+    }
+    .orb-ring-b {
+      inset: 8%;
+      background: conic-gradient(from 180deg,
+        #22D3EE 0deg, transparent 90deg,
+        #C084FC 200deg, transparent 300deg, #22D3EE 360deg);
+      animation: orb-ring-spin-reverse 10s linear infinite;
+      opacity: 0.6;
+    }
+    .orb-ring-c {
+      inset: -6%;
+      background: radial-gradient(circle at 50% 50%, transparent 55%, rgba(167, 139, 250, 0.35) 68%, transparent 78%);
+      filter: blur(12px);
+      animation: orb-core-breathe 3.6s ease-in-out infinite;
+    }
+    .orb-shimmer {
+      position: absolute;
+      inset: 22%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0) 35%);
+      mix-blend-mode: screen;
+      animation: orb-shimmer-move 5s ease-in-out infinite;
+    }
+    @keyframes orb-ring-spin { to { transform: rotate(360deg); } }
+    @keyframes orb-ring-spin-reverse { to { transform: rotate(-360deg); } }
+    @keyframes orb-shimmer-move {
+      0%, 100% { transform: translate(0, 0); opacity: 0.85; }
+      50%      { transform: translate(4%, 3%); opacity: 1; }
+    }
+
+    /* ───── Waveform — hidden for a cleaner compact layout ───── */
+    .voice-waveform {
+      display: none;
+    }
+    .voice-waveform span {
+      display: inline-block;
+      width: 3px;
+      height: 20%;
+      border-radius: 2px;
+      background: linear-gradient(180deg, #A89BF2 0%, #7B6BD8 50%, #22D3EE 100%);
+      box-shadow: 0 0 6px rgba(168, 155, 242, 0.45);
+      transition: height 0.08s cubic-bezier(0.4, 0, 0.2, 1);
+      transform-origin: center;
+      animation: wave-idle 1.6s ease-in-out infinite;
+    }
+    .voice-waveform span:nth-child(3n+2) { animation-delay: 0.12s; }
+    .voice-waveform span:nth-child(3n+3) { animation-delay: 0.24s; }
+    @keyframes wave-idle {
+      0%, 100% { height: 18%; opacity: 0.55; }
+      50%      { height: 32%; opacity: 0.9; }
+    }
+    .voice-waveform.active span { animation: none; }
+
+    /* ───── Transcript ───── */
+    .voice-transcript {
+      flex-shrink: 0;
+      width: 100%;
+      min-height: 0;
+      max-height: 44px;
+      overflow-y: auto;
+      text-align: center;
+      padding: 2px 6px;
+      font-size: 11px;
+      line-height: 1.3;
+      color: #FFFFFF;
+      font-weight: 500;
+      letter-spacing: 0.1px;
+      z-index: 2;
+      text-shadow: 0 1px 10px rgba(0, 0, 0, 0.35);
+    }
+    .voice-transcript-placeholder {
+      color: rgba(215, 208, 255, 0.55);
+      font-weight: 400;
+      font-style: italic;
+    }
+    .voice-transcript .vt-interim {
+      color: rgba(215, 208, 255, 0.7);
+      font-weight: 400;
+    }
+    .voice-transcript::-webkit-scrollbar { width: 3px; }
+    .voice-transcript::-webkit-scrollbar-thumb {
+      background: rgba(168, 155, 242, 0.3);
+      border-radius: 2px;
+    }
+
+    /* ───── Bottom controls ───── */
+    .voice-controls {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding-top: 2px;
+      z-index: 2;
+    }
+    .voice-ctrl-btn {
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.18s ease, box-shadow 0.2s ease, background 0.2s ease;
+    }
+    .voice-ctrl-primary {
+      --mic-scale: 1;
+      --mic-glow:
+        0 0 0 3px rgba(168, 155, 242, 0.22),
+        0 0 16px 4px rgba(168, 155, 242, 0.18),
+        0 8px 20px -8px rgba(83, 74, 183, 0.55);
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #C8BDFF 0%, #7B6BD8 55%, #534AB7 100%);
+      color: #FFFFFF;
+      box-shadow: var(--mic-glow);
+      transform: scale(var(--mic-scale));
+      transition: box-shadow 0.08s linear, transform 0.08s linear, background 0.2s ease;
+      position: relative;
+    }
+    .voice-ctrl-primary::before {
+      content: "";
+      position: absolute;
+      inset: -14px;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(168, 155, 242, 0.35) 0%, transparent 65%);
+      opacity: calc((var(--mic-scale) - 1) * 2.2);
+      pointer-events: none;
+      transition: opacity 0.1s linear;
+      z-index: -1;
+    }
+    .voice-ctrl-primary:hover { filter: brightness(1.08); }
+    .voice-ctrl-primary:active { transform: scale(calc(var(--mic-scale) * 0.96)); }
+    .voice-ctrl-primary.paused {
+      background: radial-gradient(circle at 35% 30%, #34D399 0%, #10B981 55%, #047857 100%);
+    }
+    .voice-ctrl-secondary {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #D7D0FF;
+    }
+    .voice-ctrl-secondary:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: #FFFFFF;
+      transform: scale(1.05);
+    }
+    .voice-ctrl-secondary:active { transform: scale(0.95); }
+    /* Error state */
+    .voice-overlay.error .orb-core { background: radial-gradient(circle at 30% 30%, #FCA5A5 0%, #EF4444 70%, #7F1D1D 100%); }
+    .voice-overlay.error .voice-status { color: #FCA5A5; background: none; -webkit-background-clip: border-box; background-clip: border-box; }
+    /* Transcribing state — pulse orb faster, hide waveform + controls */
+    .voice-overlay.transcribing .voice-waveform { opacity: 0.35; }
+    .voice-overlay.transcribing .voice-controls { opacity: 0.5; pointer-events: none; }
+    .voice-overlay.transcribing .orb-core { animation-duration: 1.4s; }
+    .voice-overlay.transcribing .orb-ring-a { animation-duration: 3s; }
+    .voice-overlay.transcribing .orb-ring-b { animation-duration: 4s; }
+    .companion-attach-menu {
+      display: none;
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      margin-bottom: 6px;
+      background: var(--vscode-menu-background, var(--vscode-dropdown-background, #252526));
+      border: 1px solid var(--vscode-menu-border, var(--vscode-dropdown-border, #454545));
+      border-radius: 8px;
+      padding: 4px;
+      z-index: 100;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      min-width: 160px;
+    }
+    .companion-attach-menu.visible {
+      display: block;
+    }
+    .companion-attach-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--vscode-menu-foreground, var(--vscode-foreground));
+      transition: background 0.18s ease, transform 0.18s ease;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+    .companion-attach-menu-item:hover {
+      background: rgba(168, 155, 242, 0.08);
+      transform: translateX(2px);
+    }
+    .companion-attach-menu-item:hover .ai-tile {
+      transform: scale(1.06);
+    }
+    .companion-attach-menu-icon {
+      font-size: 14px;
+      width: 20px;
+      text-align: center;
+    }
+    /* ───── Attachment icon tiles (rotating palette to match chat bubbles) ───── */
+    .ai-tile {
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      border-radius: 9px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid transparent;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    .ai-tile svg {
+      width: 14px;
+      height: 14px;
+      transition: filter 0.2s ease;
+    }
+    .ai-lavender {
+      background: linear-gradient(135deg, rgba(200, 189, 255, 0.28) 0%, rgba(123, 107, 216, 0.14) 100%);
+      border-color: rgba(168, 155, 242, 0.45);
+      color: #E6DEFF;
+    }
+    .ai-lavender svg { filter: drop-shadow(0 0 6px rgba(168, 155, 242, 0.55)); }
+    .ai-peach {
+      background: linear-gradient(135deg, rgba(255, 213, 138, 0.3) 0%, rgba(245, 181, 71, 0.14) 100%);
+      border-color: rgba(245, 181, 71, 0.5);
+      color: #FFE5B4;
+    }
+    .ai-peach svg { filter: drop-shadow(0 0 6px rgba(245, 181, 71, 0.55)); }
+    .ai-mint {
+      background: linear-gradient(135deg, rgba(159, 243, 209, 0.3) 0%, rgba(52, 211, 153, 0.14) 100%);
+      border-color: rgba(52, 211, 153, 0.5);
+      color: #B8F5DD;
+    }
+    .ai-mint svg { filter: drop-shadow(0 0 6px rgba(52, 211, 153, 0.55)); }
+    .ai-pink {
+      background: linear-gradient(135deg, rgba(255, 179, 230, 0.3) 0%, rgba(236, 110, 199, 0.14) 100%);
+      border-color: rgba(236, 110, 199, 0.5);
+      color: #FFD1EC;
+    }
+    .ai-pink svg { filter: drop-shadow(0 0 6px rgba(236, 110, 199, 0.55)); }
+    .companion-attach-menu-label {
+      flex: 1;
+    }
+    .companion-attach-menu-hint {
+      font-size: 10px;
+      color: var(--vscode-descriptionForeground);
+      opacity: 0.7;
+    }
+    .companion-attach-preview {
+      display: none;
+      padding: 6px 8px;
+      background: var(--vscode-input-background);
+      border: 1px solid var(--vscode-input-border, rgba(255,255,255,0.1));
+      border-radius: 8px;
+      margin-bottom: 4px;
+      font-size: 11px;
+      color: var(--vscode-descriptionForeground);
+      order: 2;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .companion-attach-preview.visible {
+      display: block;
+    }
+    .companion-attach-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 0;
+      justify-content: space-between;
+    }
+    .companion-attach-item-info {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      min-width: 0;
+      flex: 1;
+    }
+    .companion-attach-item-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .companion-attach-item-actions {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .companion-attach-pin {
+      background: none;
+      border: none;
+      color: var(--vscode-descriptionForeground);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      opacity: 0.6;
+    }
+    .companion-attach-pin:hover { opacity: 1; }
+    .companion-attach-pin.pinned {
+      color: var(--vscode-charts-yellow, #e2c541);
+      opacity: 1;
+    }
+    .companion-attach-remove {
+      background: none;
+      border: none;
+      color: var(--vscode-descriptionForeground);
+      cursor: pointer;
+      font-size: 13px;
+      padding: 0 3px;
+      opacity: 0.5;
+    }
+    .companion-attach-remove:hover { opacity: 1; color: var(--vscode-errorForeground); }
+    .companion-input-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      order: 3;
+      position: relative;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(168, 155, 242, 0.15);
+      border-radius: 22px;
+      padding: 6px 6px 6px 10px;
+      transition: all 0.2s ease;
+      z-index: 1;
+    }
+    .companion-input-row:focus-within {
+      border-color: rgba(168, 155, 242, 0.5);
+      background: rgba(255, 255, 255, 0.05);
+      box-shadow: 0 0 0 3px rgba(123, 107, 216, 0.1);
+    }
+    .companion-input {
+      flex: 1;
+      background: transparent;
+      color: var(--vscode-input-foreground);
+      border: none !important;
+      outline: none !important;
+      box-shadow: none !important;
+      padding: 6px 4px;
+      font-size: 12.5px;
+      font-family: inherit;
+      resize: none;
+      min-height: 20px;
+      max-height: 80px;
+      line-height: 1.5;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .companion-input:focus,
+    .companion-input:focus-visible,
+    .companion-input:active {
+      outline: none !important;
+      border: none !important;
+      box-shadow: none !important;
+    }
+    .companion-input::placeholder {
+      color: rgba(168, 155, 242, 0.5);
+    }
+    .companion-char-count {
+      display: none;
+      font-size: 9px;
+      color: var(--vscode-descriptionForeground);
+      opacity: 0.5;
+      position: absolute;
+      right: 50px;
+      bottom: 2px;
+      pointer-events: none;
+    }
+    .companion-char-count.near-limit {
+      opacity: 0.8;
+      color: var(--vscode-editorWarning-foreground, #cca700);
+    }
+    .companion-char-count.at-limit {
+      opacity: 1;
+      color: var(--vscode-errorForeground, #f44747);
+    }
+    .companion-send-btn {
+      background: linear-gradient(135deg, #7B6BD8 0%, #534AB7 100%);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      padding: 0;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(83, 74, 183, 0.4);
+      transition: all 0.2s ease;
+    }
+    .companion-send-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(83, 74, 183, 0.55);
+    }
+    .companion-send-btn:active {
+      transform: translateY(0);
+    }
+    .companion-empty {
+      text-align: center;
+      font-size: 11.5px;
+      color: rgba(168, 155, 242, 0.6);
+      padding: 20px 16px;
+      line-height: 1.6;
+      background: radial-gradient(ellipse at center, rgba(168, 155, 242, 0.04) 0%, transparent 70%);
+      border-radius: 12px;
+    }
+    .companion-clear-btn {
+      background: rgba(168, 155, 242, 0.06);
+      border: 1px solid transparent;
+      color: rgba(168, 155, 242, 0.5);
+      font-size: 10px;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 3px 10px;
+      border-radius: 12px;
+      letter-spacing: 0.3px;
+      transition: all 0.2s ease;
+    }
+    .companion-clear-btn:hover {
+      color: #C8BDFF;
+      background: rgba(168, 155, 242, 0.12);
+      border-color: rgba(168, 155, 242, 0.2);
+    }
+    .companion-watching {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: #A89BF2;
+      padding: 7px 12px;
+      background: linear-gradient(90deg, rgba(123, 107, 216, 0.1) 0%, rgba(168, 155, 242, 0.05) 100%);
+      border: 1px solid rgba(168, 155, 242, 0.15);
+      border-radius: 20px;
+      animation: watching-pulse 2.5s ease-in-out infinite;
+    }
+    .companion-watching .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #A89BF2;
+      box-shadow: 0 0 8px rgba(168, 155, 242, 0.6);
+      animation: dot-blink 1.5s ease-in-out infinite;
+    }
+    @keyframes watching-pulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+    .companion-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+      padding-bottom: 4px;
+      width: 100%;
+      animation: msg-fade-in 0.3s ease-out;
+    }
+    .companion-option-btn {
+      background: rgba(168, 155, 242, 0.08);
+      color: #A89BF2;
+      border: 1px solid rgba(168, 155, 242, 0.2);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: normal;
+      word-break: break-word;
+      max-width: 100%;
+    }
+    .companion-option-btn:hover {
+      background: linear-gradient(135deg, rgba(123, 107, 216, 0.25) 0%, rgba(83, 74, 183, 0.25) 100%);
+      color: #FFFFFF;
+      border-color: rgba(168, 155, 242, 0.5);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(83, 74, 183, 0.25);
+    }
+    .companion-option-btn:active {
+      transform: translateY(0);
+    }
+    .companion-option-other {
+      background: transparent;
+      border-style: dashed;
+      opacity: 0.7;
+    }
+    .companion-option-other:hover {
+      opacity: 1;
+      background: rgba(255,255,255,0.04);
+    }
+    @keyframes dot-blink {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    /* ───── Codepet Welcome Banner — Hero Card ───── */
+    .cp-welcome {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      grid-template-areas:
+        "chip close"
+        "title close"
+        "sub close";
+      column-gap: 6px;
+      row-gap: 1px;
+      padding: 6px 10px 7px;
+      margin-bottom: 8px;
+      border-radius: 10px;
+      overflow: hidden;
+      background:
+        radial-gradient(120% 110% at 0% 0%, rgba(168, 155, 242, 0.38) 0%, transparent 55%),
+        radial-gradient(120% 110% at 100% 100%, rgba(236, 110, 199, 0.25) 0%, transparent 60%),
+        linear-gradient(155deg, rgba(52, 38, 108, 0.95) 0%, rgba(28, 20, 62, 0.96) 55%, rgba(14, 10, 32, 0.98) 100%);
+      border: 1px solid rgba(168, 155, 242, 0.3);
+      box-shadow:
+        0 14px 32px -14px rgba(83, 74, 183, 0.65),
+        inset 0 1px 0 rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      animation: cp-welcome-in 0.48s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    }
+    @keyframes cp-welcome-in {
+      from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    /* Decorative orbs in the corners (from references) */
+    .cp-welcome::after {
+      content: "";
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      right: -16px;
+      bottom: -18px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, rgba(236, 110, 199, 0.38), rgba(168, 85, 247, 0.14) 60%, transparent 80%);
+      filter: blur(4px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .cp-welcome::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(200, 189, 255, 0.6), rgba(123, 107, 216, 0) 45%, rgba(236, 110, 199, 0.45) 100%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .cp-welcome > * { position: relative; z-index: 2; }
+
+    .cp-welcome-chip {
+      grid-area: chip;
+      justify-self: start;
+      font-size: 7px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(168, 155, 242, 0.32), rgba(123, 107, 216, 0.12));
+      border: 1px solid rgba(168, 155, 242, 0.55);
+      color: #E6DEFF;
+      text-shadow: 0 0 10px rgba(168, 155, 242, 0.45);
+    }
+    .cp-welcome-text { display: contents; }
+    .cp-welcome-title {
+      grid-area: title;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.1px;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #FFFFFF 0%, #E6DEFF 55%, #C8BDFF 100%);
+      -webkit-background-clip: text;
+              background-clip: text;
+      color: transparent;
+      position: relative;
+    }
+    /* Underline removed for a more compact banner */
+    .cp-welcome-title::after { display: none; }
+    .cp-welcome-sub {
+      grid-area: sub;
+      font-size: 9.5px;
+      color: #BDB4DB;
+      opacity: 0.82;
+      line-height: 1.3;
+    }
+    .cp-welcome-close {
+      grid-area: close;
+      align-self: start;
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      align-self: center;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #D7D0FF;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+    }
+    .cp-welcome-close:hover {
+      background: rgba(255, 255, 255, 0.14);
+      color: #fff;
+      transform: rotate(90deg);
+    }
+    /* Inline primary CTA — fully rounded purple gradient pill */
+    .cp-welcome-cta {
+      grid-area: cta;
+      margin-top: 4px;
+      padding: 10px 14px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      border-radius: 999px;
+      border: 1px solid rgba(200, 189, 255, 0.4);
+      background: linear-gradient(135deg, #A89BF2 0%, #7B6BD8 55%, #534AB7 100%);
+      color: #FFFFFF;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow:
+        0 10px 24px -10px rgba(83, 74, 183, 0.8),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      transition: transform 0.18s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+    .cp-welcome-cta:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.06);
+      box-shadow:
+        0 14px 28px -10px rgba(83, 74, 183, 0.95),
+        inset 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+    .cp-welcome-cta:active { transform: translateY(0); }
+    .cp-welcome-cta svg {
+      width: 14px;
+      height: 14px;
+      transition: transform 0.18s ease;
+    }
+    .cp-welcome-cta:hover svg { transform: translateX(2px); }
+
+    /* ───── Pet Widget — Vibrant Hero Dashboard Card ───── */
+    /* Layered radial gradients: hot pink + cyan + lavender + amber accents */
+    .pet-widget {
+      position: relative;
+      text-align: center;
+      padding: 22px 16px 20px;
+      border-radius: 22px !important;
+      background:
+        radial-gradient(58% 40% at 18% 18%, rgba(168, 85, 247, 0.55) 0%, transparent 70%),
+        radial-gradient(55% 45% at 85% 20%, rgba(236, 72, 153, 0.42) 0%, transparent 70%),
+        radial-gradient(55% 40% at 15% 85%, rgba(34, 211, 238, 0.30) 0%, transparent 70%),
+        radial-gradient(60% 40% at 88% 88%, rgba(251, 146, 60, 0.28) 0%, transparent 75%),
+        radial-gradient(80% 55% at 50% 50%, rgba(123, 107, 216, 0.20) 0%, transparent 75%),
+        linear-gradient(160deg, rgba(62, 42, 130, 0.95) 0%, rgba(40, 25, 92, 0.96) 45%, rgba(24, 16, 60, 0.98) 100%) !important;
+      border: 1px solid rgba(200, 189, 255, 0.28) !important;
+      box-shadow:
+        0 20px 50px -18px rgba(168, 85, 247, 0.55),
+        0 10px 24px -14px rgba(236, 72, 153, 0.30),
+        inset 0 1px 0 rgba(255, 255, 255, 0.10) !important;
+      overflow: hidden !important;
+    }
+    /* Gradient hairline border — now rainbow-ish */
+    .pet-widget::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: 22px;
+      padding: 1px;
+      background: linear-gradient(135deg,
+        rgba(200, 189, 255, 0.75) 0%,
+        rgba(236, 72, 153, 0.55) 30%,
+        rgba(168, 85, 247, 0) 55%,
+        rgba(34, 211, 238, 0.55) 80%,
+        rgba(251, 146, 60, 0.5) 100%);
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+              mask-composite: exclude;
+      pointer-events: none;
+      z-index: 2;
+    }
+    /* Floating decorative blobs — slow ambient drift, purely cosmetic */
+    .pet-widget > .pet-blob {
+      position: absolute;
+      border-radius: 50%;
+      pointer-events: none;
+      filter: blur(14px);
+      opacity: 0.55;
+      z-index: 0;
+      mix-blend-mode: screen;
+    }
+    .pet-widget > .pet-blob.b1 {
+      width: 80px; height: 80px;
+      top: -18px; left: 28%;
+      background: radial-gradient(circle, #F472B6 0%, rgba(244, 114, 182, 0) 70%);
+      animation: cp-blob-drift-a 14s ease-in-out infinite;
+    }
+    .pet-widget > .pet-blob.b2 {
+      width: 70px; height: 70px;
+      bottom: -14px; left: -12px;
+      background: radial-gradient(circle, #22D3EE 0%, rgba(34, 211, 238, 0) 70%);
+      animation: cp-blob-drift-b 17s ease-in-out infinite;
+    }
+    .pet-widget > .pet-blob.b3 {
+      width: 60px; height: 60px;
+      top: 42%; right: -12px;
+      background: radial-gradient(circle, #FBBF24 0%, rgba(251, 191, 36, 0) 70%);
+      animation: cp-blob-drift-c 19s ease-in-out infinite;
+      opacity: 0.45;
+    }
+    .pet-widget > .pet-blob.b4 {
+      width: 50px; height: 50px;
+      bottom: 38%; left: 52%;
+      background: radial-gradient(circle, #A78BFA 0%, rgba(167, 139, 250, 0) 70%);
+      animation: cp-blob-drift-d 22s ease-in-out infinite;
+      opacity: 0.5;
+    }
+    @keyframes cp-blob-drift-a {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      33%      { transform: translate(12px, 18px) scale(1.12); }
+      66%      { transform: translate(-8px, 10px) scale(0.92); }
+    }
+    @keyframes cp-blob-drift-b {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      40%      { transform: translate(14px, -10px) scale(1.18); }
+      80%      { transform: translate(-6px, -16px) scale(0.88); }
+    }
+    @keyframes cp-blob-drift-c {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50%      { transform: translate(-16px, 8px) scale(1.15); }
+    }
+    @keyframes cp-blob-drift-d {
+      0%, 100% { transform: translate(0, 0) scale(1); }
+      50%      { transform: translate(10px, -14px) scale(1.1); }
+    }
+    /* Tiny sparkle dots scattered across the card — like the reference confetti */
+    .pet-widget > .pet-sparkle {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 1;
+      opacity: 0.75;
+      animation: cp-sparkle-twinkle 3s ease-in-out infinite;
+    }
+    .pet-widget > .pet-sparkle.s1 { top: 26%;  left: 18%; background: #FBCFE8; animation-delay: 0.0s; }
+    .pet-widget > .pet-sparkle.s2 { top: 20%;  right: 22%; background: #A5F3FC; animation-delay: 0.7s; width: 3px; height: 3px; }
+    .pet-widget > .pet-sparkle.s3 { top: 72%;  left: 22%; background: #FDE68A; animation-delay: 1.2s; }
+    .pet-widget > .pet-sparkle.s4 { bottom: 24%; right: 18%; background: #DDD6FE; animation-delay: 1.9s; width: 5px; height: 5px; }
+    .pet-widget > .pet-sparkle.s5 { top: 50%;  left: 8%; background: #FCA5A5; animation-delay: 2.3s; width: 3px; height: 3px; }
+    @keyframes cp-sparkle-twinkle {
+      0%, 100% { opacity: 0.25; transform: scale(0.8); }
+      50%      { opacity: 1;    transform: scale(1.2); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pet-widget > .pet-blob, .pet-widget > .pet-sparkle { animation: none !important; }
+    }
+    /* Corner icon-button cluster (replaces old toolbar) */
+    .pet-widget-actions {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 6px;
+      z-index: 4;
+    }
+    .pet-widget-icon-btn {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      border-radius: 50%;
+      background: rgba(168, 155, 242, 0.10);
+      border: 1px solid rgba(168, 155, 242, 0.28);
+      color: #C8BDFF;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                  background 0.2s ease,
+                  border-color 0.2s ease,
+                  color 0.2s ease;
+    }
+    .pet-widget-icon-btn:hover {
+      background: linear-gradient(135deg, rgba(123, 107, 216, 0.35), rgba(168, 155, 242, 0.2));
+      border-color: rgba(168, 155, 242, 0.55);
+      color: #FFFFFF;
+      transform: translateY(-1px);
+    }
+    .pet-widget-icon-btn[data-action="refresh"]:hover svg { animation: cp-spin-once 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .pet-widget-icon-btn[data-action="openSettings"]:hover svg { animation: cp-cog-turn 1.4s linear infinite; }
+    .pet-widget-icon-btn:active { transform: translateY(0) scale(0.95); }
+    .pet-widget-icon-btn svg {
+      width: 13px;
+      height: 13px;
+      pointer-events: none;  /* clicks pass through to the button */
+    }
+    .pet-widget-icon-btn svg * { pointer-events: none; }
+    @keyframes cp-spin-once { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes cp-cog-turn { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+    .pet-avatar {
+      position: relative;
+      width: 96px;
+      height: 108px;
+      margin: 18px auto 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      cursor: pointer;
+      /* Walk-like bounce: hop + settle + sway, 2.6s cycle */
+      animation: cp-pet-hop 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+      transition: transform 0.25s ease;
+    }
+    .pet-avatar:hover {
+      animation-play-state: paused;
+      transform: scale(1.08) translateY(-2px);
+    }
+    .pet-avatar[aria-expanded="true"] {
+      /* Subtle ring hint when stats are revealed */
+      filter: drop-shadow(0 0 10px rgba(168, 155, 242, 0.6));
+    }
+    /* "Tap me" hint — ABOVE the avatar, only visible on hover */
+    .pet-tap-hint {
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% - 14px);  /* sits close to the character's head */
+      transform: translateX(-50%) translateY(4px);
+      background: linear-gradient(135deg, rgba(168, 155, 242, 0.3), rgba(236, 72, 153, 0.2));
+      border: 1px solid rgba(200, 189, 255, 0.5);
+      color: #E6DEFF;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 0.6px;
+      padding: 2px 9px;
+      border-radius: 999px;
+      white-space: nowrap;
+      text-transform: uppercase;
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 4;
+      transition: opacity 0.2s ease, transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    /* Reveal on hover (or keyboard focus) of the character */
+    .pet-avatar-wrap:hover .pet-tap-hint,
+    .pet-avatar:hover + .pet-tap-hint,
+    .pet-avatar-wrap:focus-within .pet-tap-hint {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    /* Small decorative arrow pointing down to the character */
+    .pet-tap-hint::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 100%;
+      transform: translateX(-50%);
+      border: 4px solid transparent;
+      border-top-color: rgba(168, 155, 242, 0.5);
+    }
+    /* Hide entirely when stats are revealed */
+    .pet-widget.stats-shown .pet-tap-hint {
+      display: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .pet-tap-hint { transition: none !important; }
+    }
+    .pet-avatar-wrap {
+      position: relative;
+      display: inline-block;
+      width: 100%;
+    }
+    /* Walk-hop cycle — lift → peak → land → squash → rise (inspired by Duolingo-style character walks) */
+    @keyframes cp-pet-hop {
+      0%   { transform: translateY(0)     scaleY(1)    scaleX(1); }
+      20%  { transform: translateY(-7px)  scaleY(1.03) scaleX(0.98); }
+      35%  { transform: translateY(-9px)  scaleY(1.04) scaleX(0.97); }
+      55%  { transform: translateY(-2px)  scaleY(1)    scaleX(1); }
+      68%  { transform: translateY(2px)   scaleY(0.93) scaleX(1.05); }  /* squash on landing */
+      82%  { transform: translateY(0)     scaleY(1.02) scaleX(0.99); }
+      100% { transform: translateY(0)     scaleY(1)    scaleX(1); }
+    }
+
+    /* Soft pulsing glow halo — echoes the hop but slower, more ambient */
+    .pet-avatar::before {
+      content: "";
+      position: absolute;
+      inset: -18px -6px -2px -6px;
+      background: radial-gradient(60% 55% at 50% 55%, rgba(168, 155, 242, 0.55) 0%, rgba(123, 107, 216, 0.22) 45%, transparent 75%);
+      filter: blur(6px);
+      z-index: -1;
+      animation: cp-pet-halo 5.2s ease-in-out infinite;
+    }
+    @keyframes cp-pet-halo {
+      0%, 100% { opacity: 0.7;  transform: scale(1); }
+      35%      { opacity: 1;    transform: scale(1.1); }
+      70%      { opacity: 0.85; transform: scale(1.04); }
+    }
+
+    /* Image has its own expressive layer: head tilt + periodic peek/look-around */
     .pet-avatar img {
       width: 100%;
       height: 100%;
       object-fit: contain;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+      filter: drop-shadow(0 6px 14px rgba(83, 74, 183, 0.55));
+      position: relative;
+      z-index: 1;
+      transform-origin: center bottom;
+      /* Two stacked animations: subtle head sway (all the time) + periodic peek (longer loop) */
+      animation:
+        cp-pet-sway 3.4s ease-in-out infinite,
+        cp-pet-peek 11s ease-in-out infinite;
+    }
+
+    /* Gentle head tilt — left/right sway, like the owl's head-bob */
+    @keyframes cp-pet-sway {
+      0%, 100% { transform: rotate(-1.6deg); }
+      50%      { transform: rotate(1.6deg); }
+    }
+
+    /* Periodic peek/look-around — briefly tilts bigger then returns to normal sway.
+       Only "active" during a small window; rest of the time it's neutral-pass-through. */
+    @keyframes cp-pet-peek {
+      0%, 85%, 100% { filter: drop-shadow(0 6px 14px rgba(83, 74, 183, 0.55)); }
+      88%           { transform: translateX(-4px) rotate(-6deg); }
+      92%           { transform: translateX(4px)  rotate(5deg); }
+      96%           { transform: translateX(0)    rotate(0deg); }
+    }
+
+    /* Click to cheer — a proper jump-flip bounce */
+    .pet-avatar:active img {
+      animation: cp-pet-cheer 0.65s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    @keyframes cp-pet-cheer {
+      0%   { transform: translateY(0)    rotate(0deg)  scale(1); }
+      25%  { transform: translateY(-14px) rotate(-8deg) scale(1.06); }
+      50%  { transform: translateY(-18px) rotate(6deg)  scale(1.08); }
+      75%  { transform: translateY(-6px)  rotate(-3deg) scale(1.02); }
+      100% { transform: translateY(0)    rotate(0deg)  scale(1); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pet-avatar, .pet-avatar img, .pet-avatar::before { animation: none !important; }
     }
     .pet-name {
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--vscode-foreground);
+      position: relative;
+      z-index: 3;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      background: linear-gradient(135deg, #FFFFFF 0%, #FBCFE8 35%, #C8BDFF 70%, #A5F3FC 100%);
+      -webkit-background-clip: text;
+              background-clip: text;
+      color: transparent;
+      text-shadow: 0 0 28px rgba(236, 72, 153, 0.25);
     }
     .pet-reaction {
-      font-size: 12px;
-      color: var(--vscode-descriptionForeground);
-      margin-top: 4px;
+      position: relative;
+      z-index: 3;
+      font-size: 12.5px;
+      color: #DCD1FF;
+      margin-top: 6px;
       font-style: italic;
+      opacity: 0.98;
+      text-shadow: 0 1px 6px rgba(24, 16, 60, 0.6);
     }
     .connection-badge {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
       font-size: 10px;
-      padding: 2px 8px;
-      border-radius: 10px;
-      margin-top: 6px;
+      font-weight: 600;
+      padding: 5px 11px 5px 9px;
+      border-radius: 999px;
+      margin-top: 12px;
+      letter-spacing: 0.2px;
+      box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     }
-    .connected { background: #2ea04333; color: #3fb950; }
-    .disconnected { background: #f8514933; color: #f85149; }
+    .connection-badge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+      animation: badge-pulse 2.2s ease-in-out infinite;
+    }
+    @keyframes badge-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.55; transform: scale(0.9); }
+    }
+    .connected {
+      background: linear-gradient(135deg, rgba(52, 211, 153, 0.22) 0%, rgba(16, 185, 129, 0.12) 100%);
+      border: 1px solid rgba(52, 211, 153, 0.45);
+      color: #6EE7B7;
+    }
+    .disconnected {
+      background: linear-gradient(135deg, rgba(248, 81, 73, 0.2) 0%, rgba(220, 38, 38, 0.1) 100%);
+      border: 1px solid rgba(248, 81, 73, 0.45);
+      color: #FCA5A5;
+    }
 
-    /* ───── Stats Grid ───── */
+    /* ───── Embedded Stats Reveal — inside the dashboard pet widget ───── */
+    .pet-widget-stats {
+      position: relative;
+      z-index: 3;
+      max-height: 0;
+      opacity: 0;
+      margin-top: 0;
+      overflow: hidden;
+      pointer-events: none;
+      transition:
+        max-height 0.65s cubic-bezier(0.22, 1, 0.36, 1),
+        opacity 0.38s ease,
+        margin-top 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .pet-widget.stats-shown .pet-widget-stats {
+      max-height: 280px;
+      opacity: 1;
+      margin-top: 16px;
+      pointer-events: auto;
+    }
+    /* Tiny label above the chip grid, teal to echo the palette */
+    .pet-widget-stats-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.6px;
+      text-transform: uppercase;
+      color: #67F3C8;
+      margin-bottom: 8px;
+      text-shadow: 0 0 12px rgba(52, 211, 153, 0.35);
+      opacity: 0;
+      transform: translateY(-4px);
+      transition: opacity 0.35s ease 0.08s, transform 0.35s ease 0.08s;
+    }
+    .pet-widget.stats-shown .pet-widget-stats-label {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .pws-dot {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #34D399;
+      box-shadow: 0 0 8px rgba(52, 211, 153, 0.7);
+      animation: cp-pws-pulse 2s ease-in-out infinite;
+    }
+    @keyframes cp-pws-pulse {
+      0%, 100% { opacity: 1;   transform: scale(1); }
+      50%      { opacity: 0.5; transform: scale(0.75); }
+    }
+    .pws-sync {
+      font-size: 8px;
+      opacity: 0.55;
+      margin-left: 4px;
+      color: #B6F5DD;
+    }
+    .pet-widget-stats-meta {
+      margin-top: 10px;
+      font-size: 10px;
+      color: #BDB4DB;
+      opacity: 0.7;
+      text-align: center;
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    .pet-widget-stats-meta span:empty { display: none; }
+    .pet-widget-stats-meta:empty { display: none; }
+    /* Stat chips start hidden, stagger-reveal */
+    .pet-widget-stats .stat-chip {
+      opacity: 0;
+      transform: translateY(22px) scale(0.85) rotate(-1deg);
+      transition:
+        opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+        transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .pet-widget.stats-shown .pet-widget-stats .stat-chip {
+      opacity: 1;
+      transform: translateY(0) scale(1) rotate(0deg);
+    }
+    .pet-widget.stats-shown .pet-widget-stats .stat-chip:nth-child(1) { transition-delay: 0.18s; }
+    .pet-widget.stats-shown .pet-widget-stats .stat-chip:nth-child(2) { transition-delay: 0.28s; }
+    .pet-widget.stats-shown .pet-widget-stats .stat-chip:nth-child(3) { transition-delay: 0.38s; }
+    .pet-widget.stats-shown .pet-widget-stats .stat-chip:nth-child(4) { transition-delay: 0.48s; }
+
+    /* When stats shown: pet shrinks + lifts to make room; name/reaction shrink too */
+    .pet-widget .pet-avatar-wrap,
+    .pet-widget .pet-avatar,
+    .pet-widget .pet-name,
+    .pet-widget .pet-reaction {
+      transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+                  font-size 0.4s ease,
+                  margin 0.4s ease,
+                  opacity 0.3s ease;
+    }
+    .pet-widget.stats-shown .pet-avatar {
+      transform: scale(0.72) translateY(-4px);
+    }
+    .pet-widget.stats-shown .pet-name {
+      font-size: 15px;
+    }
+    .pet-widget.stats-shown .pet-reaction {
+      font-size: 10.5px;
+      opacity: 0.72;
+      margin-top: 2px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pet-widget-stats,
+      .pet-widget-stats .stat-chip,
+      .pet-widget-stats-label,
+      .pet-widget .pet-avatar,
+      .pet-widget .pet-name,
+      .pet-widget .pet-reaction {
+        transition: none !important;
+      }
+    }
+
+    /* ───── Stats Grid — Warm Pastel Gradients ───── */
+    /* Palette: soft purples + warm pink/peach tones for warmth at the bottom of the sidebar */
     .stats-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 8px;
+      gap: 10px;
     }
     .stat-chip {
-      background: var(--vscode-badge-background, #333);
-      border-radius: 6px;
-      padding: 8px;
+      position: relative;
+      border-radius: 16px;
+      padding: 14px 10px;
       text-align: center;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stat-chip:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(123, 107, 216, 0.25);
+    }
+    /* Each chip gets a unique warm gradient */
+    .stats-grid .stat-chip:nth-child(1) {
+      background: linear-gradient(135deg, #C8A6F5 0%, #F5B3D4 100%);
+    }
+    .stats-grid .stat-chip:nth-child(2) {
+      background: linear-gradient(135deg, #F5B3D4 0%, #FFCBA4 100%);
+    }
+    .stats-grid .stat-chip:nth-child(3) {
+      background: linear-gradient(135deg, #FFCBA4 0%, #F4E5B0 100%);
+    }
+    .stats-grid .stat-chip:nth-child(4) {
+      background: linear-gradient(135deg, #A89BF2 0%, #C8A6F5 100%);
+    }
+    /* Soft glow inside each chip */
+    .stat-chip::before {
+      content: "";
+      position: absolute;
+      top: -30%;
+      left: -20%;
+      width: 140%;
+      height: 140%;
+      background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.35) 0%, transparent 55%);
+      pointer-events: none;
     }
     .stat-value {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--vscode-foreground);
+      position: relative;
+      font-size: 20px;
+      font-weight: 800;
+      color: #2D2664;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+      z-index: 1;
     }
     .stat-label {
-      font-size: 10px;
-      color: var(--vscode-descriptionForeground);
+      position: relative;
+      font-size: 9.5px;
+      color: rgba(45, 38, 100, 0.75);
       text-transform: uppercase;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.6px;
+      font-weight: 600;
+      margin-top: 2px;
+      z-index: 1;
     }
 
     /* ───── Language Bar ───── */
@@ -1437,41 +3956,69 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       transition: width 0.3s ease;
     }
 
-    /* ───── Event Feed ───── */
+    /* ───── Event Feed — Gradient Pills ───── */
     .event-item {
-      padding: 6px 0;
-      border-bottom: 1px solid var(--vscode-panel-border, #222);
-      font-size: 11px;
+      padding: 9px 12px;
+      margin-bottom: 6px;
+      font-size: 11.5px;
+      background: linear-gradient(135deg, rgba(168, 155, 242, 0.08) 0%, rgba(245, 179, 212, 0.05) 100%);
+      border: 1px solid rgba(168, 155, 242, 0.12);
+      border-left: 3px solid transparent;
+      border-image: linear-gradient(to bottom, #A89BF2, #F5B3D4) 1;
+      border-radius: 10px;
+      position: relative;
+      transition: all 0.2s ease;
     }
-    .event-item:last-child { border-bottom: none; }
+    .event-item:last-child { margin-bottom: 0; }
+    .event-item:hover {
+      background: linear-gradient(135deg, rgba(168, 155, 242, 0.14) 0%, rgba(245, 179, 212, 0.1) 100%);
+      border-color: rgba(168, 155, 242, 0.25);
+    }
     .event-type {
-      font-weight: 600;
+      font-weight: 700;
       margin-right: 4px;
+      color: #C8BDFF;
     }
     .event-time {
       font-size: 10px;
-      color: var(--vscode-descriptionForeground);
+      color: rgba(168, 155, 242, 0.6);
       float: right;
+      font-weight: 500;
     }
 
-    /* ───── Toolbar ───── */
+    /* ───── Toolbar — Glass chips ───── */
     .toolbar {
       display: flex;
-      gap: 6px;
-      margin-bottom: 10px;
+      gap: 8px;
+      margin: 10px 0 12px;
     }
     .toolbar button {
       flex: 1;
-      padding: 6px;
-      font-size: 11px;
-      background: var(--vscode-button-secondaryBackground);
-      color: var(--vscode-button-secondaryForeground);
-      border: none;
-      border-radius: 4px;
+      padding: 9px 10px;
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      background:
+        linear-gradient(135deg, rgba(168, 155, 242, 0.14) 0%, rgba(123, 107, 216, 0.06) 100%);
+      color: #D7D0FF;
+      border: 1px solid rgba(168, 155, 242, 0.22);
+      border-radius: 12px;
       cursor: pointer;
+      transition: transform 0.18s ease, background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
     .toolbar button:hover {
-      background: var(--vscode-button-secondaryHoverBackground);
+      background:
+        linear-gradient(135deg, rgba(200, 189, 255, 0.26) 0%, rgba(123, 107, 216, 0.14) 100%);
+      border-color: rgba(200, 189, 255, 0.45);
+      color: #FFFFFF;
+      transform: translateY(-1px);
+      box-shadow:
+        0 8px 18px -8px rgba(123, 107, 216, 0.6),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+    .toolbar button:active {
+      transform: translateY(0);
     }
 
     /* ───── Empty State ───── */
@@ -1719,124 +4266,251 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
   </style>
 </head>
 <body>
-  <!-- DIAGNOSTIC: If you see this, v0.9.2 HTML is loaded -->
-  <div id="welcome-banner" style="background:linear-gradient(135deg,#7B6BD8,#534AB7);border-radius:8px;padding:14px 16px;margin-bottom:10px;color:#fff;display:flex;align-items:center;justify-content:space-between;">
-    <div>
-      <div style="font-size:15px;font-weight:700;margin-bottom:2px;">${welcome ? (welcome.greeting + ', ' + welcome.userName + '!') : 'Welcome!'}</div>
-      <div style="font-size:11px;opacity:0.85;">${welcome ? (welcome.petName + ' is ready to code with you.') : 'Codepet v0.9.2'}</div>
-    </div>
-    <button data-action="dismissWelcome" style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:18px;cursor:pointer;padding:4px 8px;">&times;</button>
+  <!-- Codepet Welcome Banner (in-sidebar hero) -->
+  <div id="welcome-banner" class="cp-welcome">
+    <span class="cp-welcome-chip">HELLO</span>
+    <div class="cp-welcome-title">${welcome ? (welcome.greeting + ', ' + welcome.userName) : 'Welcome'}</div>
+    <div class="cp-welcome-sub">${welcome ? (welcome.petName + ' is ready to code with you.') : 'Codepet is ready to code with you.'}</div>
+    <button data-action="dismissWelcome" class="cp-welcome-close" aria-label="Dismiss welcome">
+      <svg viewBox="0 0 24 24" width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+    </button>
   </div>
 
   <!-- Pet Widget -->
   <div class="card pet-widget" id="pet-section">
-    <div class="pet-avatar"><img id="pet-avatar-img" src="${initialAvatarUri}" alt="${this.resolvedPetName}" /></div>
+    <!-- Floating ambient blobs -->
+    <span class="pet-blob b1"></span>
+    <span class="pet-blob b2"></span>
+    <span class="pet-blob b3"></span>
+    <span class="pet-blob b4"></span>
+    <!-- Sparkle dots -->
+    <span class="pet-sparkle s1"></span>
+    <span class="pet-sparkle s2"></span>
+    <span class="pet-sparkle s3"></span>
+    <span class="pet-sparkle s4"></span>
+    <span class="pet-sparkle s5"></span>
+    <div class="pet-widget-actions">
+      <button class="pet-widget-icon-btn" data-action="refresh" title="Refresh" aria-label="Refresh">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 12a9 9 0 0 1 15.5-6.3L21 8"/>
+          <path d="M21 3v5h-5"/>
+          <path d="M21 12a9 9 0 0 1-15.5 6.3L3 16"/>
+          <path d="M3 21v-5h5"/>
+        </svg>
+      </button>
+      <button class="pet-widget-icon-btn" data-action="openSettings" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+    <div class="pet-avatar-wrap">
+      <span class="pet-tap-hint" id="pet-tap-hint">Tap for stats</span>
+      <div class="pet-avatar" id="pet-avatar-toggle" role="button" tabindex="0" aria-expanded="false" aria-controls="pet-widget-stats" title="Tap to see today's coding stats"><img id="pet-avatar-img" src="${initialAvatarUri}" alt="${this.resolvedPetName}" /></div>
+    </div>
     <div class="pet-name" id="pet-name">${this.resolvedPetName}</div>
     <div class="pet-reaction" id="pet-reaction">"Ready to code together!"</div>
-    <div class="connection-badge ${this.isCloudLinked ? 'connected' : 'disconnected'}" id="connection-badge">${this.isCloudLinked ? 'Synced with macOS App' : 'Standalone Mode'}</div>
-  </div>
+    <div id="connection-badge" style="display:none;"></div>
 
-  <!-- Toolbar -->
-  <div class="toolbar">
-    <button data-action="refresh">↻ Refresh</button>
-    <button data-action="openSettings">⚙ Settings</button>
-  </div>
-
-  <!-- Today's Coding — uses cloud data when available, local session as fallback -->
-  <div class="card">
-    <div class="card-title">Today's Coding <span id="sync-badge" style="font-size:9px;opacity:0.5;display:none;">synced</span></div>
-    <div class="session-info">
-      <span id="branch-info">—</span>
-      <span id="idle-status"></span>
-    </div>
-    <div class="stats-grid" id="session-stats">
-      <div class="stat-chip">
-        <div class="stat-value" id="coding-time">0m</div>
-        <div class="stat-label">Coding Time</div>
+    <!-- Embedded Today's Coding stats — revealed on pet click -->
+    <div class="pet-widget-stats" id="pet-widget-stats" aria-hidden="true">
+      <div class="pet-widget-stats-label">
+        <span class="pws-dot"></span>
+        Today's coding
+        <span id="sync-badge" class="pws-sync" style="display:none;">synced</span>
       </div>
-      <div class="stat-chip">
-        <div class="stat-value" id="total-edits">0</div>
-        <div class="stat-label">Edits</div>
+      <div class="stats-grid" id="session-stats">
+        <div class="stat-chip">
+          <div class="stat-value" id="coding-time">0m</div>
+          <div class="stat-label">Coding Time</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-value" id="total-edits">0</div>
+          <div class="stat-label">Edits</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-value" id="files-edited">0</div>
+          <div class="stat-label">Files</div>
+        </div>
+        <div class="stat-chip">
+          <div class="stat-value" id="lines-changed">0</div>
+          <div class="stat-label">Lines ±</div>
+        </div>
       </div>
-      <div class="stat-chip">
-        <div class="stat-value" id="files-edited">0</div>
-        <div class="stat-label">Files</div>
-      </div>
-      <div class="stat-chip">
-        <div class="stat-value" id="lines-changed">0</div>
-        <div class="stat-label">Lines ±</div>
+      <div class="pet-widget-stats-meta">
+        <span id="branch-info">—</span>
+        <span id="idle-status"></span>
       </div>
     </div>
   </div>
+
+  <!-- Lesson Feed -->
+  <div class="card" id="lesson-feed-section">
+    <div class="lesson-feed-header">
+      <div class="card-title ct-pink" style="margin-bottom:0;">Lesson Feed</div>
+      <span class="lesson-count" id="lesson-count"></span>
+    </div>
+    <div class="lesson-swipe-container" id="lesson-swipe-container">
+      <div class="lesson-swipe-track" id="lesson-swipe-track">
+        <!-- Cards rendered here by JS -->
+      </div>
+    </div>
+    <div class="lesson-swipe-dots" id="lesson-swipe-dots"></div>
+    <div id="lesson-feed-empty">
+      <div class="lesson-empty">Keep coding with Claude — your lessons will appear here automatically.</div>
+    </div>
+  </div>
+
+  <!-- Ask Codepet — Companion Chat -->
+  <div class="card companion-section" id="companion-section">
+    <div class="companion-header" id="companion-header" style="order:0;" role="button" tabindex="0" aria-expanded="false" aria-controls="companion-messages">
+      <div class="companion-header-title-group">
+        <svg class="companion-header-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+        <div class="card-title ct-lavender" style="margin-bottom:0;">Ask Codepet</div>
+      </div>
+      <button class="companion-clear-btn" data-action="clearCompanion">clear</button>
+    </div>
+    <div class="companion-messages" id="companion-messages" style="order:1;">
+      <div class="companion-empty">Ask me anything about your code!<br>Try: "Summarize my session" or "How should I build this?"</div>
+    </div>
+    <div class="companion-attach-preview" id="companion-attach-preview" style="order:2;"></div>
+    <div class="companion-input-row" id="companion-input-row" style="order:3;">
+      <button class="companion-plus-btn" id="companion-plus-btn" title="Attach files, images, URLs, or docs">+</button>
+      <div class="companion-attach-menu" id="companion-attach-menu">
+        <button class="companion-attach-menu-item" data-attach="file">
+          <span class="companion-attach-menu-icon ai-tile ai-lavender" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"></path><polyline points="14 3 14 8 19 8"></polyline><line x1="9" y1="13" x2="15" y2="13"></line><line x1="9" y1="17" x2="15" y2="17"></line></svg>
+          </span>
+          <span class="companion-attach-menu-label">File</span>
+          <span class="companion-attach-menu-hint">from project</span>
+        </button>
+        <button class="companion-attach-menu-item" data-attach="image">
+          <span class="companion-attach-menu-icon ai-tile ai-peach" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2.5"></rect><circle cx="9" cy="11" r="1.6"></circle><path d="M21 16l-5-5-8 8"></path></svg>
+          </span>
+          <span class="companion-attach-menu-label">Image</span>
+          <span class="companion-attach-menu-hint">screenshot</span>
+        </button>
+        <button class="companion-attach-menu-item" data-attach="url">
+          <span class="companion-attach-menu-icon ai-tile ai-mint" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.07 0l2.83-2.83a5 5 0 0 0-7.07-7.07L11 5"></path><path d="M14 11a5 5 0 0 0-7.07 0L4.1 13.83a5 5 0 0 0 7.07 7.07L13 19"></path></svg>
+          </span>
+          <span class="companion-attach-menu-label">URL</span>
+          <span class="companion-attach-menu-hint">paste link</span>
+        </button>
+        <button class="companion-attach-menu-item" data-attach="knowledge">
+          <span class="companion-attach-menu-icon ai-tile ai-pink" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2z"></path><line x1="9" y1="7" x2="16" y2="7"></line><line x1="9" y1="11" x2="14" y2="11"></line></svg>
+          </span>
+          <span class="companion-attach-menu-label">Knowledge</span>
+          <span class="companion-attach-menu-hint">docs, PDFs</span>
+        </button>
+      </div>
+      <textarea class="companion-input" id="companion-input" placeholder="Reply..." rows="1" maxlength="500"></textarea>
+      <span class="companion-char-count" id="companion-char-count"></span>
+
+      <!-- Inline voice-record capsule — replaces composer row while recording -->
+      <div class="voice-capsule" id="voice-capsule" aria-hidden="true">
+        <span class="vc-pulse" aria-hidden="true"></span>
+        <span class="vc-timer" id="vc-timer">0:00</span>
+        <div class="vc-wave" id="vc-wave">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <span></span><span></span>
+        </div>
+        <button class="vc-btn cancel" id="vc-cancel" title="Cancel">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+        </button>
+        <button class="vc-btn send" id="vc-send" title="Send voice message">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </div>
+
+      <div class="mic-send-slot" id="mic-send-slot">
+        <button class="companion-mic-btn" id="companion-mic-btn" title="Record voice message" aria-label="Record voice message"><svg class="mic-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><line x1="12" y1="18" x2="12" y2="22"></line><line x1="9" y1="22" x2="15" y2="22"></line></svg></button>
+        <button class="companion-send-btn" id="companion-send-btn" data-action="sendCompanion" aria-label="Send message">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+        </button>
+      </div>
+      <!-- Voice chat button sits INSIDE the input pill, next to the mic -->
+      <button class="companion-vc-btn" id="companion-vc-btn" title="Voice chat with Codepet" aria-label="Voice chat with Codepet"><svg class="vc-waveform" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="10" x2="6" y2="14"></line><line x1="10" y1="7" x2="10" y2="17"></line><line x1="14" y1="5" x2="14" y2="19"></line><line x1="18" y1="9" x2="18" y2="15"></line></svg></button>
+    </div>
+
+    <!-- ═══ Listening Mode Overlay (full-screen inside companion card) ═══ -->
+    <div class="voice-overlay" id="voice-overlay" aria-hidden="true">
+      <div class="voice-overlay-top">
+        <span class="voice-status" id="voice-status">Listening<span class="voice-ellipsis"><span>.</span><span>.</span><span>.</span></span></span>
+        <button class="voice-close-btn" id="voice-cancel-btn" aria-label="Cancel">
+          <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="5" x2="19" y2="19"/><line x1="19" y1="5" x2="5" y2="19"/></svg>
+        </button>
+      </div>
+
+      <div class="voice-orb-wrap">
+        <div class="voice-orb" id="voice-orb">
+          <div class="orb-core"></div>
+          <div class="orb-ring orb-ring-a"></div>
+          <div class="orb-ring orb-ring-b"></div>
+          <div class="orb-ring orb-ring-c"></div>
+          <div class="orb-shimmer"></div>
+        </div>
+      </div>
+
+      <!-- Live waveform (24 bars, heights driven by analyser) -->
+      <div class="voice-waveform" id="voice-waveform" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span><span></span>
+      </div>
+
+      <div class="voice-transcript" id="voice-transcript">
+        <span class="voice-transcript-placeholder">Go ahead, I'm listening…</span>
+      </div>
+
+      <div class="voice-controls">
+        <button class="voice-ctrl-btn voice-ctrl-secondary" id="voice-restart-btn" title="Clear and restart">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3.5-7.1"/><polyline points="21 3 21 9 15 9"/></svg>
+        </button>
+        <button class="voice-ctrl-btn voice-ctrl-primary" id="voice-mic-toggle" title="Pause / Resume">
+          <svg class="vm-ico-mic" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><line x1="12" y1="18" x2="12" y2="22"></line><line x1="9" y1="22" x2="15" y2="22"></line></svg>
+          <svg class="vm-ico-pause" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/></svg>
+        </button>
+        <button class="voice-ctrl-btn voice-ctrl-secondary" id="voice-done-btn" title="Send transcript">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Today's Coding stats now live INSIDE the pet widget (revealed by pet click) -->
+  <div id="session-stats-card" style="display:none;" aria-hidden="true"></div>
 
   <!-- Language Breakdown (merged into main view) -->
   <div class="card" id="lang-card" style="display:none;">
-    <div class="card-title">Languages</div>
+    <div class="card-title ct-amber">Languages</div>
     <div class="lang-bar" id="lang-bar"></div>
     <div class="lang-legend" id="lang-legend"></div>
   </div>
 
   <!-- Skills -->
   <div class="card" id="skills-section" style="display:none;">
-    <div class="card-title">Skill Progress</div>
+    <div class="card-title ct-violet">Skill Progress</div>
     <div id="skills-list"></div>
   </div>
 
-  <!-- Code Health (Scanner) — Grammarly-style -->
-  <div class="card" id="scan-section">
-    <div class="card-title">Code Health</div>
-    <div class="scan-summary" id="scan-summary">
-      <div class="clean-score-ring" id="clean-score-ring">
-        <span class="clean-score-value" id="clean-score-value">—</span>
-        <span class="clean-score-label">Clean</span>
-      </div>
-      <div class="scan-stats">
-        <div class="scan-stat">
-          <span class="scan-stat-icon" style="color:#f85149;">●</span>
-          <span id="scan-errors">0</span> errors
-        </div>
-        <div class="scan-stat">
-          <span class="scan-stat-icon" style="color:#e3b341;">●</span>
-          <span id="scan-warnings">0</span> warnings
-        </div>
-        <div class="scan-stat">
-          <span class="scan-stat-icon" style="color:#3fb950;">●</span>
-          <span id="scan-clean-files">0</span>/<span id="scan-total-files">0</span> clean
-        </div>
-      </div>
-    </div>
-    <div class="pet-scan-message" id="pet-scan-message">
-      <span class="pet-scan-mood" id="pet-scan-mood">🌟</span>
-      <span id="pet-scan-text">Open a file to start scanning...</span>
-    </div>
-    <!-- Grammarly-style findings for active file -->
-    <div id="findings-container"></div>
-  </div>
-
-  <!-- Lesson Feed (v0.10 — post-session knowledge capture) -->
-  <div class="card" id="lesson-feed-section">
-    <div class="lesson-feed-header">
-      <div class="card-title" style="margin-bottom:0;">Lesson Feed</div>
-      <span class="lesson-count" id="lesson-count"></span>
-    </div>
-    <div id="lesson-feed">
-      <div class="lesson-empty">Complete a coding session to capture your first lesson!</div>
-    </div>
-    <button class="save-lesson-btn" data-action="saveLesson">📝 Save Lesson</button>
-  </div>
-
-  <!-- Activity Feed (v0.9.2 — with debug log) -->
-  <div class="card" id="feed-section">
-    <div class="card-title">Activity Feed</div>
-    <div id="event-feed">
-      <div class="empty-state">
-        <div class="icon">🌟</div>
-        v0.9.2 — Start coding to see activity!
-      </div>
-    </div>
+  <!-- Activity Feed removed per redesign — keep hidden stub for JS refs below -->
+  <div id="feed-section" style="display:none;">
+    <div id="event-feed"></div>
   </div>
 
   <!-- Debug section removed — no longer needed -->
+
 
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
@@ -1884,28 +4558,217 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       if (msg.type === 'cloud_stats') updateCloudStatsUI(msg.data);
       if (msg.type === 'lesson_feed') renderLessonFeed(msg.data.lessons);
       if (msg.type === 'lesson_new') prependLesson(msg.data);
+      if (msg.type === 'companion_message') appendCompanionMessage(msg.data);
+      if (msg.type === 'companion_clear') clearCompanionChat();
+      if (msg.type === 'companion_watching') updateWatchingStatus(msg.data);
+      if (msg.type === 'attachment_added') addAttachmentPreview(msg.data);
+      if (msg.type === 'attachment_url_prompt') showUrlInput();
+
+      // ───── Voice transcription status (from extension host) ─────
+      if (msg.command === 'voiceTranscribing') {
+        // Inline-recording mode: user pressed the mic button and then ✓ Done.
+        // The composer capsule is handling the wait state — do NOT open the
+        // full-screen voice-chat overlay (it would be a jarring mode switch).
+        if (window.__pendingVoiceBubble) {
+          // Intentionally do nothing — wait for voiceTranscriptDone to swap the
+          // capsule back to the composer and render the voice bubble in-chat.
+        } else {
+          var overlayEl = document.getElementById('voice-overlay');
+          var statusEl2 = document.getElementById('voice-status');
+          var transcriptEl2 = document.getElementById('voice-transcript');
+          if (overlayEl) overlayEl.classList.add('active', 'transcribing');
+          if (statusEl2) statusEl2.textContent = 'Transcribing…';
+          if (transcriptEl2) transcriptEl2.innerHTML = '<span class="voice-transcript-placeholder">Sending to Whisper…</span>';
+        }
+      }
+      if (msg.command === 'voiceTranscriptDone') {
+        // Two paths depending on mode:
+        //  - Inline recording mode → render voice bubble in chat, restore composer
+        //  - Voice chat mode → let __voiceChatOnPetReply handle the TTS step when reply arrives
+        var pending = window.__pendingVoiceBubble;
+        if (pending) {
+          window.__pendingVoiceBubble = null;
+          // Arm the suppression BEFORE the host's user-echo arrives
+          if (msg.text && msg.text.trim()) {
+            window.__suppressNextUserEcho = msg.text.trim();
+          }
+          renderVoiceBubble({
+            transcript: msg.text || '',
+            durationSec: pending.durationSec || 0,
+            levels: pending.levels || []
+          });
+          // Restore composer and reset inline state
+          var inputRow = document.getElementById('companion-input-row');
+          if (inputRow) inputRow.classList.remove('recording');
+          if (window.__voiceOverlay) window.__voiceOverlay.resetState();
+        } else {
+          // Voice chat mode — overlay stays open; TTS handler takes over
+          // (the pet reply bubble will trigger __voiceChatOnPetReply from appendCompanionMessage)
+        }
+        var overlayEl2 = document.getElementById('voice-overlay');
+        if (overlayEl2 && !overlayEl2.classList.contains('chat-mode')) {
+          overlayEl2.classList.remove('active', 'transcribing', 'error');
+        }
+      }
+      if (msg.command === 'ttsReady') {
+        if (window.__voiceChatPlayTts) window.__voiceChatPlayTts(msg.audioDataUrl);
+      }
+      if (msg.command === 'ttsError') {
+        console.warn('[Codepet voice] TTS error:', msg.message);
+        // Fall back to listening again without speaking
+        if (window.__voiceChatOnPetReply) window.__voiceChatOnPetReply('');
+      }
+      if (msg.command === 'nativeRecordStarted') {
+        if (window.__voiceOverlay) window.__voiceOverlay.confirmStarted(msg.tool);
+      }
+      if (msg.command === 'voiceLevel') {
+        if (window.__voiceOverlay) window.__voiceOverlay.applyLevel(msg.level);
+      }
+      if (msg.command === 'voiceTranscriptError') {
+        // If this was an inline recording, don't open the voice-chat overlay.
+        // Just clean up the capsule state and let the user try again.
+        var wasInline = !!window.__pendingVoiceBubble;
+        if (wasInline) {
+          window.__pendingVoiceBubble = null;
+          var inputRowErr = document.getElementById('companion-input-row');
+          if (inputRowErr) inputRowErr.classList.remove('recording');
+          if (window.__voiceOverlay) window.__voiceOverlay.resetState();
+          // Surface the error quietly via a pet message in the chat (host will also log)
+          console.warn('[Codepet voice] Inline transcription error:', msg.message || 'unknown');
+          return;
+        }
+        var overlayEl3 = document.getElementById('voice-overlay');
+        var statusEl3 = document.getElementById('voice-status');
+        var transcriptEl3 = document.getElementById('voice-transcript');
+        if (window.__voiceOverlay) window.__voiceOverlay.resetState();
+        if (overlayEl3) overlayEl3.classList.add('active', 'error');
+        if (overlayEl3) overlayEl3.classList.remove('transcribing');
+        var errMsg = String(msg.message || 'Transcription failed');
+        if (statusEl3) statusEl3.textContent = errMsg;
+
+        // Install hint when ffmpeg/sox is missing — show the exact brew command (persistent, don't auto-dismiss)
+        if (msg.installHint && transcriptEl3) {
+          transcriptEl3.innerHTML =
+            '<div style="font-size:12px;color:#E6DEFF;margin-bottom:8px;">' +
+              'Install a recorder with Homebrew (one-time):' +
+            '</div>' +
+            '<code style="display:block;padding:8px 12px;border-radius:8px;margin-bottom:8px;' +
+              'background:rgba(0,0,0,0.45);border:1px solid rgba(168,155,242,0.35);' +
+              'color:#C8BDFF;font-family:var(--vscode-editor-font-family);font-size:11px;' +
+              'cursor:pointer;user-select:all;" ' +
+              'title="Click to copy" id="voice-copy-brew">' +
+              'brew install ffmpeg' +
+            '</code>' +
+            '<div style="font-size:10px;color:#8F8BAC;">After installing, reload the Cursor window and try again.</div>';
+          var cb = document.getElementById('voice-copy-brew');
+          if (cb) cb.addEventListener('click', function() {
+            try { navigator.clipboard.writeText('brew install ffmpeg'); cb.textContent = 'Copied ✓'; setTimeout(function(){ cb.textContent = 'brew install ffmpeg'; }, 1200); } catch(e){}
+          });
+          // Don't auto-dismiss the install hint — user needs time to read it
+          return;
+        }
+        // Missing STT key → actionable button (accepts any provider phrasing)
+        else if (/No STT key|No OpenAI key|No Deepgram key|No ElevenLabs key/i.test(errMsg) && transcriptEl3) {
+          transcriptEl3.innerHTML =
+            '<div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;">' +
+              '<button data-cpkey="codepet.setElevenLabsKey" class="voice-key-btn">Set ElevenLabs</button>' +
+              '<button data-cpkey="codepet.setDeepgramKey" class="voice-key-btn">Set Deepgram</button>' +
+              '<button data-cpkey="codepet.setOpenAIKey" class="voice-key-btn">Set OpenAI</button>' +
+            '</div>' +
+            '<style>.voice-key-btn{' +
+              'padding:6px 10px;border-radius:999px;font-size:11px;font-weight:600;' +
+              'background:linear-gradient(135deg,#A89BF2,#7B6BD8);color:#fff;' +
+              'border:1px solid rgba(200,189,255,0.4);cursor:pointer;}</style>';
+          var btns = transcriptEl3.querySelectorAll('button[data-cpkey]');
+          btns.forEach(function(b) {
+            b.addEventListener('click', function() {
+              vscode.postMessage({ command: 'runCommand', commandId: b.getAttribute('data-cpkey') });
+              if (overlayEl3) overlayEl3.classList.remove('active', 'error');
+            });
+          });
+        } else {
+          if (transcriptEl3) transcriptEl3.innerHTML = '';
+          setTimeout(function() {
+            if (overlayEl3) overlayEl3.classList.remove('active', 'error');
+          }, 3500);
+        }
+      }
     });
+
+    // ───── Attachment system ─────
+    var pendingAttachments = [];
+
+    function addAttachmentPreview(data) {
+      var preview = document.getElementById('companion-attach-preview');
+      if (!preview) return;
+      preview.classList.add('visible');
+
+      var iconMap = { file: '📎', image: '📷', url: '🔗', knowledge: '📄' };
+      var icon = iconMap[data.type] || '📎';
+      var id = data.id || ('attach_' + Date.now());
+
+      pendingAttachments.push({ id: id, type: data.type, name: data.name, pinned: false });
+
+      var item = document.createElement('div');
+      item.className = 'companion-attach-item';
+      item.dataset.attachId = id;
+      item.innerHTML = '<div class="companion-attach-item-info">'
+        + '<span>' + icon + '</span>'
+        + '<span class="companion-attach-item-name" title="' + escapeHtml(data.name) + '">' + escapeHtml(data.name) + '</span>'
+        + '</div>'
+        + '<div class="companion-attach-item-actions">'
+        + '<button class="companion-attach-pin" data-attach-id="' + id + '" title="Pin as project context">📌</button>'
+        + '<button class="companion-attach-remove" data-attach-id="' + id + '" title="Remove">×</button>'
+        + '</div>';
+      preview.appendChild(item);
+    }
+
+    function showUrlInput() {
+      var input = document.getElementById('companion-input');
+      if (input) {
+        input.placeholder = 'Paste a URL and press Enter...';
+        input.focus();
+        input.dataset.urlMode = 'true';
+      }
+    }
 
     // ───── Signal that the webview is ready to receive messages ─────
     // This triggers a fresh data push from the extension side, ensuring
     // scan results aren't lost due to early postMessage calls.
     vscode.postMessage({ command: 'webviewReady' });
 
-    // ───── Welcome Banner (server-rendered, just needs dismiss logic) ─────
+    // ───── Force chat input to bottom of companion section ─────
+    (function() {
+      var section = document.getElementById('companion-section');
+      var inputRow = document.getElementById('companion-input-row');
+      if (section && inputRow) {
+        section.appendChild(inputRow); // move to end of parent
+      }
+    })();
+
+    // ───── Welcome Banner — auto-dismiss after 1s, animated exit on X click ─────
     function dismissWelcome() {
       const banner = document.getElementById('welcome-banner');
-      if (banner) {
-        banner.style.opacity = '0';
-        banner.style.transform = 'translateY(-10px)';
-        banner.style.transition = 'opacity 0.3s, transform 0.3s';
-        setTimeout(() => { banner.style.display = 'none'; }, 300);
-      }
+      if (!banner || banner.dataset.dismissing === 'true') return;
+      banner.dataset.dismissing = 'true';
+      // Smooth exit animation: fade + slide up + slight scale-down
+      banner.style.transition = 'opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), margin 0.4s cubic-bezier(0.4, 0, 0.2, 1), max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1)';
+      banner.style.maxHeight = banner.offsetHeight + 'px';
+      // Force reflow so the initial max-height is picked up before we animate to 0
+      void banner.offsetHeight;
+      banner.style.opacity = '0';
+      banner.style.transform = 'translateY(-12px) scale(0.96)';
+      banner.style.maxHeight = '0';
+      banner.style.marginBottom = '0';
+      banner.style.paddingTop = '0';
+      banner.style.paddingBottom = '0';
+      setTimeout(() => { banner.style.display = 'none'; }, 420);
     }
 
-    // Auto-dismiss welcome banner after 30s (handles both server-rendered and postMessage)
+    // Auto-dismiss welcome banner after 1s (feels like a brief greeting flash)
     const initBanner = document.getElementById('welcome-banner');
     if (initBanner && initBanner.style.display !== 'none') {
-      setTimeout(() => { dismissWelcome(); }, 30000);
+      setTimeout(() => { dismissWelcome(); }, 1000);
     }
 
     function updateUI(d) {
@@ -1967,6 +4830,11 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       idleEl.innerHTML = d.isIdle && d.codingMinutes > 0
         ? '<span class="idle-badge">💤 Idle</span>'
         : '';
+
+      // ───── Companion watching status (piggybacks on updateUI) ─────
+      if (d.companionWatching) {
+        updateWatchingStatus({ active: true, message: d.companionWatching });
+      }
 
       // Language breakdown card — use session data or MCP fallback
       const langs = (d.languageBreakdown && Object.keys(d.languageBreakdown).length > 0)
@@ -2219,6 +5087,13 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
         return;
       }
 
+      if (action === 'focusCompanion') {
+        dismissWelcome();
+        var ci = document.getElementById('companion-input');
+        if (ci) { ci.focus(); ci.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+        return;
+      }
+
       if (action === 'refresh') {
         vscode.postMessage({ command: 'refresh' });
         return;
@@ -2227,6 +5102,52 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
       if (action === 'saveLesson') {
         e.stopPropagation();
         vscode.postMessage({ command: 'saveLesson' });
+        return;
+      }
+
+      if (action === 'sendCompanion') {
+        e.stopPropagation();
+        sendCompanionMessage();
+        return;
+      }
+
+      // ── Attachment buttons ──
+      var attachType = target.dataset ? target.dataset.attach : null;
+      if (attachType) {
+        e.stopPropagation();
+        vscode.postMessage({ command: 'attachRequest', type: attachType });
+        return;
+      }
+
+      // ── Attachment pin/unpin ──
+      if (target.classList && target.classList.contains('companion-attach-pin')) {
+        e.stopPropagation();
+        var attachId = target.dataset.attachId;
+        var isPinned = target.classList.contains('pinned');
+        target.classList.toggle('pinned');
+        target.textContent = isPinned ? '📌' : '📌';
+        target.title = isPinned ? 'Pin as project context' : 'Pinned as project context';
+        vscode.postMessage({ command: 'attachTogglePin', attachId: attachId, pinned: !isPinned });
+        return;
+      }
+
+      // ── Attachment remove ──
+      if (target.classList && target.classList.contains('companion-attach-remove')) {
+        e.stopPropagation();
+        var removeId = target.dataset.attachId;
+        var item = target.closest('.companion-attach-item');
+        if (item) { item.remove(); }
+        var preview = document.getElementById('companion-attach-preview');
+        if (preview && preview.children.length === 0) { preview.classList.remove('visible'); }
+        vscode.postMessage({ command: 'attachRemove', attachId: removeId });
+        return;
+      }
+
+      if (action === 'clearCompanion') {
+        e.stopPropagation();
+        vscode.postMessage({ command: 'clearCompanion' });
+        const container = document.getElementById('companion-messages');
+        if (container) container.innerHTML = '<div class="companion-empty">Ask me anything about your code!<br>Try: "Summarize my session" or "How should I build this?"</div>';
         return;
       }
 
@@ -2276,94 +5197,978 @@ export class SidebarProvider implements vscode.WebviewViewProvider {
 
     let lessonCards = [];
 
+    var currentSwipeIndex = 0;
+
     function renderLessonFeed(lessons) {
       lessonCards = lessons || [];
-      const container = document.getElementById('lesson-feed');
-      const countEl = document.getElementById('lesson-count');
-      if (!container) return;
+      var track = document.getElementById('lesson-swipe-track');
+      var dots = document.getElementById('lesson-swipe-dots');
+      var emptyEl = document.getElementById('lesson-feed-empty');
+      var countEl = document.getElementById('lesson-count');
+      var container = document.getElementById('lesson-swipe-container');
+      if (!track) return;
 
       if (lessonCards.length === 0) {
-        container.innerHTML = '<div class="lesson-empty">Complete a coding session to capture your first lesson!</div>';
+        track.innerHTML = '';
+        if (dots) dots.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = '';
+        if (container) container.style.display = 'none';
         if (countEl) countEl.textContent = '';
         return;
       }
 
+      if (emptyEl) emptyEl.style.display = 'none';
+      if (container) container.style.display = '';
       if (countEl) countEl.textContent = lessonCards.length + ' lesson' + (lessonCards.length !== 1 ? 's' : '');
-      container.innerHTML = '';
-      for (const card of lessonCards.slice(0, 5)) {
-        container.innerHTML += renderLessonCard(card);
+
+      var maxCards = Math.min(lessonCards.length, 10);
+      track.innerHTML = '';
+      for (var i = 0; i < maxCards; i++) {
+        track.innerHTML += renderLessonCard(lessonCards[i]);
       }
-      if (lessonCards.length > 5) {
-        container.innerHTML += '<div class="lesson-empty">+ ' + (lessonCards.length - 5) + ' more lessons</div>';
+
+      // Render dot indicators — only show if there's more than one card to swipe between
+      if (dots) {
+        dots.innerHTML = '';
+        if (maxCards <= 1) {
+          dots.style.display = 'none';
+        } else {
+          dots.style.display = '';
+        }
+        for (var d = 0; d < maxCards; d++) {
+          var dot = document.createElement('div');
+          dot.className = 'lesson-swipe-dot' + (d === 0 ? ' active' : '');
+          dot.dataset.index = d;
+          dot.addEventListener('click', function(e) {
+            swipeToCard(parseInt(e.target.dataset.index));
+          });
+          dots.appendChild(dot);
+        }
       }
+
+      currentSwipeIndex = 0;
+      updateSwipePosition(false);
+      initSwipeGestures();
+    }
+
+    function swipeToCard(index) {
+      var track = document.getElementById('lesson-swipe-track');
+      if (!track) return;
+      var total = track.children.length;
+      if (index < 0) index = 0;
+      if (index >= total) index = total - 1;
+      currentSwipeIndex = index;
+      updateSwipePosition(true);
+    }
+
+    function updateSwipePosition(animate) {
+      var track = document.getElementById('lesson-swipe-track');
+      var dots = document.querySelectorAll('.lesson-swipe-dot');
+      if (!track) return;
+      if (!animate) track.classList.add('dragging');
+      else track.classList.remove('dragging');
+      track.style.transform = 'translateX(-' + (currentSwipeIndex * 100) + '%)';
+      if (!animate) {
+        requestAnimationFrame(function() { track.classList.remove('dragging'); });
+      }
+      // Update dots
+      for (var i = 0; i < dots.length; i++) {
+        dots[i].classList.toggle('active', i === currentSwipeIndex);
+      }
+    }
+
+    function initSwipeGestures() {
+      var container = document.getElementById('lesson-swipe-container');
+      var track = document.getElementById('lesson-swipe-track');
+      if (!container || !track || container.dataset.swipeInit === '1') return;
+      container.dataset.swipeInit = '1';
+
+      var startX = 0, startY = 0, diffX = 0, isDragging = false, isHorizontal = null;
+
+      // ── Trackpad / mouse wheel (main input on macOS) ──
+      var wheelAccum = 0;
+      var wheelTimer = null;
+      var wheelLocked = false;
+
+      container.addEventListener('wheel', function(e) {
+        // Use deltaX for horizontal swipe; fall back to deltaY if no horizontal movement
+        var dx = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+        if (dx === 0) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        // Debounce: accumulate scroll, then fire once settled
+        if (wheelLocked) return;
+        wheelAccum += dx;
+
+        if (wheelTimer) clearTimeout(wheelTimer);
+        wheelTimer = setTimeout(function() {
+          if (Math.abs(wheelAccum) > 30) {
+            wheelLocked = true;
+            if (wheelAccum > 0) {
+              swipeToCard(currentSwipeIndex + 1);
+            } else {
+              swipeToCard(currentSwipeIndex - 1);
+            }
+            // Prevent rapid multi-swipe — lock for 400ms
+            setTimeout(function() { wheelLocked = false; }, 400);
+          }
+          wheelAccum = 0;
+          wheelTimer = null;
+        }, 80);
+      }, { passive: false });
+
+      // ── Touch events (mobile / touchscreen) ──
+      container.addEventListener('touchstart', function(e) {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        diffX = 0;
+        isDragging = true;
+        isHorizontal = null;
+        track.classList.add('dragging');
+      }, { passive: true });
+
+      container.addEventListener('touchmove', function(e) {
+        if (!isDragging) return;
+        var dx = e.touches[0].clientX - startX;
+        var dy = e.touches[0].clientY - startY;
+        if (isHorizontal === null) {
+          isHorizontal = Math.abs(dx) > Math.abs(dy);
+        }
+        if (!isHorizontal) return;
+        e.preventDefault();
+        diffX = dx;
+        var baseOffset = currentSwipeIndex * container.offsetWidth;
+        track.style.transform = 'translateX(' + (-baseOffset + diffX) + 'px)';
+      }, { passive: false });
+
+      container.addEventListener('touchend', function() {
+        if (!isDragging) return;
+        isDragging = false;
+        track.classList.remove('dragging');
+        var threshold = container.offsetWidth * 0.25;
+        if (diffX < -threshold) swipeToCard(currentSwipeIndex + 1);
+        else if (diffX > threshold) swipeToCard(currentSwipeIndex - 1);
+        else updateSwipePosition(true);
+      }, { passive: true });
+
+      // ── Mouse click-drag (fallback) ──
+      container.addEventListener('mousedown', function(e) {
+        startX = e.clientX;
+        diffX = 0;
+        isDragging = true;
+        isHorizontal = true;
+        track.classList.add('dragging');
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', function(e) {
+        if (!isDragging) return;
+        diffX = e.clientX - startX;
+        var baseOffset = currentSwipeIndex * container.offsetWidth;
+        track.style.transform = 'translateX(' + (-baseOffset + diffX) + 'px)';
+      });
+
+      document.addEventListener('mouseup', function() {
+        if (!isDragging) return;
+        isDragging = false;
+        track.classList.remove('dragging');
+        var threshold = container.offsetWidth * 0.25;
+        if (diffX < -threshold) swipeToCard(currentSwipeIndex + 1);
+        else if (diffX > threshold) swipeToCard(currentSwipeIndex - 1);
+        else updateSwipePosition(true);
+      });
+
+      // ── Keyboard arrows (accessibility) ──
+      container.setAttribute('tabindex', '0');
+      container.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowRight') { swipeToCard(currentSwipeIndex + 1); e.preventDefault(); }
+        if (e.key === 'ArrowLeft') { swipeToCard(currentSwipeIndex - 1); e.preventDefault(); }
+      });
     }
 
     function prependLesson(card) {
       lessonCards.unshift(card);
       if (lessonCards.length > 20) lessonCards.pop();
       renderLessonFeed(lessonCards);
-      // Flash the new card
-      const container = document.getElementById('lesson-feed');
-      if (container && container.firstElementChild) {
-        container.firstElementChild.style.borderColor = '#7B6BD8';
+      // Flash the new card border
+      var track = document.getElementById('lesson-swipe-track');
+      if (track && track.firstElementChild) {
+        track.firstElementChild.style.borderColor = '#7B6BD8';
         setTimeout(function() {
-          container.firstElementChild.style.borderColor = '';
-          container.firstElementChild.style.transition = 'border-color 0.5s';
+          track.firstElementChild.style.borderColor = '';
+          track.firstElementChild.style.transition = 'border-color 0.5s';
         }, 2000);
       }
     }
 
     function renderLessonCard(card) {
-      var kingdomIcon = KINGDOM_ICONS[card.kingdom] || '📚';
-      var reactionEmoji = REACTION_EMOJIS[card.petReaction] || '😊';
-      var kingdomColor = KINGDOM_COLORS[card.kingdom?.replace('The ', '')] || '#7B6BD8';
-      var ts = new Date(card.timestamp);
-      var timeStr = ts.getHours().toString().padStart(2,'0') + ':' + ts.getMinutes().toString().padStart(2,'0');
-
       var html = '<div class="lesson-card">';
 
-      // Title row
-      html += '<div class="lesson-title-row">';
-      html += '<span class="lesson-kingdom-icon">' + kingdomIcon + '</span>';
-      html += '<span class="lesson-title">' + escapeHtml(card.title) + '</span>';
-      html += '<span class="lesson-difficulty ' + card.difficulty + '">' + card.difficulty + '</span>';
-      html += '</div>';
-
-      // Key takeaway
-      html += '<div class="lesson-takeaway">' + escapeHtml(card.keyTakeaway) + '</div>';
-
-      // Code snippet (if present)
-      if (card.codeSnippet) {
-        html += '<div class="lesson-snippet-lang">' + (card.language || '') + '</div>';
-        html += '<div class="lesson-snippet">' + escapeHtml(card.codeSnippet) + '</div>';
+      // Date label (if present)
+      if (card.dateLabel) {
+        html += '<div class="lesson-date-label">' + escapeHtml(card.dateLabel) + '</div>';
       }
 
-      // Pet section (narrator + reaction + coach)
-      html += '<div class="lesson-pet-section">';
-      html += '<div class="lesson-pet-narration">';
-      html += '<span class="lesson-pet-reaction">' + reactionEmoji + '</span>';
-      html += escapeHtml(card.petNarration);
-      html += '</div>';
-      html += '<div class="lesson-coach-tip">💡 ' + escapeHtml(card.petCoachTip) + '</div>';
-      html += '</div>';
+      // Card type badge
+      if (card.cardType) {
+        var badgeText = card.cardType === 'daily-recap' ? '📋 Daily Recap' : '⚡ Session';
+        html += '<span class="lesson-type-badge ' + card.cardType + '">' + badgeText + '</span>';
+      }
 
-      // Footer (XP + tags)
-      html += '<div class="lesson-footer">';
-      html += '<span class="lesson-xp">+' + card.xpEarned + ' XP</span>';
-      html += '<span style="color:' + kingdomColor + '">' + (card.kingdom || '') + '</span>';
-      html += '</div>';
+      // Title
+      html += '<div class="lesson-title">' + escapeHtml(card.title) + '</div>';
 
-      // Skill tags
-      if (card.skillTags && card.skillTags.length > 0) {
-        html += '<div class="lesson-tags" style="margin-top:4px;">';
-        for (var t = 0; t < card.skillTags.length; t++) {
-          html += '<span class="lesson-tag">#' + card.skillTags[t] + '</span>';
+      // Product-thinking sections (new format)
+      if (card.sections && card.sections.length > 0) {
+        for (var s = 0; s < card.sections.length; s++) {
+          html += '<div class="lesson-section">';
+          html += '<div class="lesson-section-heading">' + escapeHtml(card.sections[s].heading) + '</div>';
+          html += '<div class="lesson-section-text">' + escapeHtml(card.sections[s].text) + '</div>';
+          html += '</div>';
+        }
+      } else {
+        // Fallback: legacy card format
+        if (card.keyTakeaway) {
+          html += '<div class="lesson-takeaway">' + escapeHtml(card.keyTakeaway) + '</div>';
+        }
+        if (card.codeSnippet) {
+          html += '<div class="lesson-snippet-lang">' + (card.language || '') + '</div>';
+          html += '<div class="lesson-snippet">' + escapeHtml(card.codeSnippet) + '</div>';
+        }
+      }
+
+      // Pet section (if present)
+      if (card.petNarration) {
+        var reactionEmoji = REACTION_EMOJIS[card.petReaction] || '😊';
+        html += '<div class="lesson-pet-section">';
+        html += '<div class="lesson-pet-narration">';
+        html += '<span class="lesson-pet-reaction">' + reactionEmoji + '</span>';
+        html += escapeHtml(card.petNarration);
+        html += '</div>';
+        if (card.petCoachTip) {
+          html += '<div class="lesson-coach-tip">💡 ' + escapeHtml(card.petCoachTip) + '</div>';
         }
         html += '</div>';
       }
 
+      // Footer
+      html += '<div class="lesson-footer">';
+      html += '<span class="lesson-xp">+' + (card.xpEarned || 0) + ' XP</span>';
+      if (card.skillTags && card.skillTags.length > 0) {
+        html += '<div class="lesson-tags">';
+        for (var t = 0; t < Math.min(card.skillTags.length, 3); t++) {
+          html += '<span class="lesson-tag">#' + card.skillTags[t] + '</span>';
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+
       html += '</div>';
       return html;
+    }
+
+    // ───── Companion Chat ─────
+    function sendCompanionMessage() {
+      const input = document.getElementById('companion-input');
+      if (!input) return;
+      const text = input.value.trim();
+      if (!text) return;
+
+      // Check if in URL mode
+      if (input.dataset.urlMode === 'true') {
+        input.dataset.urlMode = '';
+        input.placeholder = 'Ask Codepet anything...';
+        if (text.match(/^https?:\\/\\//)) {
+          vscode.postMessage({ command: 'attachUrl', url: text });
+          input.value = '';
+          input.style.height = 'auto';
+          return;
+        }
+      }
+
+      input.value = '';
+      input.style.height = 'auto';
+      // Reset mic ↔ send state (input is empty now)
+      var _inputRow = document.getElementById('companion-input-row');
+      if (_inputRow) _inputRow.classList.remove('has-text');
+
+      // Include any pending attachments with the message
+      var attachments = pendingAttachments.slice();
+      pendingAttachments = [];
+      var preview = document.getElementById('companion-attach-preview');
+      if (preview) { preview.innerHTML = ''; preview.classList.remove('visible'); }
+
+      vscode.postMessage({ command: 'companionMessage', text: text, attachments: attachments });
+    }
+
+    // Enter to send (Shift+Enter for newline)
+    const companionInput = document.getElementById('companion-input');
+    if (companionInput) {
+      companionInput.addEventListener('keydown', function(e) {
+        // IME guard — don't submit while composing (Vietnamese/Chinese/Japanese/Korean IMEs).
+        // During composition, Enter confirms the candidate character, it is NOT a submit.
+        if (e.isComposing || e.keyCode === 229) return;
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          sendCompanionMessage();
+        }
+      });
+      // Auto-resize textarea + character counter + mic/send slot swap
+      var charCount = document.getElementById('companion-char-count');
+      var inputRow = document.getElementById('companion-input-row');
+      function updateMicSendState() {
+        if (!inputRow) return;
+        var hasText = companionInput.value.trim().length > 0;
+        inputRow.classList.toggle('has-text', hasText);
+      }
+      companionInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 80) + 'px';
+        // Swap mic ↔ send based on whether there's text
+        updateMicSendState();
+        // Update character counter
+        if (charCount) {
+          var len = this.value.length;
+          var max = 500;
+          if (len > max * 0.7) {
+            charCount.style.display = 'block';
+            charCount.textContent = len + '/' + max;
+            charCount.className = 'companion-char-count' + (len >= max ? ' at-limit' : len > max * 0.85 ? ' near-limit' : '');
+          } else {
+            charCount.style.display = 'none';
+          }
+        }
+      });
+      // Also reset to mic after sending (input gets cleared externally)
+      // Observe value changes by polling on blur/focus for safety
+      companionInput.addEventListener('blur', updateMicSendState);
+      companionInput.addEventListener('focus', updateMicSendState);
+      // Initial state
+      updateMicSendState();
+    }
+
+    // ───── Ask Codepet header: click to expand/collapse the chat ─────
+    (function() {
+      var header = document.getElementById('companion-header');
+      var section = document.getElementById('companion-section');
+      var messages = document.getElementById('companion-messages');
+      if (!header || !section) return;
+
+      /**
+       * Dynamically size the expanded chat to fit EXACTLY in the space between
+       * the bottom of the Lesson Feed card and the bottom of the sidebar viewport.
+       * This guarantees no overlap with the lesson feed regardless of viewport height.
+       */
+      function sizeChatToAvailableSpace() {
+        if (!section.classList.contains('expanded')) {
+          section.style.maxHeight = '';
+          if (messages) messages.style.maxHeight = '';
+          return;
+        }
+        // Compute the space between the lesson card bottom and the sidebar bottom,
+        // and size the chat to fit WITHIN that space — never covering the lesson card.
+        var viewportH = window.innerHeight;
+        var lessonBottom = 0;
+        var lessonCard = document.querySelector('.lesson-card');
+        var lessonFeed = document.getElementById('lesson-feed-section');
+        if (lessonCard) {
+          lessonBottom = lessonCard.getBoundingClientRect().bottom;
+        } else if (lessonFeed) {
+          lessonBottom = lessonFeed.getBoundingClientRect().bottom;
+        } else {
+          lessonBottom = viewportH * 0.5;
+        }
+        var topGap = 10;
+        var bottomGap = 12;
+        var available = viewportH - lessonBottom - topGap - bottomGap;
+        // Clamp: min 200px for usability, max 320px to match template proportion.
+        var height = Math.max(200, Math.min(320, available));
+        section.style.maxHeight = height + 'px';
+        if (messages) {
+          messages.style.maxHeight = Math.max(80, height - 125) + 'px';
+        }
+      }
+
+      function setExpanded(on) {
+        if (on) {
+          section.classList.add('expanded');
+          header.setAttribute('aria-expanded', 'true');
+          sizeChatToAvailableSpace();
+          setTimeout(function() {
+            if (messages) messages.scrollTop = messages.scrollHeight;
+          }, 540);
+        } else {
+          section.classList.remove('expanded');
+          header.setAttribute('aria-expanded', 'false');
+          section.style.maxHeight = '';
+          if (messages) messages.style.maxHeight = '';
+        }
+      }
+
+      header.addEventListener('click', function(e) {
+        if (e.target && e.target.closest && e.target.closest('.companion-clear-btn')) return;
+        setExpanded(!section.classList.contains('expanded'));
+      });
+      header.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setExpanded(!section.classList.contains('expanded'));
+        }
+      });
+
+      // Recompute size on resize / scroll (lesson feed's on-screen position changes)
+      window.addEventListener('resize', sizeChatToAvailableSpace);
+      window.addEventListener('scroll', sizeChatToAvailableSpace, { passive: true });
+    })();
+
+    // ───── Pet Avatar: tap to reveal today's coding stats (embedded in dashboard) ─────
+    (function() {
+      var petToggle = document.getElementById('pet-avatar-toggle');
+      var petWidget = document.getElementById('pet-section');
+      var statsWrap = document.getElementById('pet-widget-stats');
+      var tapHint = document.getElementById('pet-tap-hint');
+      if (!petToggle || !petWidget) return;
+      function setRevealed(on) {
+        if (on) {
+          petWidget.classList.add('stats-shown');
+          petToggle.setAttribute('aria-expanded', 'true');
+          if (statsWrap) statsWrap.setAttribute('aria-hidden', 'false');
+          if (tapHint) tapHint.textContent = 'Hide stats';
+        } else {
+          petWidget.classList.remove('stats-shown');
+          petToggle.setAttribute('aria-expanded', 'false');
+          if (statsWrap) statsWrap.setAttribute('aria-hidden', 'true');
+          if (tapHint) tapHint.textContent = 'Tap for stats';
+        }
+      }
+      petToggle.addEventListener('click', function(e) {
+        e.stopPropagation();
+        setRevealed(!petWidget.classList.contains('stats-shown'));
+      });
+      petToggle.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          setRevealed(!petWidget.classList.contains('stats-shown'));
+        }
+      });
+    })();
+
+    // ───── + Button: toggle attach menu ─────
+    var plusBtn = document.getElementById('companion-plus-btn');
+    var attachMenu = document.getElementById('companion-attach-menu');
+    if (plusBtn && attachMenu) {
+      plusBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        attachMenu.classList.toggle('visible');
+      });
+      // Close menu when clicking outside
+      document.addEventListener('click', function(e) {
+        if (attachMenu && !attachMenu.contains(e.target) && e.target !== plusBtn) {
+          attachMenu.classList.remove('visible');
+        }
+      });
+      // Handle menu item clicks
+      attachMenu.addEventListener('click', function(e) {
+        var item = e.target.closest('.companion-attach-menu-item');
+        if (item && item.dataset.attach) {
+          vscode.postMessage({ command: 'attachRequest', type: item.dataset.attach });
+          attachMenu.classList.remove('visible');
+        }
+      });
+    }
+
+    // ═════════ Voice UX ═════════
+    // Two modes:
+    //   1) Inline recording — click mic → capsule in composer row, with live waveform.
+    //      Send (✓) transcribes and creates a voice-message bubble in the chat.
+    //      Cancel (✕) aborts cleanly.
+    //   2) Voice chat — click the green chat button → full overlay.
+    //      Continuous listen-speak loop with ElevenLabs TTS for Codepet's replies.
+    //
+    // Both modes share the same native recorder (ffmpeg/sox in Node) because
+    // Cursor's webview iframe Permissions-Policy blocks direct microphone access.
+    (function initVoice() {
+      var micBtn    = document.getElementById('companion-mic-btn');
+      var vcBtn     = document.getElementById('companion-vc-btn');
+      var inputRow  = document.getElementById('companion-input-row');
+      var capsule   = document.getElementById('voice-capsule');
+      var vcTimer   = document.getElementById('vc-timer');
+      var vcWave    = document.getElementById('vc-wave');
+      var vcCancel  = document.getElementById('vc-cancel');
+      var vcSend    = document.getElementById('vc-send');
+
+      // Overlay (for voice chat mode only)
+      var overlay       = document.getElementById('voice-overlay');
+      var statusEl      = document.getElementById('voice-status');
+      var orbEl         = document.getElementById('voice-orb');
+      var transcriptEl  = document.getElementById('voice-transcript');
+      var cancelBtn     = document.getElementById('voice-cancel-btn');
+      var restartBtn    = document.getElementById('voice-restart-btn');
+      var doneBtn       = document.getElementById('voice-done-btn');
+      var toggleBtn     = document.getElementById('voice-mic-toggle');
+      var waveformEl    = document.getElementById('voice-waveform');
+
+      // Shared state
+      var mode = 'idle'; // 'idle' | 'inline' | 'chat-listen' | 'chat-transcribing' | 'chat-speaking'
+      var isRecording = false;
+      var timerInterval = 0;
+      var recordStartedAt = 0;
+      var levelHistory = []; // captured levels for the voice bubble waveform
+      var ttsAudio = null;
+
+      // ── Helpers ──
+      function formatTime(sec) {
+        var s = Math.max(0, Math.floor(sec));
+        var m = Math.floor(s / 60);
+        var ss = s % 60;
+        return m + ':' + (ss < 10 ? '0' + ss : ss);
+      }
+
+      function startTimer() {
+        recordStartedAt = Date.now();
+        if (vcTimer) vcTimer.textContent = '0:00';
+        if (statusEl) statusEl.dataset.elapsed = '0';
+        if (timerInterval) clearInterval(timerInterval);
+        timerInterval = setInterval(function() {
+          var elapsed = (Date.now() - recordStartedAt) / 1000;
+          if (vcTimer && mode === 'inline') vcTimer.textContent = formatTime(elapsed);
+        }, 250);
+      }
+      function stopTimer() {
+        if (timerInterval) { clearInterval(timerInterval); timerInterval = 0; }
+      }
+
+      // ── Inline capsule waveform (scrolls from right) ──
+      var inlineHistory = null;
+      function ensureInlineHistory() {
+        var bars = vcWave ? vcWave.querySelectorAll('span') : [];
+        if (!bars.length) return;
+        if (!inlineHistory || inlineHistory.length !== bars.length) {
+          inlineHistory = new Array(bars.length).fill(0);
+        }
+      }
+      function applyInlineLevel(level) {
+        if (!vcWave) return;
+        ensureInlineHistory();
+        if (!inlineHistory) return;
+        inlineHistory.shift();
+        inlineHistory.push(level);
+        var bars = vcWave.querySelectorAll('span');
+        for (var i = 0; i < bars.length; i++) {
+          var v = inlineHistory[i];
+          bars[i].style.height = (10 + v * 82).toFixed(0) + '%';
+        }
+      }
+      function resetInlineWave() {
+        inlineHistory = null;
+        if (!vcWave) return;
+        var bars = vcWave.querySelectorAll('span');
+        for (var i = 0; i < bars.length; i++) bars[i].style.height = '';
+      }
+
+      // ── Overlay waveform / orb (voice chat mode) ──
+      var overlayHistory = null;
+      function applyOverlayLevel(level) {
+        if (orbEl) orbEl.style.setProperty('--orb-scale', (1 + level * 0.38).toFixed(3));
+        if (toggleBtn) {
+          var glow1 = 3 + level * 18;
+          var glow2 = 14 + level * 34;
+          var glowA = 0.15 + level * 0.65;
+          toggleBtn.style.setProperty('--mic-scale', (1 + level * 0.22).toFixed(3));
+          toggleBtn.style.setProperty('--mic-glow',
+            '0 0 0 ' + glow1.toFixed(1) + 'px rgba(168, 155, 242, ' + glowA.toFixed(2) + '), ' +
+            '0 0 ' + glow2.toFixed(0) + 'px 6px rgba(168, 155, 242, ' + (glowA * 0.7).toFixed(2) + '), ' +
+            '0 10px 26px -8px rgba(83, 74, 183, ' + (0.45 + level * 0.4).toFixed(2) + ')'
+          );
+        }
+        if (waveformEl) {
+          waveformEl.classList.add('active');
+          var bars = waveformEl.querySelectorAll('span');
+          if (!overlayHistory || overlayHistory.length !== bars.length) {
+            overlayHistory = new Array(bars.length).fill(0);
+          }
+          overlayHistory.shift();
+          overlayHistory.push(level);
+          for (var i = 0; i < bars.length; i++) {
+            var v = overlayHistory[i];
+            bars[i].style.height = (8 + v * 85).toFixed(0) + '%';
+          }
+        }
+      }
+      function resetOverlayVisuals() {
+        overlayHistory = null;
+        if (waveformEl) {
+          waveformEl.classList.remove('active');
+          var bars = waveformEl.querySelectorAll('span');
+          for (var i = 0; i < bars.length; i++) bars[i].style.height = '';
+        }
+        if (toggleBtn) {
+          toggleBtn.style.removeProperty('--mic-scale');
+          toggleBtn.style.removeProperty('--mic-glow');
+        }
+        if (orbEl) orbEl.style.removeProperty('--orb-scale');
+      }
+
+      // Expose hooks for outer window message listener (existing code dispatches here)
+      window.__voiceOverlay = {
+        confirmStarted: function(tool) {
+          isRecording = true;
+          if (mode === 'inline') {
+            if (inputRow) inputRow.classList.add('recording');
+          } else if (mode === 'chat-listen') {
+            if (statusEl) statusEl.innerHTML = 'Listening<span class="voice-ellipsis"><span>.</span><span>.</span><span>.</span></span>';
+          }
+          startTimer();
+        },
+        applyLevel: function(level) {
+          if (!isRecording) return;
+          var v = Math.max(0, Math.min(1, level || 0));
+          levelHistory.push(v);
+          if (mode === 'inline') applyInlineLevel(v);
+          else if (mode === 'chat-listen') applyOverlayLevel(v);
+        },
+        freezeForTranscribing: function() {
+          isRecording = false;
+          stopTimer();
+        },
+        resetState: function() {
+          isRecording = false;
+          stopTimer();
+          resetInlineWave();
+          resetOverlayVisuals();
+          if (inputRow) inputRow.classList.remove('recording');
+          mode = 'idle';
+        }
+      };
+
+      // ── Inline recording flow (primary mic button) ──
+      function startInlineRecording() {
+        if (mode !== 'idle') return;
+        mode = 'inline';
+        levelHistory = [];
+        resetInlineWave();
+        vscode.postMessage({ command: 'nativeRecordStart' });
+      }
+      function cancelInlineRecording() {
+        vscode.postMessage({ command: 'nativeRecordAbort' });
+        if (window.__voiceOverlay) window.__voiceOverlay.resetState();
+      }
+      function sendInlineRecording() {
+        if (!isRecording) return;
+        if (window.__voiceOverlay) window.__voiceOverlay.freezeForTranscribing();
+        // Keep capsule visible briefly with a "sending" look via keeping .recording on
+        // (we'll restore when voiceTranscriptDone or voiceTranscriptError arrives)
+        window.__pendingVoiceBubble = {
+          durationSec: (Date.now() - recordStartedAt) / 1000,
+          levels: levelHistory.slice()
+        };
+        vscode.postMessage({ command: 'nativeRecordStop' });
+      }
+
+      // ── Voice chat flow (second button) ──
+      function openVoiceChat() {
+        if (mode !== 'idle') return;
+        if (!overlay) return;
+        mode = 'chat-listen';
+        levelHistory = [];
+        overlay.classList.add('active', 'chat-mode');
+        overlay.classList.remove('error', 'transcribing');
+        overlay.setAttribute('aria-hidden', 'false');
+        if (vcBtn) vcBtn.classList.add('active');
+        if (statusEl) statusEl.innerHTML = 'Starting<span class="voice-ellipsis"><span>.</span><span>.</span><span>.</span></span>';
+        if (transcriptEl) transcriptEl.innerHTML = '';
+        vscode.postMessage({ command: 'nativeRecordStart' });
+      }
+      function closeVoiceChat() {
+        stopTimer();
+        if (isRecording) {
+          vscode.postMessage({ command: 'nativeRecordAbort' });
+        }
+        if (ttsAudio) { try { ttsAudio.pause(); ttsAudio.src = ''; } catch(e){} ttsAudio = null; }
+        resetOverlayVisuals();
+        if (overlay) {
+          overlay.classList.remove('active', 'error', 'transcribing', 'chat-mode');
+          overlay.setAttribute('aria-hidden', 'true');
+        }
+        if (vcBtn) vcBtn.classList.remove('active');
+        isRecording = false;
+        mode = 'idle';
+      }
+      function chatFinishTurn() {
+        // Stop listening → transcribe → send to Codepet → wait for reply → TTS → loop
+        if (mode !== 'chat-listen' || !isRecording) return;
+        mode = 'chat-transcribing';
+        if (window.__voiceOverlay) window.__voiceOverlay.freezeForTranscribing();
+        if (overlay) overlay.classList.add('transcribing');
+        if (statusEl) statusEl.innerHTML = 'Transcribing<span class="voice-ellipsis"><span>.</span><span>.</span><span>.</span></span>';
+        vscode.postMessage({ command: 'nativeRecordStop' });
+      }
+      // Called when Codepet's text reply arrives (from outer appendCompanionMessage hook)
+      window.__voiceChatOnPetReply = function(text) {
+        if (mode !== 'chat-transcribing' && mode !== 'chat-speaking') return;
+        if (!text) { chatListenAgain(); return; }
+        mode = 'chat-speaking';
+        if (statusEl) statusEl.innerHTML = 'Codepet<span class="voice-ellipsis"><span>.</span><span>.</span><span>.</span></span>';
+        vscode.postMessage({ command: 'ttsRequest', text: text, requestId: Date.now() });
+      };
+      window.__voiceChatPlayTts = function(audioDataUrl) {
+        if (mode !== 'chat-speaking') return;
+        try {
+          if (ttsAudio) { try { ttsAudio.pause(); } catch(e){} }
+          ttsAudio = new Audio(audioDataUrl);
+          ttsAudio.onended = function() {
+            if (mode === 'chat-speaking') chatListenAgain();
+          };
+          ttsAudio.onerror = function() {
+            console.warn('[Codepet voice] TTS audio failed to play');
+            if (mode === 'chat-speaking') chatListenAgain();
+          };
+          ttsAudio.play().catch(function(){ chatListenAgain(); });
+        } catch(e) {
+          console.error('[Codepet voice] TTS play exception:', e);
+          chatListenAgain();
+        }
+      };
+      function chatListenAgain() {
+        if (mode === 'idle') return;
+        mode = 'chat-listen';
+        resetOverlayVisuals();
+        if (overlay) overlay.classList.remove('transcribing');
+        if (statusEl) statusEl.innerHTML = 'Listening<span class="voice-ellipsis"><span>.</span><span>.</span><span>.</span></span>';
+        if (transcriptEl) transcriptEl.innerHTML = '';
+        vscode.postMessage({ command: 'nativeRecordStart' });
+      }
+
+      // ── Wire up DOM events ──
+      if (micBtn) {
+        micBtn.addEventListener('click', function() {
+          if (mode === 'inline') return;
+          if (mode === 'idle') startInlineRecording();
+        });
+      }
+      if (vcCancel) vcCancel.addEventListener('click', cancelInlineRecording);
+      if (vcSend)   vcSend.addEventListener('click', sendInlineRecording);
+
+      if (vcBtn) {
+        vcBtn.addEventListener('click', function() {
+          if (mode === 'idle') openVoiceChat();
+          else if (mode.indexOf('chat') === 0) closeVoiceChat();
+        });
+      }
+      if (cancelBtn)  cancelBtn.addEventListener('click', closeVoiceChat);
+      if (doneBtn)    doneBtn.addEventListener('click', chatFinishTurn);
+      if (toggleBtn)  toggleBtn.addEventListener('click', chatFinishTurn);
+      if (restartBtn) restartBtn.addEventListener('click', function() {
+        if (mode === 'chat-listen' && isRecording) {
+          vscode.postMessage({ command: 'nativeRecordAbort' });
+          levelHistory = [];
+          setTimeout(function() { vscode.postMessage({ command: 'nativeRecordStart' }); }, 100);
+        }
+      });
+      if (overlay) {
+        overlay.addEventListener('click', function(e) {
+          if (e.target === overlay && mode.indexOf('chat') === 0) closeVoiceChat();
+        });
+      }
+    })();
+
+    function appendCompanionMessage(data) {
+      const container = document.getElementById('companion-messages');
+      if (!container) return;
+
+      // Suppress plain text echo when we've just rendered the same text as a voice bubble.
+      // This prevents a voice bubble + a text bubble showing up for the same utterance.
+      if (data && data.role === 'user' && window.__suppressNextUserEcho && data.text) {
+        if (data.text.trim() === String(window.__suppressNextUserEcho).trim()) {
+          window.__suppressNextUserEcho = null;
+          return;
+        }
+      }
+
+      // Remove empty state if present
+      const empty = container.querySelector('.companion-empty');
+      if (empty) empty.remove();
+
+      // Remove any existing option buttons (previous question answered)
+      var oldOptions = container.querySelectorAll('.companion-options');
+      oldOptions.forEach(function(el) { el.remove(); });
+
+      const div = document.createElement('div');
+      div.className = 'companion-msg companion-msg-' + data.role;
+
+      // Alternate pet bubbles through a 4-tint palette (lavender → peach → mint → pink)
+      if (data.role === 'pet') {
+        var petTints = ['tint-lavender', 'tint-peach', 'tint-mint', 'tint-pink'];
+        var existingPetCount = container.querySelectorAll('.companion-msg-pet').length;
+        div.classList.add(petTints[existingPetCount % petTints.length]);
+      }
+
+      if (data.role === 'pet') {
+        // Parse simple markdown: **bold**, bullet points, line breaks
+        let html = data.text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>')
+          .replace(/^[•\\-] (.+)$/gm, '<li>$1</li>')
+          .replace(/(<li>.*<\\/li>)/s, '<ul>$1</ul>')
+          .replace(/\\n/g, '<br>');
+        div.innerHTML = html;
+      } else {
+        div.textContent = data.text;
+      }
+
+      container.appendChild(div);
+
+      // In voice-chat mode, whenever a pet reply lands, forward it to the TTS flow
+      if (data.role === 'pet' && window.__voiceChatOnPetReply) {
+        try { window.__voiceChatOnPetReply(data.text || ''); } catch (e) {}
+      }
+
+      // Render clickable option buttons if present
+      if (data.options && data.options.length > 0) {
+        var optionsDiv = document.createElement('div');
+        optionsDiv.className = 'companion-options';
+
+        data.options.forEach(function(opt) {
+          var btn = document.createElement('button');
+          btn.className = 'companion-option-btn';
+          btn.textContent = opt;
+          btn.addEventListener('click', function() {
+            // Disable all option buttons to prevent double-click
+            var allBtns = optionsDiv.querySelectorAll('.companion-option-btn');
+            allBtns.forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; });
+            vscode.postMessage({ command: 'companionMessage', text: opt });
+          });
+          optionsDiv.appendChild(btn);
+        });
+
+        // "Other" button for custom typing
+        if (data.allowCustom) {
+          var otherBtn = document.createElement('button');
+          otherBtn.className = 'companion-option-btn companion-option-other';
+          otherBtn.textContent = 'Other...';
+          otherBtn.addEventListener('click', function() {
+            var input = document.getElementById('companion-input');
+            if (input) { input.focus(); input.placeholder = 'Type your answer...'; }
+          });
+          optionsDiv.appendChild(otherBtn);
+        }
+
+        container.appendChild(optionsDiv);
+      }
+
+      // Scroll after a tiny delay to ensure DOM has rendered
+      setTimeout(function() {
+        container.scrollTop = container.scrollHeight;
+      }, 50);
+    }
+
+    /**
+     * Render a voice-message bubble (user side).
+     * { transcript, durationSec, levels: number[] (0..1) }
+     * We don't embed the audio itself — showing an informative waveform + transcript
+     * keeps bubble DOM light. The transcript is also sent to Codepet via
+     * sendCompanionMessage so the chat continues normally.
+     */
+    function renderVoiceBubble(opts) {
+      var container = document.getElementById('companion-messages');
+      if (!container) return;
+      var empty = container.querySelector('.companion-empty');
+      if (empty) empty.remove();
+
+      var wrap = document.createElement('div');
+      wrap.className = 'companion-msg companion-msg-user companion-msg-voice';
+
+      // Downsample levels to 32 bars for the static waveform
+      var levels = Array.isArray(opts.levels) ? opts.levels : [];
+      var targetBars = 32;
+      var bars = [];
+      if (levels.length === 0) {
+        for (var i = 0; i < targetBars; i++) bars.push(0.1);
+      } else if (levels.length <= targetBars) {
+        // Pad with low values on the left if short
+        var pad = targetBars - levels.length;
+        for (var p = 0; p < pad; p++) bars.push(0.06);
+        for (var j = 0; j < levels.length; j++) bars.push(Math.max(0, Math.min(1, levels[j])));
+      } else {
+        var step = levels.length / targetBars;
+        for (var b = 0; b < targetBars; b++) {
+          var s = Math.floor(b * step);
+          var e = Math.floor((b + 1) * step);
+          var peak = 0;
+          for (var k = s; k < e; k++) if (levels[k] > peak) peak = levels[k];
+          bars.push(peak);
+        }
+      }
+
+      var waveHtml = '';
+      for (var w = 0; w < bars.length; w++) {
+        var h = Math.round(12 + bars[w] * 82); // 12..94%
+        waveHtml += '<span style="height:' + h + '%"></span>';
+      }
+
+      var m = Math.floor((opts.durationSec || 0) / 60);
+      var s = Math.floor((opts.durationSec || 0) % 60);
+      var durText = m + ':' + (s < 10 ? '0' + s : s);
+
+      wrap.innerHTML =
+        '<div class="vb-player">' +
+          '<button class="vb-play" aria-label="Play voice message (transcript only)" title="Voice messages show transcript only in this version" disabled>' +
+            '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>' +
+          '</button>' +
+          '<div class="vb-wave" aria-hidden="true">' + waveHtml + '</div>' +
+          '<span class="vb-duration">' + durText + '</span>' +
+        '</div>' +
+        (opts.transcript ? ('<div class="vb-transcript">"' + escapeHtml(opts.transcript) + '"</div>') : '');
+
+      container.appendChild(wrap);
+      container.scrollTop = container.scrollHeight;
+      // The host has already called onCompanionMessage(transcript) to trigger the
+      // AI response, so we don't post companionMessage here. We only flag the
+      // incoming user-echo to be suppressed (voice bubble replaces text bubble).
+      if (opts.transcript && opts.transcript.trim()) {
+        window.__suppressNextUserEcho = opts.transcript.trim();
+      }
+    }
+
+    function clearCompanionChat() {
+      const container = document.getElementById('companion-messages');
+      if (container) {
+        container.innerHTML = '<div class="companion-empty">Ask me anything about your code!<br>Try: "Summarize my session" or "How should I build this?"</div>';
+      }
+    }
+
+    function updateWatchingStatus(data) {
+      // Show watching status as an Activity Feed item instead of in the chat
+      if (data.active && data.message) {
+        const feed = document.getElementById('event-feed');
+        if (!feed) return;
+
+        // Remove previous watching item if exists
+        const existing = feed.querySelector('.watching-item');
+        if (existing) existing.remove();
+
+        // Remove empty state
+        const empty = feed.querySelector('.empty-state');
+        if (empty) empty.remove();
+
+        const now = new Date();
+        const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+
+        const div = document.createElement('div');
+        div.className = 'event-item watching-item';
+        div.style.background = 'rgba(59, 130, 246, 0.06)';
+        div.style.borderLeft = '2px solid #3b82f6';
+        div.style.paddingLeft = '10px';
+        div.innerHTML = '<span class="event-time">' + time + '</span>'
+          + '<span class="event-type">👀 ' + data.message + '</span>';
+
+        // Insert at top of feed
+        feed.insertBefore(div, feed.firstChild);
+      }
     }
 
     // ───── Embedded initial scan data (bypasses postMessage timing) ─────

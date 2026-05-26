@@ -19,6 +19,17 @@ import { WelcomePanel } from "./ui/welcome-panel.js";
 import type { WelcomeStats } from "./ui/welcome-panel.js";
 import { CloudSync } from "./services/cloud-sync.js";
 import { LessonService } from "./services/lesson-service.js";
+import { CompanionService } from "./services/companion-service.js";
+import {
+  detectRecorder,
+  detectRecorderInfo,
+  startRecording as nrStart,
+  stopRecording as nrStop,
+  abortRecording as nrAbort,
+  type ActiveRecording,
+} from "./services/native-recorder.js";
+// CompanionPanelProvider removed — chat is now embedded in the dashboard sidebar
+import { ClaudeSessionWatcher } from "./core/claude-session-watcher.js";
 
 let fileWatcher: FileWatcher;
 let sessionTracker: SessionTracker;
@@ -28,6 +39,8 @@ let petReactions: PetReactionEngine;
 let statusBar: StatusBar;
 let cloudSync: CloudSync;
 let lessonService: LessonService;
+let companionService: CompanionService;
+let claudeWatcher: ClaudeSessionWatcher;
 
 export function activate(context: vscode.ExtensionContext): void {
   const outputChannel = vscode.window.createOutputChannel("Codepet");
@@ -1395,6 +1408,232 @@ export function activate(context: vscode.ExtensionContext): void {
   // Set cloud link status
   sidebarProvider.setCloudLinked(cloudSync.isConfigured);
 
+  // ───── Native audio recording (bypasses Cursor's webview Permissions-Policy block) ─────
+  let activeRecording: ActiveRecording | null = null;
+  sidebarProvider.nativeRecordDetect = detectRecorder;
+  sidebarProvider.nativeRecordStart = async () => {
+    if (activeRecording) {
+      try { nrAbort(activeRecording); } catch {}
+      activeRecording = null;
+    }
+    const info = await detectRecorderInfo();
+    outputChannel.appendLine(
+      `[Codepet voice] Recorder detect → tool=${info.tool} · binPath=${info.binPath ?? "(none)"} · PATH=${(process.env.PATH || "").slice(0, 300)}`
+    );
+    if (!info.tool || !info.binPath) {
+      outputChannel.appendLine(
+        `[Codepet voice] Searched locations:\n  ${info.searched.join("\n  ")}`
+      );
+      throw new Error("No recorder found. Run: brew install ffmpeg");
+    }
+    const rec = nrStart(info);
+    if (!rec) throw new Error("Failed to start recorder");
+    activeRecording = rec;
+    // Stream per-chunk RMS levels to the webview for real-time orb/waveform animation
+    rec.on("level", ({ rms }) => {
+      sidebarProvider.postMessageToWebview({ command: "voiceLevel", level: rms });
+    });
+    rec.on("error", (err) => {
+      outputChannel.appendLine(`[Codepet voice] Recorder error: ${err?.message ?? err}`);
+    });
+    outputChannel.appendLine(
+      `[Codepet voice] Native recording started · tool=${info.tool} · bin=${info.binPath}`
+    );
+  };
+  sidebarProvider.nativeRecordStop = async () => {
+    if (!activeRecording) {
+      throw new Error("No active recording");
+    }
+    const rec = activeRecording;
+    activeRecording = null;
+    const durationSec = (Date.now() - rec.startedAt) / 1000;
+    const buf = await nrStop(rec);
+    if (buf.length < 1024) {
+      throw new Error("Audio too short — hold the mic longer.");
+    }
+    const audioDataUrl = `data:audio/wav;base64,${buf.toString("base64")}`;
+    outputChannel.appendLine(
+      `[Codepet voice] Native recording captured ${buf.length} bytes over ${durationSec.toFixed(2)}s`
+    );
+    return { audioDataUrl, mimeType: "audio/wav", durationSec };
+  };
+  sidebarProvider.nativeRecordAbort = () => {
+    if (activeRecording) {
+      try { nrAbort(activeRecording); } catch {}
+      activeRecording = null;
+      outputChannel.appendLine("[Codepet voice] Native recording aborted");
+    }
+  };
+
+  // ───── ElevenLabs TTS (for voice chat mode) ─────
+  sidebarProvider.ttsSpeak = async (text: string) => {
+    let key = await context.secrets.get("codepet.elevenlabsApiKey");
+    if (!key) {
+      key = vscode.workspace.getConfiguration("codepet").get<string>("elevenlabsApiKey")?.trim();
+    }
+    if (!key) throw new Error("No ElevenLabs key set.");
+    // Default voice: Rachel (21m00Tcm4TlvDq8ikWAM). Could be made configurable later.
+    const voiceId = vscode.workspace
+      .getConfiguration("codepet")
+      .get<string>("elevenlabsVoiceId", "21m00Tcm4TlvDq8ikWAM");
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}?output_format=mp3_44100_128`;
+    outputChannel.appendLine(`[Codepet voice] TTS — ${text.length} chars · voice=${voiceId}`);
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "xi-api-key": key,
+        "Content-Type": "application/json",
+        "Accept": "audio/mpeg",
+      },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_turbo_v2_5",
+        voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      outputChannel.appendLine(`[Codepet voice] TTS error ${res.status}: ${errText}`);
+      if (res.status === 401) throw new Error("ElevenLabs rejected the key (TTS 401).");
+      if (res.status === 402) throw new Error("ElevenLabs quota exceeded (TTS 402).");
+      throw new Error(`TTS ${res.status}: ${errText.slice(0, 120)}`);
+    }
+    const arrayBuf = await res.arrayBuffer();
+    const b64 = Buffer.from(arrayBuf).toString("base64");
+    return `data:audio/mpeg;base64,${b64}`;
+  };
+
+  // ───── Voice transcription (ElevenLabs → Deepgram → OpenAI fallback chain) ─────
+  sidebarProvider.transcribeAudio = async (audioDataUrl, mimeType, _durationSec) => {
+    // Decode the base64 data URL → Buffer once
+    const comma = audioDataUrl.indexOf(",");
+    const base64 = comma >= 0 ? audioDataUrl.slice(comma + 1) : audioDataUrl;
+    const buf = Buffer.from(base64, "base64");
+    if (buf.length < 1024) {
+      throw new Error("Audio too short — try holding the mic longer.");
+    }
+
+    // 1) Prefer ElevenLabs Scribe if a key is present
+    let elevenKey = await context.secrets.get("codepet.elevenlabsApiKey");
+    if (!elevenKey) {
+      elevenKey = vscode.workspace
+        .getConfiguration("codepet")
+        .get<string>("elevenlabsApiKey")
+        ?.trim();
+    }
+    if (elevenKey) {
+      const model = vscode.workspace
+        .getConfiguration("codepet")
+        .get<string>("elevenlabsModel", "scribe_v1");
+      const ext = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "mp4" : "webm";
+      const form = new FormData();
+      form.append("file", new Blob([buf], { type: mimeType }), `voice.${ext}`);
+      form.append("model_id", model);
+      outputChannel.appendLine(
+        `[Codepet voice] ElevenLabs Scribe transcribe — ${buf.length} bytes · model=${model}`
+      );
+      const res = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
+        method: "POST",
+        headers: { "xi-api-key": elevenKey },
+        body: form,
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        outputChannel.appendLine(`[Codepet voice] ElevenLabs error ${res.status}: ${text}`);
+        if (res.status === 401) throw new Error("ElevenLabs rejected the key (401). Re-set it.");
+        if (res.status === 402) throw new Error("ElevenLabs quota exceeded (402).");
+        if (res.status === 429) throw new Error("ElevenLabs rate-limited (429).");
+        throw new Error(`ElevenLabs ${res.status}: ${text.slice(0, 120)}`);
+      }
+      const data: any = await res.json();
+      const transcript = (data?.text || "").trim();
+      outputChannel.appendLine(`[Codepet voice] ElevenLabs transcript: "${transcript.slice(0, 80)}…"`);
+      return transcript;
+    }
+
+    // 2) Deepgram if its key is present
+    let deepgramKey = await context.secrets.get("codepet.deepgramApiKey");
+    if (!deepgramKey) {
+      deepgramKey = vscode.workspace
+        .getConfiguration("codepet")
+        .get<string>("deepgramApiKey")
+        ?.trim();
+    }
+    if (deepgramKey) {
+      const model = vscode.workspace
+        .getConfiguration("codepet")
+        .get<string>("deepgramModel", "nova-2");
+      const url =
+        "https://api.deepgram.com/v1/listen?model=" +
+        encodeURIComponent(model) +
+        "&smart_format=true&punctuate=true";
+      outputChannel.appendLine(
+        `[Codepet voice] Deepgram transcribe — ${buf.length} bytes · model=${model} · mime=${mimeType}`
+      );
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Token ${deepgramKey}`,
+          "Content-Type": mimeType || "audio/webm",
+        },
+        body: buf,
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        outputChannel.appendLine(`[Codepet voice] Deepgram error ${res.status}: ${text}`);
+        if (res.status === 401) throw new Error("Deepgram rejected the key (401). Re-set it.");
+        if (res.status === 402) throw new Error("Deepgram quota exceeded (402). Top up your account.");
+        if (res.status === 429) throw new Error("Deepgram rate-limited (429). Slow down.");
+        throw new Error(`Deepgram ${res.status}: ${text.slice(0, 120)}`);
+      }
+      const data: any = await res.json();
+      const transcript =
+        data?.results?.channels?.[0]?.alternatives?.[0]?.transcript?.trim() || "";
+      outputChannel.appendLine(`[Codepet voice] Deepgram transcript: "${transcript.slice(0, 80)}…"`);
+      return transcript;
+    }
+
+    // 3) Fall back to OpenAI Whisper if its key is set
+    let openaiKey = await context.secrets.get("codepet.openaiApiKey");
+    if (!openaiKey) {
+      openaiKey = vscode.workspace
+        .getConfiguration("codepet")
+        .get<string>("openaiApiKey")
+        ?.trim();
+    }
+    if (openaiKey) {
+      const model = vscode.workspace
+        .getConfiguration("codepet")
+        .get<string>("whisperModel", "whisper-1");
+      const ext = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "mp4" : "webm";
+      const form = new FormData();
+      form.append("file", new Blob([buf], { type: mimeType }), `voice.${ext}`);
+      form.append("model", model);
+      form.append("response_format", "text");
+      form.append("temperature", "0");
+      outputChannel.appendLine(`[Codepet voice] OpenAI Whisper transcribe — model=${model}`);
+      const res = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${openaiKey}` },
+        body: form,
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        outputChannel.appendLine(`[Codepet voice] OpenAI error ${res.status}: ${text}`);
+        if (res.status === 401) throw new Error("OpenAI rejected the key (401). Re-set it.");
+        if (res.status === 429) throw new Error("OpenAI rate-limited or out of credit (429).");
+        throw new Error(`Whisper ${res.status}: ${text.slice(0, 120)}`);
+      }
+      const transcript = (await res.text()).trim();
+      outputChannel.appendLine(`[Codepet voice] Whisper transcript: "${transcript.slice(0, 80)}…"`);
+      return transcript;
+    }
+
+    throw new Error(
+      'No STT key. Run "Codepet: Set ElevenLabs API Key" (or Deepgram / OpenAI) from the command palette.'
+    );
+  };
+
   // Set welcome greeting BEFORE registering the provider,
   // because resolveWebviewView() fires synchronously if sidebar is already visible
   sidebarProvider.setWelcomeGreeting(timeGreeting, userName, petName);
@@ -1411,6 +1650,10 @@ export function activate(context: vscode.ExtensionContext): void {
   outputChannel.appendLine(
     `[Codepet] Registered view provider: ${SidebarProvider.viewType}`
   );
+
+  // ───── Companion Chat (embedded in dashboard sidebar) ─────
+  // Ask Byte is now part of the main dashboard, not a separate panel.
+  outputChannel.appendLine("[Codepet] Companion chat embedded in dashboard.");
 
   // ───── Load user profile + today's stats from Firestore (link data with macOS app) ─────
   if (cloudSync.isConfigured) {
@@ -1601,24 +1844,243 @@ export function activate(context: vscode.ExtensionContext): void {
     })
   );
 
+  context.subscriptions.push(
+    vscode.commands.registerCommand("codepet.testLessonFeed", () => {
+      lessonService.testLessonFeed();
+    }),
+
+    // ───── Voice transcription key management ─────
+    vscode.commands.registerCommand("codepet.setElevenLabsKey", async () => {
+      const key = await vscode.window.showInputBox({
+        title: "Codepet · Set ElevenLabs API Key",
+        prompt: "Used for voice transcription (Scribe). Get one at https://elevenlabs.io/app/settings/api-keys",
+        placeHolder: "Your ElevenLabs API key (sk_…)",
+        password: true,
+        ignoreFocusOut: true,
+        validateInput: (v) => {
+          if (!v || v.trim().length < 20) return "Key looks too short";
+          return null;
+        },
+      });
+      if (key) {
+        await context.secrets.store("codepet.elevenlabsApiKey", key.trim());
+        vscode.window.showInformationMessage("Codepet: ElevenLabs key saved. Voice transcription ready.");
+      }
+    }),
+
+    vscode.commands.registerCommand("codepet.clearElevenLabsKey", async () => {
+      await context.secrets.delete("codepet.elevenlabsApiKey");
+      vscode.window.showInformationMessage("Codepet: ElevenLabs key cleared.");
+    }),
+
+    vscode.commands.registerCommand("codepet.setDeepgramKey", async () => {
+      const key = await vscode.window.showInputBox({
+        title: "Codepet · Set Deepgram API Key",
+        prompt: "Used for voice transcription. Get one at https://console.deepgram.com/signup (generous free tier).",
+        placeHolder: "Your Deepgram API key",
+        password: true,
+        ignoreFocusOut: true,
+        validateInput: (v) => {
+          if (!v || v.trim().length < 20) return "Key looks too short";
+          return null;
+        },
+      });
+      if (key) {
+        await context.secrets.store("codepet.deepgramApiKey", key.trim());
+        vscode.window.showInformationMessage("Codepet: Deepgram key saved. Voice transcription ready.");
+      }
+    }),
+
+    vscode.commands.registerCommand("codepet.clearDeepgramKey", async () => {
+      await context.secrets.delete("codepet.deepgramApiKey");
+      vscode.window.showInformationMessage("Codepet: Deepgram key cleared.");
+    }),
+
+    vscode.commands.registerCommand("codepet.setOpenAIKey", async () => {
+      const key = await vscode.window.showInputBox({
+        title: "Codepet · Set OpenAI API Key",
+        prompt: "Used only for voice transcription (Whisper). Stored in VS Code SecretStorage.",
+        placeHolder: "sk-…",
+        password: true,
+        ignoreFocusOut: true,
+        validateInput: (v) => {
+          if (!v || v.trim().length < 10) return "Key looks too short";
+          if (!v.trim().startsWith("sk-")) return "OpenAI keys normally start with 'sk-'";
+          return null;
+        },
+      });
+      if (key) {
+        await context.secrets.store("codepet.openaiApiKey", key.trim());
+        vscode.window.showInformationMessage("Codepet: OpenAI key saved. Voice transcription ready.");
+      }
+    }),
+
+    vscode.commands.registerCommand("codepet.clearOpenAIKey", async () => {
+      await context.secrets.delete("codepet.openaiApiKey");
+      vscode.window.showInformationMessage("Codepet: OpenAI key cleared.");
+    })
+  );
+
   context.subscriptions.push(lessonService);
 
   outputChannel.appendLine("[Codepet] Lesson Feed service started.");
 
+  // ───── Companion Service (on-demand AI coding companion) ─────
+  companionService = new CompanionService(
+    sessionTracker,
+    codeScanner,
+    outputChannel
+  );
+  companionService.setPetName(petName);
+
+  // Persist conversation history per-workspace.
+  // Each project has its own conversation, options, constitution — Byte's memory
+  // must NOT leak across different workspaces.
+  //
+  // Priority:
+  // 1. context.storageUri — workspace-scoped (available when a folder is open)
+  // 2. Fallback: globalStorageUri + hashed workspace path (for no-folder edge case)
+  let companionStoragePath: string;
+  if (context.storageUri) {
+    companionStoragePath = context.storageUri.fsPath;
+  } else {
+    // No workspace open — use a "no-workspace" bucket under global storage
+    const path = require("path");
+    companionStoragePath = path.join(context.globalStorageUri.fsPath, "no-workspace");
+  }
+  companionService.setStoragePath(companionStoragePath);
+
+  companionService.setSidebar({
+    postCompanionMessage: (msg) => sidebarProvider.postCompanionMessage(msg),
+  });
+
+  // Show welcome-back summary once sidebar is ready (small delay for webview init)
+  setTimeout(() => {
+    companionService.showWelcomeBack();
+  }, 2500);
+
+  // Wire sidebar companion callbacks to companion service
+  sidebarProvider.onCompanionMessage = (text: string) => {
+    companionService.handleMessage(text);
+    // Sync Byte chat history to lesson service for daily recap
+    lessonService.updateByteMessages(
+      companionService.getMessages().map((m) => ({ role: m.role, text: m.text }))
+    );
+  };
+  sidebarProvider.onCompanionClear = () => {
+    companionService.clearHistory();
+  };
+  sidebarProvider.onAttachmentAdded = (attachment) => {
+    companionService.addAttachment(attachment);
+  };
+  sidebarProvider.onAttachmentPin = (attachId, pinned) => {
+    companionService.pinAttachment(attachId, pinned);
+  };
+  sidebarProvider.onAttachmentRemove = (attachId) => {
+    companionService.removeAttachment(attachId);
+  };
+
+  outputChannel.appendLine("[Codepet] Companion service started.");
+
+  // ───── Claude Session Watcher (auto-reads Claude terminal context) ─────
+  claudeWatcher = new ClaudeSessionWatcher(outputChannel);
+
+  // Feed Claude context updates to companion + lesson service
+  context.subscriptions.push(
+    claudeWatcher.onContextUpdate((ctx) => {
+      companionService.updateClaudeContext(ctx);
+      lessonService.updateClaudeContext(ctx);
+    })
+  );
+
+  // ───── Session watching status → Activity Feed (dashboard) ─────
+  // Watching status now shows in the Activity Feed, NOT in the chat panel.
+  let watchingShown = false;
+
+  // Session tracker updates → watching status in Activity Feed
+  context.subscriptions.push(
+    sessionTracker.onSessionUpdate((stats) => {
+      const hasTerminals = vscode.window.terminals.length > 0;
+      const hasCodingTime = stats.codingMinutes > 0;
+
+      if (hasTerminals && (hasCodingTime || stats.totalEdits > 0)) {
+        const codingTime = sessionTracker.codingTimeFormatted;
+        const activeFile = vscode.window.activeTextEditor
+          ? vscode.workspace.asRelativePath(vscode.window.activeTextEditor.document.uri)
+          : "";
+
+        const statusParts: string[] = [];
+        if (activeFile) statusParts.push(activeFile);
+        if (stats.totalEdits > 0) statusParts.push(`${stats.totalEdits} edits`);
+        statusParts.push(codingTime);
+
+        sidebarProvider.postWatchingStatus(true, `Watching: ${statusParts.join(" · ")}`);
+        watchingShown = true;
+      }
+    })
+  );
+
+  // Immediate watching indicator when a terminal opens
+  context.subscriptions.push(
+    vscode.window.onDidOpenTerminal(() => {
+      if (!watchingShown) {
+        setTimeout(() => {
+          if (vscode.window.terminals.length > 0) {
+            sidebarProvider.postWatchingStatus(true, "Watching your coding session...");
+            watchingShown = true;
+          }
+        }, 3000);
+      }
+    })
+  );
+
+  // Show watching immediately if terminals already exist
+  if (vscode.window.terminals.length > 0) {
+    setTimeout(() => {
+      sidebarProvider.postWatchingStatus(true, "Watching your coding session...");
+      watchingShown = true;
+    }, 5000);
+  }
+
+  // Auto-trigger companion conversation when Claude finishes a task
+  // (proactive deep questions in Ask Byte panel)
+  context.subscriptions.push(
+    claudeWatcher.onInsight((insight) => {
+      companionService.handleInsight(insight);
+      // Also feed the lesson service so lessons auto-update in real-time
+      // as the Claude session progresses (no manual "Save Lesson" needed).
+      lessonService.onClaudeInsight(insight).catch((e) => {
+        outputChannel.appendLine(`[LessonService] onClaudeInsight error: ${e}`);
+      });
+    })
+  );
+
+  context.subscriptions.push(claudeWatcher);
+  outputChannel.appendLine("[Codepet] Claude Session Watcher started — monitoring terminals.");
+
   // ───── Welcome Notification + Panel ─────
   const showWelcomeSetting = vscode.workspace.getConfiguration("codepet").get<boolean>("showWelcome") ?? true;
+  const welcomeStyle = vscode.workspace.getConfiguration("codepet").get<string>("welcomeStyle") ?? "sidebar";
+  const mutedOn = context.globalState.get<string>("codepet.welcomeMutedOn", "");
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const mutedToday = mutedOn === todayIso;
+  const wantsSystemPopup = welcomeStyle === "notification" || welcomeStyle === "both";
 
-  if (showWelcomeSetting) {
+  if (showWelcomeSetting && !mutedToday && welcomeStyle !== "off" && wantsSystemPopup) {
     // VS Code notification (fire at 500ms)
     setTimeout(() => {
       try {
         outputChannel.appendLine(`[Codepet] Firing welcome notification...`);
         vscode.window.showInformationMessage(
-          `${petReactions.personality.emoji} ${timeGreeting}, ${userName}! ${petName} is ready to code with you.`,
-          "Open Dashboard"
+          `${timeGreeting}, ${userName} — ${petName} is ready.`,
+          "Open Codepet",
+          "Mute for today"
         ).then((action) => {
-          if (action === "Open Dashboard") {
+          if (action === "Open Codepet") {
             vscode.commands.executeCommand("codepet.dashboard.focus");
+          } else if (action === "Mute for today") {
+            const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+            context.globalState.update("codepet.welcomeMutedOn", today);
           }
         });
       } catch (e: any) {

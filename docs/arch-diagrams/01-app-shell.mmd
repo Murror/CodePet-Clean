@@ -1,0 +1,23 @@
+flowchart TB
+    subgraph entry["CodePetApp.swift"]
+        Firebase["FirebaseApp.configure()"]
+        CV["ContentView"]
+    end
+
+    subgraph env["@EnvironmentObject"]
+        AS["AppState"]
+        AM["AuthManager"]
+        GS["GameState"]
+        MCP["MCPBridgeService.shared"]
+    end
+
+    Firebase --> CV
+    CV --> AS
+    CV --> AM
+    CV --> GS
+    CV --> MCP
+
+    NM["NotificationManager"]
+    SM["SoundManager.shared"]
+    CV -.-> NM
+    CV -.-> SM

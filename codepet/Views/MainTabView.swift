@@ -47,6 +47,12 @@ struct MainTabView: View {
                             SessionsView()
                         case .insights:
                             InsightsView()
+                        case .reflection:
+                            ReflectionTab()
+                        case .tips:
+                            TipsMockupView()
+                        case .dictionary:
+                            DictionaryView()
                         case .profile:
                             ProfileView()
                         }
@@ -100,7 +106,7 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: showChat)
-        .onChange(of: appState.selectedTab) { oldTab, newTab in
+        .onChange(of: appState.selectedTab) { newTab in
             SoundManager.shared.playTabSwitch()
             if newTab == .home {
                 SoundManager.shared.setPhase("home")
@@ -120,21 +126,32 @@ struct SidebarNav: View {
     let charColor: Color
     let streak: Int
 
-    private let mainTabs: [AppState.Tab] = [.home, .skills, .sessions, .insights]
+    @State private var isAvatarHovered = false
+
+    private let mainTabs: [AppState.Tab] = [.reflection, .tips, .dictionary]
 
     var body: some View {
         VStack(spacing: 2) {
-            // Character avatar at top
-            ZStack {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(charColor.opacity(0.07))
-                    .frame(width: 44, height: 44)
+            // Character avatar at top — tap to open Profile
+            Button(action: { appState.selectedTab = .profile }) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 14)
+                        .fill(charColor.opacity(isAvatarHovered ? 0.18 : 0.10))
+                        .frame(width: 60, height: 60)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(charColor.opacity(isAvatarHovered ? 0.45 : 0.25), lineWidth: 1.5)
+                        )
 
-                CharacterImage(character.id, size: 22)
-                    .charIdle(character.id)
-                    .petBreathing()
+                    CharacterImage(character.id, size: 46)
+                        .charIdle(character.id)
+                        .petBreathing()
+                }
             }
-            .padding(.bottom, 12)
+            .buttonStyle(.plain)
+            .onHover { isAvatarHovered = $0 }
+            .help("Open profile")
+            .padding(.bottom, 14)
 
             // Main nav items
             ForEach(mainTabs, id: \.self) { tab in
@@ -147,65 +164,6 @@ struct SidebarNav: View {
             }
 
             Spacer()
-
-            // Profile button
-            NavButton(
-                tab: .profile,
-                isSelected: selectedTab == .profile,
-                charColor: charColor,
-                action: { selectedTab = .profile },
-                customIcon: {
-                    AnyView(
-                        CharacterImage(character.id, size: 18)
-                            .charIdle(character.id)
-                    )
-                }
-            )
-
-            // Chat toggle
-            Button(action: {
-                withAnimation(.easeInOut(duration: 0.2)) { showChat.toggle() }
-                SoundManager.shared.playTap()
-            }) {
-                VStack(spacing: 4) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(Color(hex: "#6BCB77").opacity(0.15))
-                            .frame(width: 24, height: 22)
-                        Image(systemName: "ellipsis.bubble.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(showChat ? Color(hex: "#6BCB77") : Color(hex: "#B0A898"))
-                    }
-                    Text("Chat")
-                        .font(.system(size: 8, weight: showChat ? .semibold : .regular, design: .monospaced))
-                        .foregroundColor(showChat ? Color(hex: "#2D2B26") : Color(hex: "#B0A898"))
-                }
-                .frame(width: 56, height: 48)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(showChat ? Color(hex: "#F0FAF4") : Color.clear)
-                )
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 4)
-
-            // Sound toggle
-            Button(action: {
-                appState.toggleSound()
-            }) {
-                VStack(spacing: 4) {
-                    Image(systemName: soundEnabled ? "speaker.wave.2.fill" : "speaker.slash.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(soundEnabled ? Color(hex: "#2D2B26") : Color(hex: "#CCC"))
-                    Text(soundEnabled ? "Sound" : "Muted")
-                        .font(.system(size: 7, weight: .regular, design: .monospaced))
-                        .foregroundColor(soundEnabled ? Color(hex: "#2D2B26") : Color(hex: "#CCC"))
-                }
-                .frame(width: 56, height: 44)
-                .opacity(0.6)
-            }
-            .buttonStyle(.plain)
-            .padding(.top, 8)
         }
         .padding(.vertical, 16)
         .frame(width: 72)
@@ -223,6 +181,7 @@ struct NavButton: View {
     var customIcon: (() -> AnyView)? = nil
 
     @State private var isHovered = false
+    @Environment(\.uiLanguage) private var uiLanguage
 
     var body: some View {
         Button(action: action) {
@@ -242,8 +201,8 @@ struct NavButton: View {
                         NavIconView(tab: tab, isActive: isSelected)
                     }
 
-                    Text(tab.rawValue)
-                        .font(.system(size: 8, weight: isSelected ? .semibold : .regular, design: .monospaced))
+                    Text(tab.displayName(uiLanguage))
+                        .font(CodepetTheme.pixel(9))
                         .foregroundColor(isSelected ? Color(hex: "#2D2B26") : Color(hex: "#B0A898"))
                 }
                 .frame(width: 56, height: 52)
@@ -278,9 +237,23 @@ struct NavIconView: View {
                 SessionsNavIcon(isActive: isActive)
             case .insights:
                 InsightsNavIcon(isActive: isActive)
+            case .reflection:
+                // TODO: replace with pixel-art Canvas icon matching other 4 after feature validation
+                Image(systemName: "quote.opening")
+                    .font(.pixelSystem(size: 15, weight: .medium))
+                    .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
+            case .tips:
+                // TODO: replace with pixel-art Canvas icon — mockup only
+                Image(systemName: "lightbulb.fill")
+                    .font(.pixelSystem(size: 14, weight: .medium))
+                    .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
+            case .dictionary:
+                Image(systemName: "book.fill")
+                    .font(.pixelSystem(size: 14, weight: .medium))
+                    .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
             case .profile:
                 Image(systemName: "person.fill")
-                    .font(.system(size: 14))
+                    .font(.pixelSystem(size: 14))
                     .foregroundColor(isActive ? Color(hex: "#2D2B26") : Color(hex: "#B0A898"))
             }
         }

@@ -11,13 +11,13 @@ struct WorldMapSection: View {
             // Header
             HStack {
                 Text("World Map")
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.pixelSystem(size: 18, weight: .bold))
                     .foregroundColor(Color(hex: "#2D2B26"))
 
                 Spacer()
 
                 Text("Tier \(appState.currentTier)")
-                    .font(.system(size: 10, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 4)
@@ -76,7 +76,7 @@ struct HomeBaseCard: View {
 
             // HOME label
             Text("HOME")
-                .font(.system(size: 8, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
                 .foregroundColor(.white)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 3)
@@ -123,22 +123,22 @@ struct KingdomMapCard: View {
                         .fill(Color.black.opacity(0.15))
                         .frame(height: 100)
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 16))
+                        .font(.pixelSystem(size: 16))
                         .foregroundColor(.white.opacity(0.7))
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 12))
 
             Text(tier.kingdom)
-                .font(.system(size: 11, weight: .bold))
+                .font(.pixelSystem(size: 11, weight: .bold))
                 .foregroundColor(isLocked ? Color(hex: "#2D2B26").opacity(0.3) : tier.kingdomColor)
 
             Text("\(tier.name) · Tier \(tier.id)")
-                .font(.system(size: 9))
+                .font(.pixelSystem(size: 9))
                 .foregroundColor(Color(hex: "#999999"))
 
             Text("\(completedCount)/\(tier.skills.count)")
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                 .foregroundColor(isMastered ? Color(hex: "#D4960A") : Color(hex: "#999999"))
         }
         .padding(10)
@@ -221,7 +221,7 @@ struct AchievementsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("ACHIEVEMENTS")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 9, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 120))], spacing: 8) {
@@ -229,11 +229,11 @@ struct AchievementsSection: View {
                     let a = achievements[i]
                     HStack(spacing: 6) {
                         Text(a.icon)
-                            .font(.system(size: 16))
+                            .font(.pixelSystem(size: 16))
                             .grayscale(a.unlocked ? 0 : 1)
                             .opacity(a.unlocked ? 1 : 0.4)
                         Text(a.name)
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.pixelSystem(size: 10, weight: .medium))
                             .foregroundColor(a.unlocked ? Color(hex: "#2D2B26") : Color(hex: "#A09B8E"))
                     }
                     .padding(.horizontal, 10)

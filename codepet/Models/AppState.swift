@@ -11,6 +11,7 @@ class AppState: ObservableObject {
     @Published var skillLevel: String = ""
     @Published var dailyGoalMinutes: Int = 0
     @Published var preferredLanguage: String = "javascript"
+    @Published var languagePersona: LanguagePersona = .developer
 
     // User
     @Published var displayName: String = ""
@@ -35,20 +36,43 @@ class AppState: ObservableObject {
     @Published var difficultyLevel: String = "medium"
     @Published var performanceHistory: [PerformanceEntry] = []
 
+    // Review / Spaced Repetition
+    @Published var lessonReviewDates: [String: Date] = [:]  // skillId -> last review date
+    @Published var lessonReviewCounts: [String: Int] = [:]  // skillId -> review count
+    @Published var dailySnapshots: [DailySnapshot] = []
+
     // Daily Challenge
     @Published var dailyChallengeCompleted: Bool = false
 
     // UI State
-    @Published var selectedTab: Tab = .home
+    @Published var selectedTab: Tab = .reflection
     @Published var showWeeklyRecap: Bool = false
     /// Set by Skills tab to deep-link into a kingdom on the Home tab
     @Published var pendingKingdomId: Int? = nil
     @Published var petEnergy: Int = 60
     @Published var petMood: String = "Idle"
+    /// When true, Reflection tab shows the hardcoded "Sprout × Byte" demo
+    /// instead of the live polling-driven UI. Toggled via Profile > Debug
+    /// or launch arg `-demoMode YES`. Persists to UserDefaults key
+    /// `cp_demo_mode`.
+    @Published var demoModeEnabled: Bool = false {
+        didSet {
+            UserDefaults.standard.set(demoModeEnabled, forKey: "cp_demo_mode")
+        }
+    }
+
+    /// UI display language. Controls demo content language and any other
+    /// SwiftUI-rendered copy wired to `L10n`. Persists to UserDefaults key
+    /// `cp_ui_language`. Default: Vietnamese (matches existing copy).
+    @Published var uiLanguage: AppLanguage = .vi {
+        didSet {
+            UserDefaults.standard.set(uiLanguage.rawValue, forKey: "cp_ui_language")
+        }
+    }
 
     // Phase 5: Theme & Sound
     @Published var isDarkMode: Bool = false
-    @Published var soundEnabled: Bool = true
+    @Published var soundEnabled: Bool = false
 
     // Phase 5: Level-up tracking
     @Published var showLevelUp: Bool = false
@@ -66,7 +90,32 @@ class AppState: ObservableObject {
         case skills = "Skills"
         case sessions = "Sessions"
         case insights = "Insights"
+        case reflection = "Reflection"
+        case tips = "Tips"
+        case dictionary = "Dictionary"
         case profile = "Profile"
+
+        /// Localized display name for the sidebar nav label.
+        func displayName(_ lang: AppLanguage) -> String {
+            switch (self, lang) {
+            case (.home,       .vi): return "Trang chủ"
+            case (.home,       .en): return "Home"
+            case (.skills,     .vi): return "Kỹ năng"
+            case (.skills,     .en): return "Skills"
+            case (.sessions,   .vi): return "Phiên"
+            case (.sessions,   .en): return "Sessions"
+            case (.insights,   .vi): return "Thống kê"
+            case (.insights,   .en): return "Insights"
+            case (.reflection, .vi): return "Nhật ký"
+            case (.reflection, .en): return "Reflection"
+            case (.tips,       .vi): return "Mẹo"
+            case (.tips,       .en): return "Tips"
+            case (.dictionary, .vi): return "Từ điển"
+            case (.dictionary, .en): return "Dictionary"
+            case (.profile,    .vi): return "Hồ sơ"
+            case (.profile,    .en): return "Profile"
+            }
+        }
 
         var icon: String {
             switch self {
@@ -74,6 +123,9 @@ class AppState: ObservableObject {
             case .skills: return "sparkles"
             case .sessions: return "doc.text.fill"
             case .insights: return "chart.bar.fill"
+            case .reflection: return "quote.opening"
+            case .tips: return "lightbulb.fill"
+            case .dictionary: return "book.fill"
             case .profile: return "person.fill"
             }
         }
@@ -82,11 +134,13 @@ class AppState: ObservableObject {
     init() {
         // Load saved data
         PersistenceManager.shared.load(into: self)
-        SoundManager.shared.isEnabled = soundEnabled
+        soundEnabled = false
+        SoundManager.shared.isEnabled = false
         previousLevel = userLevel
 
         // Ensure tier progression matches completed lessons (fixes existing progress)
         syncTierToCompletedLessons()
+        checkAndUpdateSnapshot()
 
         // Auto-save whenever any @Published property changes (debounced 2s)
         saveCancellable = objectWillChange
@@ -95,6 +149,24 @@ class AppState: ObservableObject {
                 guard let self = self else { return }
                 PersistenceManager.shared.save(self)
             }
+
+        // DemoMode hydration: launch arg wins, else UserDefaults.
+        // This runs after PersistenceManager.load so it always reflects the
+        // most recent intent.
+        if let demoIdx = CommandLine.arguments.firstIndex(of: "-demoMode"),
+           demoIdx + 1 < CommandLine.arguments.count,
+           CommandLine.arguments[demoIdx + 1].uppercased() == "YES" {
+            self.demoModeEnabled = true
+        } else {
+            self.demoModeEnabled = UserDefaults.standard.bool(forKey: "cp_demo_mode")
+        }
+
+        // UI language hydration: read raw value from UserDefaults, fall
+        // back to Vietnamese to match existing app copy.
+        if let raw = UserDefaults.standard.string(forKey: "cp_ui_language"),
+           let lang = AppLanguage(rawValue: raw) {
+            self.uiLanguage = lang
+        }
     }
 
     // MARK: - XP & Level Helpers
@@ -119,6 +191,9 @@ class AppState: ObservableObject {
 
         // Energy boost from activity
         petEnergy = min(100, petEnergy + 5)
+
+        // Keep today's snapshot current
+        checkAndUpdateSnapshot()
     }
 
     // MARK: - MCP Bridge Sync
@@ -189,6 +264,74 @@ class AppState: ObservableObject {
         }
     }
 
+    // MARK: - Spaced Repetition
+
+    /// Lessons ready for review (spaced repetition: 1d, 3d, 7d, 14d intervals)
+    var lessonsReadyForReview: [String] {
+        completedLessons.filter { skillId in
+            guard let lastReview = lessonReviewDates[skillId] else {
+                // Never reviewed — ready if completed more than 1 day ago
+                return true
+            }
+            let reviewCount = lessonReviewCounts[skillId] ?? 0
+            let interval: TimeInterval
+            switch reviewCount {
+            case 0: interval = 86400       // 1 day
+            case 1: interval = 86400 * 3   // 3 days
+            case 2: interval = 86400 * 7   // 7 days
+            default: interval = 86400 * 14 // 14 days
+            }
+            return Date().timeIntervalSince(lastReview) >= interval
+        }
+    }
+
+    /// Mark a lesson as reviewed
+    func markReviewed(_ skillId: String) {
+        lessonReviewDates[skillId] = Date()
+        lessonReviewCounts[skillId] = (lessonReviewCounts[skillId] ?? 0) + 1
+        incrementTodayReviews()
+    }
+
+    // MARK: - Daily Snapshots
+
+    func checkAndUpdateSnapshot() {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+
+        if let idx = dailySnapshots.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: today) }) {
+            // Update today's snapshot with current values
+            dailySnapshots[idx].totalXP = totalXP
+            dailySnapshots[idx].lessonsCompleted = completedLessons.count
+            dailySnapshots[idx].challengesCompleted = completedChallenges.count
+            dailySnapshots[idx].streak = streak
+        } else {
+            // Create new snapshot for today
+            let snapshot = DailySnapshot(
+                id: UUID(),
+                date: today,
+                totalXP: totalXP,
+                lessonsCompleted: completedLessons.count,
+                challengesCompleted: completedChallenges.count,
+                streak: streak,
+                reviewsDone: 0
+            )
+            dailySnapshots.append(snapshot)
+
+            // Trim to 90 days
+            if dailySnapshots.count > 90 {
+                dailySnapshots = Array(dailySnapshots.suffix(90))
+            }
+        }
+    }
+
+    func incrementTodayReviews() {
+        checkAndUpdateSnapshot()
+        let calendar = Calendar.current
+        if let idx = dailySnapshots.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: Date()) }) {
+            dailySnapshots[idx].reviewsDone += 1
+        }
+    }
+
     /// Toggle dark mode with sound
     func toggleDarkMode() {
         isDarkMode.toggle()
@@ -239,6 +382,7 @@ class AppState: ObservableObject {
         petMood = "Idle"
         weeklyStats = WeeklyStats()
         performanceHistory = []
+        dailySnapshots = []
     }
 
     /// Reset onboarding only (for testing)
@@ -267,4 +411,14 @@ struct PerformanceEntry: Codable {
     let score: Int
     let date: Date
     let skillId: String
+}
+
+struct DailySnapshot: Codable, Identifiable {
+    let id: UUID
+    let date: Date
+    var totalXP: Int
+    var lessonsCompleted: Int
+    var challengesCompleted: Int
+    var streak: Int
+    var reviewsDone: Int
 }

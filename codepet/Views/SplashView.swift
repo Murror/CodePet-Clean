@@ -3,6 +3,7 @@ import SwiftUI
 struct SplashView: View {
     var onContinue: (() -> Void)? = nil
 
+    @Environment(\.uiLanguage) private var uiLanguage
     @State private var opacity: Double = 0
     @State private var scale: Double = 0.9
     @State private var showChars = false
@@ -87,12 +88,12 @@ struct SplashView: View {
                     .padding(.bottom, h * 0.02)
 
                     // Taglines
-                    Text("Your AI coding companions are waiting.")
-                        .font(.system(size: taglineFont))
+                    Text(uiLanguage == .vi ? "Người bạn AI lập trình của bạn đang chờ." : "Your AI coding companions are waiting.")
+                        .font(.pixelSystem(size: taglineFont))
                         .foregroundColor(.secondary)
 
-                    Text("8 characters. 16 skills. One journey.")
-                        .font(.system(size: subTaglineFont))
+                    Text(uiLanguage == .vi ? "7 nhân vật. 16 kỹ năng. Một hành trình." : "7 characters. 16 skills. One journey.")
+                        .font(.pixelSystem(size: subTaglineFont))
                         .foregroundColor(.secondary.opacity(0.7))
                         .padding(.top, 2)
                         .padding(.bottom, h * 0.035)
@@ -101,18 +102,22 @@ struct SplashView: View {
                     if let onContinue = onContinue {
                         Button(action: onContinue) {
                             HStack(spacing: 6) {
-                                Text("Meet Your Pet")
-                                    .font(.system(size: buttonFont, weight: .semibold))
+                                Text(uiLanguage == .vi ? "Gặp Pet Của Bạn" : "Meet Your Pet")
                                 Text("→")
-                                    .font(.system(size: buttonFont, weight: .semibold))
                             }
-                            .foregroundColor(.white)
                             .frame(maxWidth: buttonWidth)
-                            .padding(.vertical, h * 0.018)
-                            .background(Color(hex: "#2D2B26"))
-                            .cornerRadius(28)
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PixelButtonStyle(
+                            fill: Color(hex: "#2D2B26"),
+                            foreground: .white,
+                            paddingH: 18,
+                            paddingV: h * 0.018,
+                            blockSize: 3,
+                            steps: 2,
+                            borderWidth: 3,
+                            shadowOffset: 4,
+                            font: .pixelSystem(size: buttonFont, weight: .semibold)
+                        ))
                     }
 
                     Spacer()
@@ -136,7 +141,7 @@ struct SplashView: View {
                         .opacity(0.4)
 
                         Text("v1.0 · made with vibes")
-                            .font(.system(size: 10))
+                            .font(.pixelSystem(size: 10))
                             .foregroundColor(.secondary.opacity(0.5))
                             .padding(.bottom, 8)
                     }
@@ -177,7 +182,7 @@ struct SplashView: View {
 
     private func speechBubble(_ text: String, fontSize: CGFloat = 11) -> some View {
         Text(text)
-            .font(.system(size: fontSize, design: .monospaced))
+            .font(.pixelSystem(size: fontSize, design: .monospaced))
             .foregroundColor(Color(hex: "#2D2B26"))
             .padding(.horizontal, 12)
             .padding(.vertical, 6)

@@ -1,0 +1,17 @@
+flowchart TD
+    Splash["SplashView"]
+    Load["SplashView loading"]
+    RSI["ReturningSignInView"]
+    OB["OnboardingFlow"]
+    MT["MainTabView"]
+
+    Start([Start]) --> Splash
+    Splash -->|Continue| Decision{State?}
+    Decision -->|loading auth/cloud| Load
+    Decision -->|onboarded + signed out| RSI
+    Decision -->|not onboarded| OB
+    Decision -->|onboarded + signed in| MT
+
+    AM2["AuthManager.$currentUser"]
+    CS["CloudSyncService.loadFromCloud"]
+    AM2 --> CS

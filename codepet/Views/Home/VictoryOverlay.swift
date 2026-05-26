@@ -55,7 +55,7 @@ struct VictoryOverlay: View {
                                 .scaleEffect(showContent ? 1.0 : 0.3)
 
                             Text(char.name)
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.pixelSystem(size: 12, weight: .semibold))
                                 .foregroundColor(char.color)
                         }
                     }
@@ -64,11 +64,11 @@ struct VictoryOverlay: View {
 
                 // Title
                 Text("Challenge Complete!")
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.pixelSystem(size: 24, weight: .bold))
                     .foregroundColor(Color(hex: "#2D2B26"))
 
                 Text(skillName)
-                    .font(.system(size: 14))
+                    .font(.pixelSystem(size: 14))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
 
                 // XP reward
@@ -76,9 +76,9 @@ struct VictoryOverlay: View {
                     HStack(spacing: 8) {
                         Image(systemName: "star.fill")
                             .foregroundColor(Color(hex: "#FFD700"))
-                            .font(.system(size: 18))
+                            .font(.pixelSystem(size: 18))
                         Text("+\(xpEarned) XP")
-                            .font(.system(size: 22, weight: .black, design: .monospaced))
+                            .font(.pixelSystem(size: 22, weight: .black, design: .monospaced))
                             .foregroundColor(tierColor)
                     }
                     .padding(.horizontal, 24)
@@ -98,9 +98,9 @@ struct VictoryOverlay: View {
                 if let badge = badge {
                     VStack(spacing: 4) {
                         Text(badge)
-                            .font(.system(size: 32))
+                            .font(.pixelSystem(size: 32))
                         Text("Badge Earned!")
-                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                            .font(.pixelSystem(size: 11, weight: .bold, design: .monospaced))
                             .foregroundColor(Color(hex: "#D4960A"))
                     }
                     .padding(12)
@@ -117,7 +117,7 @@ struct VictoryOverlay: View {
                 // Continue button
                 Button(action: dismiss) {
                     Text("Continue")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.pixelSystem(size: 15, weight: .bold))
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
@@ -208,7 +208,7 @@ struct VictoryParticle: View {
 
     var body: some View {
         Text(symbol)
-            .font(.system(size: 14, weight: .bold))
+            .font(.pixelSystem(size: 14, weight: .bold))
             .foregroundColor(color)
     }
 }

@@ -1,8 +1,8 @@
 import SwiftUI
 
-// MARK: - Chat Message Model
+// MARK: - Companion Chat Message Model (local to CompanionPanelView; distinct from ReflectionChat.ChatMessage)
 
-struct ChatMessage: Identifiable {
+struct CompanionChatMessage: Identifiable {
     let id = UUID()
     let text: String
     let isUser: Bool
@@ -137,21 +137,6 @@ struct CompanionRoles {
             fallbacks: ["The conventional answer would be boring. Here's the unconventional one: do the opposite of what feels safe. That's where the real learning lives.", "You know what? Let's approach this sideways. What would happen if you did the WORST possible version of what you're trying to do? Sometimes that reveals the best path.", "Interesting. Most people wouldn't even think to ask that. That tells me you're the kind of coder who finds the edges. Good. The edges are where the interesting stuff lives."]
         ),
 
-        "zero": CompanionRole(
-            title: "The Optimizer",
-            statusMessages: ["...", "Calculating efficiency", "Minimal input. Maximum output."],
-            quickActions: ["Optimize my workflow", "What's unnecessary?", "Fastest path to ship", "Reduce my prompt count"],
-            greetingBubble: { state in
-                return "Efficiency. Let's begin."
-            },
-            responseBank: [
-                "optimize": ["Remove one tool from your stack. Whichever you used least this week — cut it. Depth in fewer tools beats shallow knowledge of many.", "Three rules: 1) Never repeat a prompt. Save good ones. 2) Never fix manually what AI can fix. 3) Never learn what you can look up. Apply these."],
-                "unnecessary": ["Most of what you think is necessary isn't. README? Necessary. Perfect folder structure before writing code? Unnecessary. Tests for a prototype? Unnecessary. Ship first. Organize later.", "Your last session probably had 40% redundant prompts. Next time: write one detailed prompt instead of five vague ones. Quality over quantity."],
-                "fastest": ["Fastest path: 1) Describe the end state in one sentence. 2) Ask AI to scaffold. 3) Run. 4) Fix the one worst bug. 5) Ship. Everything else is procrastination.", "Ship in 3 steps. Describe. Generate. Deploy. Everything between is overhead."],
-                "reduce": ["Your prompt count is probably 3x what it needs to be. Fix: spend 30 more seconds writing each prompt. Add context, examples, constraints. One great prompt > five mediocre ones."],
-            ],
-            fallbacks: [".", "Less is more. Apply that to your question and you'll find your answer.", "Noted. My advice: simplify. Whatever you're thinking about, there's a simpler version. Do that one first."]
-        ),
 
         "null": CompanionRole(
             title: "Chaos Gremlin",
@@ -184,7 +169,7 @@ struct CompanionPanelView: View {
     @EnvironmentObject var appState: AppState
     @State private var chatInput = ""
     @State private var showSwitchSheet = false
-    @State private var messages: [ChatMessage] = []
+    @State private var messages: [CompanionChatMessage] = []
     @State private var isTyping = false
     var onClose: () -> Void = {}
 
@@ -208,40 +193,43 @@ struct CompanionPanelView: View {
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(character.name)
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.pixelSystem(size: 14, weight: .bold))
                                 .foregroundColor(Color(hex: "#2D2B26"))
                             Text(role.title)
-                                .font(.system(size: 9, design: .monospaced))
+                                .font(.pixelSystem(size: 9, design: .monospaced))
                                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                         }
                     }
 
                     Spacer()
 
-                    Button("Switch") {
-                        showSwitchSheet = true
-                    }
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6)
-                            .fill(character.color.opacity(0.12))
-                    )
-                    .buttonStyle(.plain)
+                    Button("Switch") { showSwitchSheet = true }
+                        .buttonStyle(PixelButtonStyle(
+                            fill: character.color.opacity(0.18),
+                            foreground: Color(hex: "#2D2B26"),
+                            paddingH: 10,
+                            paddingV: 5,
+                            blockSize: 2,
+                            steps: 2,
+                            borderWidth: 2,
+                            shadowOffset: 2,
+                            font: .pixelSystem(size: 10, weight: .medium)
+                        ))
 
                     Button(action: { onClose() }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
-                            .frame(width: 28, height: 28)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(Color(hex: "#F0F0EC"))
-                            )
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PixelButtonStyle(
+                        fill: Color(hex: "#F0F0EC"),
+                        foreground: Color(hex: "#2D2B26"),
+                        paddingH: 8,
+                        paddingV: 6,
+                        blockSize: 2,
+                        steps: 2,
+                        borderWidth: 2,
+                        shadowOffset: 2,
+                        font: .pixelSystem(size: 12, weight: .semibold)
+                    ))
                     .help("Close chat")
                 }
 
@@ -251,7 +239,7 @@ struct CompanionPanelView: View {
                         .fill(character.color)
                         .frame(width: 6, height: 6)
                     Text(isTyping ? "\(character.name) is typing..." : (role.statusMessages.randomElement() ?? "Ready."))
-                        .font(.system(size: 10))
+                        .font(.pixelSystem(size: 10))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -331,7 +319,7 @@ struct CompanionPanelView: View {
             HStack(spacing: 8) {
                 TextField("Ask \(character.name)...", text: $chatInput)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12))
+                    .font(.pixelSystem(size: 12))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
                     .background(
@@ -345,11 +333,19 @@ struct CompanionPanelView: View {
                 Button(action: {
                     if !chatInput.isEmpty { sendMessage(chatInput) }
                 }) {
-                    Image(systemName: "arrow.up.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundColor(chatInput.isEmpty ? Color(hex: "#D0D0CC") : character.color)
+                    Image(systemName: "arrow.up")
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PixelButtonStyle(
+                    fill: chatInput.isEmpty ? Color(hex: "#D0D0CC") : character.color,
+                    foreground: .white,
+                    paddingH: 10,
+                    paddingV: 8,
+                    blockSize: 2,
+                    steps: 2,
+                    borderWidth: 2,
+                    shadowOffset: 3,
+                    font: .pixelSystem(size: 14, weight: .bold)
+                ))
                 .disabled(chatInput.isEmpty)
             }
             .padding(12)
@@ -372,7 +368,7 @@ struct CompanionPanelView: View {
         let userText = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !userText.isEmpty else { return }
 
-        messages.append(ChatMessage(text: userText, isUser: true))
+        messages.append(CompanionChatMessage(text: userText, isUser: true))
         chatInput = ""
         SoundManager.shared.playTap()
 
@@ -381,7 +377,7 @@ struct CompanionPanelView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
             isTyping = false
             let response = generateResponse(for: userText)
-            messages.append(ChatMessage(text: response, isUser: false))
+            messages.append(CompanionChatMessage(text: response, isUser: false))
         }
     }
 
@@ -438,7 +434,7 @@ struct UserBubble: View {
         HStack {
             Spacer()
             Text(message)
-                .font(.system(size: 12))
+                .font(.pixelSystem(size: 12))
                 .foregroundColor(.white)
                 .lineSpacing(4)
                 .padding(12)
@@ -462,7 +458,7 @@ struct CompanionBubble: View {
                 .petBreathing()
 
             Text(message)
-                .font(.system(size: 12))
+                .font(.pixelSystem(size: 12))
                 .foregroundColor(Color(hex: "#2D2B26"))
                 .lineSpacing(4)
                 .padding(12)
@@ -492,20 +488,18 @@ struct QuickActionsGrid: View {
                     ForEach(pair, id: \.self) { action in
                         Button(action: { onAction?(action) }) {
                             Text(action)
-                                .font(.system(size: 10))
-                                .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 7)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(characterColor.opacity(0.1))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .stroke(characterColor.opacity(0.22), lineWidth: 1)
-                                        )
-                                )
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(PixelButtonStyle(
+                            fill: characterColor.opacity(0.15),
+                            foreground: Color(hex: "#2D2B26"),
+                            paddingH: 10,
+                            paddingV: 6,
+                            blockSize: 2,
+                            steps: 2,
+                            borderWidth: 2,
+                            shadowOffset: 2,
+                            font: .pixelSystem(size: 10, weight: .medium)
+                        ))
                     }
                 }
             }
@@ -521,7 +515,7 @@ struct CharacterSwitchSheet: View {
     var body: some View {
         VStack(spacing: 16) {
             Text("Switch Companion")
-                .font(.system(size: 16, weight: .bold))
+                .font(.pixelSystem(size: 16, weight: .bold))
                 .foregroundColor(Color(hex: "#2D2B26"))
 
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 12) {
@@ -534,11 +528,11 @@ struct CharacterSwitchSheet: View {
                                     .charIdle(charId)
 
                                 Text(char.name)
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(.pixelSystem(size: 11, weight: .semibold))
                                     .foregroundColor(char.color)
 
                                 Text(role.title)
-                                    .font(.system(size: 7, design: .monospaced))
+                                    .font(.pixelSystem(size: 7, design: .monospaced))
                                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                             }
                             .padding(8)

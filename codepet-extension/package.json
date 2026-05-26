@@ -91,6 +91,34 @@
       {
         "command": "codepet.saveLesson",
         "title": "Codepet: Save Lesson"
+      },
+      {
+        "command": "codepet.testLessonFeed",
+        "title": "Codepet: Test Lesson Feed"
+      },
+      {
+        "command": "codepet.setElevenLabsKey",
+        "title": "Codepet: Set ElevenLabs API Key (for voice transcription)"
+      },
+      {
+        "command": "codepet.clearElevenLabsKey",
+        "title": "Codepet: Clear ElevenLabs API Key"
+      },
+      {
+        "command": "codepet.setDeepgramKey",
+        "title": "Codepet: Set Deepgram API Key (for voice transcription)"
+      },
+      {
+        "command": "codepet.clearDeepgramKey",
+        "title": "Codepet: Clear Deepgram API Key"
+      },
+      {
+        "command": "codepet.setOpenAIKey",
+        "title": "Codepet: Set OpenAI API Key (for voice transcription)"
+      },
+      {
+        "command": "codepet.clearOpenAIKey",
+        "title": "Codepet: Clear OpenAI API Key"
       }
     ],
     "configuration": {
@@ -155,6 +183,51 @@
           "type": "number",
           "default": 60,
           "description": "Minutes of continuous coding before your pet reminds you to take a break. Set to 0 to disable."
+        },
+        "codepet.welcomeStyle": {
+          "type": "string",
+          "enum": ["sidebar", "notification", "both", "off"],
+          "default": "sidebar",
+          "enumDescriptions": [
+            "Show the Codepet-designed welcome card inside the sidebar (recommended).",
+            "Show VS Code's system notification popup only.",
+            "Show both the sidebar card and the system popup.",
+            "Don't show a welcome at all."
+          ],
+          "description": "How Codepet greets you when VS Code starts."
+        },
+        "codepet.elevenlabsApiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "ElevenLabs API key for voice-to-text transcription (Scribe). For better security, use the **Codepet: Set ElevenLabs API Key** command instead (stores in VS Code SecretStorage). Get one at https://elevenlabs.io/app/settings/api-keys"
+        },
+        "codepet.elevenlabsModel": {
+          "type": "string",
+          "enum": ["scribe_v1", "scribe_v1_experimental"],
+          "default": "scribe_v1",
+          "description": "ElevenLabs Scribe model used for voice transcription."
+        },
+        "codepet.deepgramApiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Deepgram API key for voice-to-text transcription (generous free tier). For better security, use the **Codepet: Set Deepgram API Key** command instead (stores in VS Code SecretStorage). Get one at https://console.deepgram.com/signup"
+        },
+        "codepet.deepgramModel": {
+          "type": "string",
+          "enum": ["nova-3", "nova-2", "nova", "enhanced", "base"],
+          "default": "nova-2",
+          "description": "Deepgram model used for voice transcription."
+        },
+        "codepet.openaiApiKey": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "OpenAI API key for voice-to-text transcription (Whisper). Stored in VS Code settings. For better security, use the **Codepet: Set OpenAI API Key** command instead (stores in VS Code SecretStorage)."
+        },
+        "codepet.whisperModel": {
+          "type": "string",
+          "enum": ["whisper-1", "gpt-4o-mini-transcribe", "gpt-4o-transcribe"],
+          "default": "whisper-1",
+          "description": "OpenAI model used for voice transcription."
         }
       }
     }

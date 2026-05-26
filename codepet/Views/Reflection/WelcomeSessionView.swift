@@ -1,0 +1,419 @@
+import SwiftUI
+
+struct WelcomeSessionView: View {
+    @EnvironmentObject var appState: AppState
+    @EnvironmentObject var installer: HookInstaller
+    @Environment(\.uiLanguage) private var uiLanguage
+
+    @State private var showAdvanced: Bool = false
+
+    private var pet: PetCharacter? { PetCharacter.all[appState.activeChar] }
+    private var petName: String { pet?.name ?? "Pet" }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            heroBanner
+            connectionCard
+            if showAdvanced { advancedSection }
+        }
+        .onAppear {
+            installer.checkInstallation()
+        }
+    }
+
+    // MARK: - Hero Banner
+
+    private var heroBanner: some View {
+        HStack(alignment: .center, spacing: 16) {
+            if let pet = pet {
+                Image(pet.imageName)
+                    .resizable().interpolation(.none).scaledToFit()
+                    .frame(width: 72, height: 72)
+                    .background(Circle().fill(pet.color.opacity(0.18)))
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(pet.color.opacity(0.55), lineWidth: 2))
+                    .shadow(color: pet.color.opacity(0.4), radius: 10, y: 4)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                Text(uiLanguage == .vi
+                     ? "Chào, tôi là \(petName) \u{1F44B}"
+                     : "Hi, I'm \(petName) \u{1F44B}")
+                    .font(ReflectionTheme.serif(24, weight: .medium))
+                    .foregroundColor(ReflectionTheme.primaryText)
+                Text(uiLanguage == .vi
+                     ? "Kết nối Claude Code để bắt đầu ghi nhật ký reflection."
+                     : "Connect Claude Code to start your reflection journal.")
+                    .font(ReflectionTheme.sans(13))
+                    .foregroundColor(ReflectionTheme.mutedText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer()
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .pixelBox(fill: ReflectionTheme.accent.opacity(0.18))
+    }
+
+    // MARK: - Connection Card (one-click)
+
+    private var connectionCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(spacing: 10) {
+                statusIcon
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Claude Code")
+                        .font(ReflectionTheme.serif(17, weight: .medium))
+                        .foregroundColor(ReflectionTheme.primaryText)
+                    Text(statusLabel)
+                        .font(ReflectionTheme.sans(12))
+                        .foregroundColor(statusColor)
+                }
+                Spacer()
+            }
+
+            switch installer.status {
+            case .notInstalled:
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(uiLanguage == .vi
+                         ? "Bấm nút dưới đây để sao chép lệnh cài đặt, rồi dán vào Terminal."
+                         : "Click below to copy the install command, then paste it in Terminal.")
+                        .font(ReflectionTheme.sans(13))
+                        .foregroundColor(ReflectionTheme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Button(action: { installer.install() }) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "doc.on.clipboard")
+                                .font(.system(size: 13))
+                            Text(uiLanguage == .vi ? "Sao chép lệnh cài đặt" : "Copy install command")
+                        }
+                    }
+                    .buttonStyle(PixelButtonStyle(
+                        fill: ReflectionTheme.accent,
+                        foreground: .white,
+                        paddingH: 20,
+                        paddingV: 10,
+                        blockSize: 2,
+                        steps: 2,
+                        borderWidth: 2,
+                        shadowOffset: 3,
+                        font: .pixelSystem(size: 13, weight: .semibold)
+                    ))
+                }
+
+            case .installing:
+                // "installing" = command was copied to clipboard
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(ReflectionTheme.moodCalm)
+                            .font(.system(size: 14))
+                        Text(uiLanguage == .vi ? "Đã sao chép!" : "Copied!")
+                            .font(ReflectionTheme.sans(13, weight: .medium))
+                            .foregroundColor(ReflectionTheme.moodCalm)
+                    }
+                    Text(uiLanguage == .vi
+                         ? "Mở Terminal → dán (⌘V) → nhấn Enter. Xong rồi bấm nút dưới đây."
+                         : "Open Terminal → paste (⌘V) → press Enter. When done, click below.")
+                        .font(ReflectionTheme.sans(13))
+                        .foregroundColor(ReflectionTheme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 12) {
+                        Button(action: { installer.verifyInstallation() }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 12))
+                                Text(uiLanguage == .vi ? "Xong rồi" : "I've done it")
+                            }
+                        }
+                        .buttonStyle(PixelButtonStyle(
+                            fill: ReflectionTheme.moodCalm,
+                            foreground: .white,
+                            paddingH: 16,
+                            paddingV: 8,
+                            blockSize: 2,
+                            steps: 2,
+                            borderWidth: 2,
+                            shadowOffset: 3,
+                            font: .pixelSystem(size: 12, weight: .semibold)
+                        ))
+
+                        Button(action: { installer.install() }) {
+                            Text(uiLanguage == .vi ? "Sao chép lại" : "Copy again")
+                                .font(ReflectionTheme.sans(12, weight: .medium))
+                                .foregroundColor(ReflectionTheme.accent)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
+            case .installed:
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(ReflectionTheme.moodCalm)
+                            .font(.system(size: 14))
+                        Text(uiLanguage == .vi
+                             ? "Đã cài xong! Khởi động lại Claude Code để bắt đầu."
+                             : "All set! Restart Claude Code to start capturing.")
+                            .font(ReflectionTheme.sans(13))
+                            .foregroundColor(ReflectionTheme.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    // Re-install button (subtle)
+                    Button(action: { installer.install() }) {
+                        Text(uiLanguage == .vi ? "Cài lại" : "Reinstall")
+                            .font(ReflectionTheme.sans(11, weight: .medium))
+                            .foregroundColor(ReflectionTheme.mutedText)
+                    }
+                    .buttonStyle(.plain)
+                }
+
+            case .failed(let error):
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(ReflectionTheme.moodAlert)
+                            .font(.system(size: 14))
+                        Text(uiLanguage == .vi ? "Lỗi khi cài đặt" : "Installation failed")
+                            .font(ReflectionTheme.sans(13, weight: .medium))
+                            .foregroundColor(ReflectionTheme.moodAlert)
+                    }
+                    Text(error)
+                        .font(ReflectionTheme.mono(11))
+                        .foregroundColor(ReflectionTheme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: 12) {
+                        Button(action: { installer.install() }) {
+                            Text(uiLanguage == .vi ? "Thử lại" : "Try again")
+                        }
+                        .buttonStyle(PixelButtonStyle(
+                            fill: ReflectionTheme.accent,
+                            foreground: .white,
+                            paddingH: 14,
+                            paddingV: 8,
+                            blockSize: 2,
+                            steps: 2,
+                            borderWidth: 2,
+                            shadowOffset: 3,
+                            font: .pixelSystem(size: 12, weight: .semibold)
+                        ))
+
+                        Button(action: { showAdvanced = true }) {
+                            Text(uiLanguage == .vi ? "Cài thủ công" : "Install manually")
+                                .font(ReflectionTheme.sans(12, weight: .medium))
+                                .foregroundColor(ReflectionTheme.accent)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            // Advanced toggle
+            if installer.status != .failed("") {
+                Button(action: { withAnimation(.easeInOut(duration: 0.2)) { showAdvanced.toggle() } }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: showAdvanced ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 9, weight: .semibold))
+                        Text(uiLanguage == .vi ? "Cài thủ công" : "Manual setup")
+                            .font(ReflectionTheme.sans(11, weight: .medium))
+                    }
+                    .foregroundColor(ReflectionTheme.mutedText)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .pixelBox(fill: ReflectionTheme.cardBackground)
+    }
+
+    // MARK: - Status helpers
+
+    private var statusIcon: some View {
+        ZStack {
+            Circle()
+                .fill(statusColor.opacity(0.15))
+                .frame(width: 36, height: 36)
+            Image(systemName: statusSystemImage)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundColor(statusColor)
+        }
+    }
+
+    private var statusSystemImage: String {
+        switch installer.status {
+        case .notInstalled: return "link.badge.plus"
+        case .installing:   return "arrow.triangle.2.circlepath"
+        case .installed:    return "checkmark.circle.fill"
+        case .failed:       return "exclamationmark.triangle.fill"
+        }
+    }
+
+    private var statusLabel: String {
+        switch installer.status {
+        case .notInstalled:
+            return uiLanguage == .vi ? "Chưa kết nối" : "Not connected"
+        case .installing:
+            return uiLanguage == .vi ? "Đang cài đặt..." : "Installing..."
+        case .installed:
+            return uiLanguage == .vi ? "Đã kết nối" : "Connected"
+        case .failed:
+            return uiLanguage == .vi ? "Lỗi" : "Error"
+        }
+    }
+
+    private var statusColor: Color {
+        switch installer.status {
+        case .notInstalled: return ReflectionTheme.mutedText
+        case .installing:   return ReflectionTheme.moodEngaged
+        case .installed:    return ReflectionTheme.moodCalm
+        case .failed:       return ReflectionTheme.moodAlert
+        }
+    }
+
+    // MARK: - Advanced (manual setup, collapsed by default)
+
+    private static let settingsSnippet = """
+    "hooks": {
+      "UserPromptSubmit": [{
+        "hooks": [{ "type": "command", "command": "~/.codepet/hooks/log-prompt.sh" }]
+      }],
+      "PostToolUse": [{
+        "matcher": "*",
+        "hooks": [{ "type": "command", "command": "~/.codepet/hooks/log-tool.sh" }]
+      }],
+      "Stop": [{
+        "hooks": [{ "type": "command", "command": "~/.codepet/hooks/log-summary.sh" }]
+      }],
+      "SessionEnd": [{
+        "hooks": [{ "type": "command", "command": "~/.codepet/hooks/log-session-end.sh" }]
+      }]
+    }
+    """
+
+    private var advancedSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(uiLanguage == .vi ? "CÀI THỦ CÔNG" : "MANUAL SETUP")
+                .font(ReflectionTheme.sans(10, weight: .semibold))
+                .tracking(1.4)
+                .foregroundColor(ReflectionTheme.mutedText)
+
+            manualStepCard(
+                number: "1",
+                title: uiLanguage == .vi ? "Cài hook scripts" : "Install hook scripts",
+                description: uiLanguage == .vi
+                    ? "Chạy trong Terminal (không cần ở trong thư mục project):"
+                    : "Run in Terminal (works from any directory):",
+                code: "/bin/bash -c \"$(curl -fsSL https://raw.githubusercontent.com/Murror/CodePet-Clean/main/scripts/install-reflection-hooks.sh)\""
+            )
+
+            manualStepCard(
+                number: "2",
+                title: uiLanguage == .vi ? "Thêm hook config" : "Add hook config",
+                description: uiLanguage == .vi
+                    ? "Mở ~/.claude/settings.json và dán đoạn dưới vào key \"hooks\":"
+                    : "Open ~/.claude/settings.json and merge under the \"hooks\" key:",
+                code: Self.settingsSnippet
+            )
+
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 12))
+                    .foregroundColor(ReflectionTheme.mutedText)
+                Text(uiLanguage == .vi
+                     ? "Sau khi cài, khởi động lại Claude Code."
+                     : "After installing, restart Claude Code.")
+                    .font(ReflectionTheme.sans(12))
+                    .foregroundColor(ReflectionTheme.mutedText)
+            }
+        }
+        .padding(.horizontal, 4)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    private func manualStepCard(number: String, title: String, description: String, code: String) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(number)
+                    .font(.pixelSystem(size: 12, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 22, height: 22)
+                    .pixelBox(
+                        fill: ReflectionTheme.mutedText,
+                        shadowOffset: 1,
+                        blockSize: 1,
+                        steps: 1,
+                        borderWidth: 1
+                    )
+                Text(title)
+                    .font(ReflectionTheme.serif(14, weight: .medium))
+                    .foregroundColor(ReflectionTheme.primaryText)
+            }
+            Text(description)
+                .font(ReflectionTheme.sans(12))
+                .foregroundColor(ReflectionTheme.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            codeBlock(code)
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .pixelBox(fill: ReflectionTheme.cardBackground)
+    }
+
+    private func codeBlock(_ code: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(code)
+                .font(ReflectionTheme.mono(11))
+                .foregroundColor(ReflectionTheme.primaryText)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+            CopyButton(text: code)
+        }
+        .padding(12)
+        .pixelBox(
+            fill: Color(red: 0xF5 / 255.0, green: 0xF3 / 255.0, blue: 0xFA / 255.0),
+            shadowOffset: 3,
+            blockSize: 3,
+            steps: 2,
+            borderWidth: 3
+        )
+    }
+
+}
+
+private struct CopyButton: View {
+    let text: String
+    @State private var copied = false
+
+    var body: some View {
+        Button(action: copy) {
+            Image(systemName: copied ? "checkmark" : "doc.on.doc")
+        }
+        .buttonStyle(PixelButtonStyle(
+            fill: ReflectionTheme.background,
+            foreground: copied ? ReflectionTheme.moodCalm : ReflectionTheme.mutedText,
+            paddingH: 7,
+            paddingV: 5,
+            blockSize: 2,
+            steps: 2,
+            borderWidth: 2,
+            shadowOffset: 2,
+            font: .pixelSystem(size: 11, weight: .medium)
+        ))
+    }
+
+    private func copy() {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+        withAnimation(.easeInOut(duration: 0.18)) { copied = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            withAnimation(.easeInOut(duration: 0.18)) { copied = false }
+        }
+    }
+}

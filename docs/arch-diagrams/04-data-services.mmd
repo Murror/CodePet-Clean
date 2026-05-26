@@ -1,0 +1,26 @@
+flowchart LR
+    subgraph models["Models"]
+        AppState
+        GameState["GameState — AppState+GameSystems"]
+        GameSystems["GameSystems"]
+        Character["PetCharacter"]
+        SkillData
+        LessonContent
+    end
+
+    subgraph managers["Managers"]
+        PersistenceManager
+        GamePersistence
+        AuthManager
+        ThemeManager
+    end
+
+    subgraph services["Services"]
+        CloudSyncService
+        MCPBridgeService
+    end
+
+    AppState --- PersistenceManager
+    GameState --- GamePersistence
+    AuthManager --- CloudSyncService
+    AppState -. sync .-> MCPBridgeService

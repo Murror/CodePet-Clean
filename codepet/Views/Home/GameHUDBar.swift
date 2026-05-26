@@ -23,7 +23,7 @@ struct GameHUDBar: View {
             HStack(spacing: 4) {
                 ForEach(0..<HeartsSystem.maxHearts, id: \.self) { index in
                     Image(systemName: index < currentHearts ? "heart.fill" : "heart")
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                         .foregroundColor(index < currentHearts ? Color(hex: "#FF4757") : Color(hex: "#DDD"))
                 }
             }
@@ -38,9 +38,9 @@ struct GameHUDBar: View {
             // Coins
             HStack(spacing: 5) {
                 Text("🪙")
-                    .font(.system(size: 12))
+                    .font(.pixelSystem(size: 12))
                 Text("\(gameState.coins)")
-                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 12, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#D4960A"))
             }
             .padding(.horizontal, 10)
@@ -55,9 +55,9 @@ struct GameHUDBar: View {
             if appState.streak > 0 {
                 HStack(spacing: 4) {
                     Text("🔥")
-                        .font(.system(size: 11))
+                        .font(.pixelSystem(size: 11))
                     Text("\(appState.streak)")
-                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .font(.pixelSystem(size: 12, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(hex: "#FF6B6B"))
                 }
                 .padding(.horizontal, 10)
@@ -74,10 +74,10 @@ struct GameHUDBar: View {
             // XP pill
             HStack(spacing: 4) {
                 Image(systemName: "star.fill")
-                    .font(.system(size: 10))
+                    .font(.pixelSystem(size: 10))
                     .foregroundColor(Color(hex: "#FFD700"))
                 Text("\(appState.totalXP) XP")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 11, weight: .bold, design: .monospaced))
                     .foregroundColor(character.color)
             }
             .padding(.horizontal, 10)
