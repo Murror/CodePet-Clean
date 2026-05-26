@@ -826,8 +826,10 @@ struct ReflectionTab: View {
             // Narrative chat view or loading state
             if let narrative = turn.narrative {
                 NarrativeChatTurnView(narrative: narrative, showAvatar: isLast)
-            } else if !turn.hasWriteEvents {
-                // Read-only turn (status checks, git log, or text-only) — show prompt quietly
+            } else if turn.endedAt != nil && !turn.hasWriteEvents {
+                // Completed read-only turn (status checks, git log, or text-only) — show prompt quietly.
+                // Only apply after the turn has ended; pending turns should show loading state
+                // so they transition naturally once tool events arrive.
                 Text(turn.prompt)
                     .font(ReflectionTheme.sans(13))
                     .foregroundColor(ReflectionTheme.secondaryText)

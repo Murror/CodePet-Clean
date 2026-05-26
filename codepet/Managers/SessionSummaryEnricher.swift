@@ -102,9 +102,14 @@ final class SessionSummaryEnricher: ObservableObject {
                 logger.error("failed to persist session summary: \(error.localizedDescription)")
             }
 
-            // Auto-update project brief with changelog entry (only on session end)
-            if isAutoTriggered, let projectPath = session.projectPath, let ps = projectStore {
-                appendBriefUpdate(briefUpdate, projectPath: projectPath, projectStore: ps)
+            // Auto-update project brief with changelog entry (only on session end).
+            // Resolve the raw cwd to the canonical project root (ProjectStore keys
+            // by resolved root, not raw cwd).
+            if isAutoTriggered, let ps = projectStore {
+                let resolvedPath = ps.resolvedProjectPath(for: session.projectPath, sessionId: session.id)
+                if let projectPath = resolvedPath {
+                    appendBriefUpdate(briefUpdate, projectPath: projectPath, projectStore: ps)
+                }
             }
 
             return true
