@@ -1,0 +1,26 @@
+[debug] [2026-05-25T03:31:50.558Z] ----------------------------------------------------------------------
+[debug] [2026-05-25T03:31:50.559Z] Command:       /usr/bin/node /sessions/exciting-vigilant-knuth/.npm-global/bin/firebase deploy --only functions:summarizeTurn
+[debug] [2026-05-25T03:31:50.559Z] CLI Version:   15.18.0
+[debug] [2026-05-25T03:31:50.559Z] Platform:      linux
+[debug] [2026-05-25T03:31:50.559Z] Node Version:  v22.22.0
+[debug] [2026-05-25T03:31:50.560Z] Time:          Mon May 25 2026 10:31:50 GMT+0700 (Indochina Time)
+[debug] [2026-05-25T03:31:50.560Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-05-25T03:31:50.561Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-05-25T03:31:50.990Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-05-25T03:31:51.006Z] Error: Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information.
+    at GoogleAuth.getApplicationDefaultAsync (/sessions/exciting-vigilant-knuth/.npm-global/lib/node_modules/firebase-tools/node_modules/google-auth-library/build/src/auth/googleauth.js:287:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async GoogleAuth._GoogleAuth_determineClient (/sessions/exciting-vigilant-knuth/.npm-global/lib/node_modules/firebase-tools/node_modules/google-auth-library/build/src/auth/googleauth.js:834:32)
+    at async GoogleAuth.getClient (/sessions/exciting-vigilant-knuth/.npm-global/lib/node_modules/firebase-tools/node_modules/google-auth-library/build/src/auth/googleauth.js:698:20)
+    at async GoogleAuth.getAccessToken (/sessions/exciting-vigilant-knuth/.npm-global/lib/node_modules/firebase-tools/node_modules/google-auth-library/build/src/auth/googleauth.js:722:24)
+    at async autoAuth (/sessions/exciting-vigilant-knuth/.npm-global/lib/node_modules/firebase-tools/lib/requireAuth.js:28:19)
+    at async requireAuth (/sessions/exciting-vigilant-knuth/.npm-global/lib/node_modules/firebase-tools/lib/requireAuth.js:90:20)
+    at async requirePermissions (/sessions/exciting-vigilant-knuth/.npm-global/lib/node_modules/firebase-tools/lib/requirePermissions.js:17:5)
+    at async /sessions/exciting-vigilant-knuth/.npm-global/lib/node_modules/firebase-tools/lib/command.js:271:17
+[error] 
+[error] Error: Failed to authenticate, have you run firebase login?
+[debug] [2026-05-25T03:31:51.008Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 403
+[debug] [2026-05-25T03:31:51.008Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json "Connection blocked by network allowlist"
+[warn] ⚠  Unable to fetch the CLI MOTD and remote config. This is not a fatal error, but may indicate an issue with your network connection. 
+[debug] [2026-05-25T03:31:51.008Z] Failed to fetch MOTD FirebaseError: Unable to parse JSON: SyntaxError: Unexpected token 'C', "Connection"... is not valid JSON

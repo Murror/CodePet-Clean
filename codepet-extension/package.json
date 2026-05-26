@@ -1,0 +1,169 @@
+{
+  "name": "codepet",
+  "displayName": "Codepet — AI Coding Companion",
+  "description": "Your pixel-art coding pet lives in VS Code. Tracks coding sessions, maps skills, and shows daily insights powered by the Codepet MCP server.",
+  "version": "0.9.3",
+  "publisher": "NguyenTruong",
+  "author": "MURROR <hello@murror.app>",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Education",
+    "Visualization"
+  ],
+  "icon": "media/codepet-icon.png",
+  "keywords": [
+    "codepet",
+    "coding companion",
+    "skill tracker",
+    "MCP",
+    "daily summary",
+    "pixel art"
+  ],
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:codepet.dashboard"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codepet-sidebar",
+          "title": "Codepet",
+          "icon": "media/codepet-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codepet-sidebar": [
+        {
+          "type": "webview",
+          "id": "codepet.dashboard",
+          "name": "Dashboard"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codepet.showSummary",
+        "title": "Codepet: Show Today's Summary"
+      },
+      {
+        "command": "codepet.refreshData",
+        "title": "Codepet: Refresh Data"
+      },
+      {
+        "command": "codepet.openDashboard",
+        "title": "Codepet: Open Dashboard"
+      },
+      {
+        "command": "codepet.toggleScanner",
+        "title": "Codepet: Toggle Code Scanner Notifications"
+      },
+      {
+        "command": "codepet.showWelcome",
+        "title": "Codepet: Show Welcome Screen"
+      },
+      {
+        "command": "codepet.syncNow",
+        "title": "Codepet: Sync to Cloud Now"
+      },
+      {
+        "command": "codepet.fixAtLine",
+        "title": "Codepet: Fix Issue at Line"
+      },
+      {
+        "command": "codepet.fixDiagnostic",
+        "title": "Codepet: Fix Diagnostic Error"
+      },
+      {
+        "command": "codepet.quickFixAtLine",
+        "title": "Codepet: Quick Fix at Line"
+      },
+      {
+        "command": "codepet.fixTsDiagnostic",
+        "title": "Codepet: Fix TypeScript Diagnostic"
+      }
+    ],
+    "configuration": {
+      "title": "Codepet",
+      "properties": {
+        "codepet.idleTimeoutMinutes": {
+          "type": "number",
+          "default": 5,
+          "description": "Minutes of inactivity before showing a session summary"
+        },
+        "codepet.showNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show notification popups for session summaries"
+        },
+        "codepet.periodicRefreshSeconds": {
+          "type": "number",
+          "default": 30,
+          "description": "How often to refresh MCP data (seconds)"
+        },
+        "codepet.petName": {
+          "type": "string",
+          "default": "Nova",
+          "description": "Your Codepet's name"
+        },
+        "codepet.mcpDataDir": {
+          "type": "string",
+          "default": "",
+          "description": "Custom path to .codepet data directory (leave empty for ~/.codepet)"
+        },
+        "codepet.scanNotifications": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show notifications when the code scanner detects errors"
+        },
+        "codepet.scanOnType": {
+          "type": "boolean",
+          "default": true,
+          "description": "Scan code as you type (debounced). Disable for scan-on-save only."
+        },
+        "codepet.userName": {
+          "type": "string",
+          "default": "",
+          "description": "Your name (shown in the welcome greeting). Leave blank for 'Coder'."
+        },
+        "codepet.showWelcome": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the personalized welcome screen when opening the editor."
+        },
+        "codepet.syncIntervalSeconds": {
+          "type": "number",
+          "default": 30,
+          "description": "How often to sync session data to Firestore (seconds)."
+        },
+        "codepet.autoLinkApp": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically link with the Codepet macOS app (reads your account, name, and pet from the app)."
+        },
+        "codepet.breakReminderMinutes": {
+          "type": "number",
+          "default": 60,
+          "description": "Minutes of continuous coding before your pet reminds you to take a break. Set to 0 to disable."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "package": "npx vsce package",
+    "test": "npx tsx test/extension-test.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.8.3"
+  }
+}

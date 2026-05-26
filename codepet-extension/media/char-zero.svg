@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 240">
+  <!-- Shadow (smaller, floating above) -->
+  <ellipse cx="62" cy="222" rx="36" ry="6" fill="#2C2C2A" opacity="0.12"/>
+
+  <!-- Robe body (NO legs — tapers to floating bottom) -->
+  <path d="M22,130 Q16,175 24,208 Q38,216 62,214 Q86,216 100,208 Q108,175 102,130 Z" fill="#444441"/>
+  <!-- Robe taper fade -->
+  <path d="M40,208 Q42,215 62,214 Q82,215 84,208 Z" fill="#2C2C2A" opacity="0.4"/>
+  <!-- Robe seam lines -->
+  <line x1="44" y1="140" x2="40" y2="208" stroke="#2C2C2A" stroke-width="1" opacity="0.3"/>
+  <line x1="62" y1="138" x2="62" y2="210" stroke="#2C2C2A" stroke-width="1" opacity="0.3"/>
+  <line x1="80" y1="140" x2="84" y2="208" stroke="#2C2C2A" stroke-width="1" opacity="0.3"/>
+
+  <!-- Collar -->
+  <rect x="52" y="112" width="20" height="16" rx="3" fill="#D3D1C7"/>
+
+  <!-- Head (light grey) -->
+  <rect x="16" y="40" width="92" height="76" rx="12" fill="#D3D1C7"/>
+  <!-- Deep dark hood -->
+  <path d="M16,68 Q14,40 30,28 Q46,16 62,14 Q78,16 94,28 Q110,40 108,68 Q100,52 62,50 Q24,52 16,68Z" fill="#2C2C2A"/>
+
+  <!-- Eyes — dark recesses with blue glow layers -->
+  <rect x="24" y="56" width="28" height="22" rx="5" fill="#2C2C2A"/>
+  <rect x="72" y="56" width="28" height="22" rx="5" fill="#2C2C2A"/>
+  <!-- Blue glow layer 1 -->
+  <rect x="27" y="59" width="22" height="16" rx="3" fill="#378ADD" opacity="0.7"/>
+  <rect x="75" y="59" width="22" height="16" rx="3" fill="#378ADD" opacity="0.7"/>
+  <!-- Blue glow layer 2 (brighter) -->
+  <rect x="31" y="62" width="14" height="10" rx="2" fill="#B5D4F4" opacity="0.9"/>
+  <rect x="79" y="62" width="14" height="10" rx="2" fill="#B5D4F4" opacity="0.9"/>
+  <!-- White core glow -->
+  <rect x="35" y="64" width="6" height="5" rx="1" fill="white" opacity="0.95"/>
+  <rect x="83" y="64" width="6" height="5" rx="1" fill="white" opacity="0.95"/>
+
+  <!-- Floating disconnected hands -->
+  <!-- Left hand -->
+  <rect x="0" y="144" width="20" height="20" rx="6" fill="#444441"/>
+  <rect x="2" y="128" width="22" height="18" rx="5" fill="#444441"/>
+  <!-- Right hand -->
+  <rect x="104" y="144" width="20" height="20" rx="6" fill="#444441"/>
+  <rect x="100" y="128" width="22" height="18" rx="5" fill="#444441"/>
+
+  <!-- Code particle dashes drifting upward -->
+  <rect x="2" y="48" width="10" height="4" rx="2" fill="#378ADD" opacity="0.45"/>
+  <rect x="112" y="60" width="10" height="4" rx="2" fill="#378ADD" opacity="0.35"/>
+  <rect x="4" y="72" width="8" height="4" rx="2" fill="#85B7EB" opacity="0.4"/>
+  <rect x="110" y="90" width="12" height="4" rx="2" fill="#B5D4F4" opacity="0.35"/>
+</svg>
