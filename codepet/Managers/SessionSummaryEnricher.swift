@@ -102,14 +102,18 @@ final class SessionSummaryEnricher: ObservableObject {
                 logger.error("failed to persist session summary: \(error.localizedDescription)")
             }
 
-            // Auto-update project brief with changelog entry (only on session end).
+            // Auto-update project brief with changelog entry.
             // Resolve the raw cwd to the canonical project root (ProjectStore keys
             // by resolved root, not raw cwd).
-            if isAutoTriggered, let ps = projectStore {
+            logger.info("Brief update pipeline: briefUpdate=\(briefUpdate ?? "<nil>"), rawPath=\(session.projectPath ?? "<nil>"), sessionId=\(session.id)")
+            if let ps = projectStore {
                 let resolvedPath = ps.resolvedProjectPath(for: session.projectPath, sessionId: session.id)
+                logger.info("Brief update resolved path: \(resolvedPath ?? "<nil>"), projectExists=\(ps.project(for: resolvedPath) != nil)")
                 if let projectPath = resolvedPath {
                     appendBriefUpdate(briefUpdate, projectPath: projectPath, projectStore: ps)
                 }
+            } else {
+                logger.warning("Brief update skipped: projectStore is nil")
             }
 
             return true
@@ -122,7 +126,10 @@ final class SessionSummaryEnricher: ObservableObject {
     /// Appends a dated changelog entry to the project brief.
     private func appendBriefUpdate(_ update: String?, projectPath: String, projectStore ps: ProjectStore) {
         let trimmed = (update ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else {
+            logger.info("Brief update skipped: trimmed content is empty (raw=\(update ?? "<nil>"))")
+            return
+        }
 
         let dateStr = Self.briefDateFormatter.string(from: Date())
         let entry = "\n\n---\n**\(dateStr)**: \(trimmed)"
@@ -130,7 +137,7 @@ final class SessionSummaryEnricher: ObservableObject {
         let currentBrief = ps.brief(for: projectPath)
         let updatedBrief = currentBrief + entry
         ps.updateBrief(projectId: projectPath, brief: updatedBrief)
-        logger.info("Auto-updated project brief for \(projectPath)")
+        logger.info("Auto-updated project brief for \(projectPath): +\(trimmed.count) chars")
     }
 
     private static let briefDateFormatter: DateFormatter = {

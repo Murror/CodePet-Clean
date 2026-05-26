@@ -140,10 +140,12 @@ struct SummarizeSessionResponse: Codable {
         let summary: String
         let lesson: String
         let briefUpdate: String?
+        let projectOverview: String?
 
         enum CodingKeys: String, CodingKey {
             case summary, lesson
             case briefUpdate = "brief_update"
+            case projectOverview = "project_overview"
         }
     }
 
@@ -228,7 +230,7 @@ enum NarrativeStreamEvent: Equatable {
 enum SessionSummaryStreamEvent: Equatable {
     case started
     case jsonDelta(String)
-    case done(summary: SummarizeSessionResponse.SummaryPayload, model: String, briefUpdate: String?)
+    case done(summary: SummarizeSessionResponse.SummaryPayload, model: String, briefUpdate: String?, projectOverview: String?)
 }
 
 enum ChatStreamEvent: Equatable {
@@ -514,7 +516,7 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
                 }
             }
             if let d = try? JSONDecoder().decode(DonePayload.self, from: payload) {
-                continuation.yield(.done(summary: d.summary, model: d.model, briefUpdate: d.summary.briefUpdate))
+                continuation.yield(.done(summary: d.summary, model: d.model, briefUpdate: d.summary.briefUpdate, projectOverview: d.summary.projectOverview))
             }
         case "error":
             let parsed = try? JSONDecoder().decode(SummarizeTurnError.self, from: payload)

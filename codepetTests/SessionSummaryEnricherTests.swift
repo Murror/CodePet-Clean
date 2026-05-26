@@ -48,8 +48,8 @@ final class MockSessionAPIClient: ReflectionAPIClientProtocol {
                     return
                 }
                 continuation.yield(.started)
-                let summary = SummarizeSessionResponse.SummaryPayload(summary: "Test arc summary", lesson: "Test lesson", briefUpdate: nil)
-                continuation.yield(.done(summary: summary, model: "claude-haiku-4-5-20251001", briefUpdate: nil))
+                let summary = SummarizeSessionResponse.SummaryPayload(summary: "Test arc summary", lesson: "Test lesson", briefUpdate: nil, projectOverview: nil)
+                continuation.yield(.done(summary: summary, model: "claude-haiku-4-5-20251001", briefUpdate: nil, projectOverview: nil))
                 continuation.finish()
             }
         }
