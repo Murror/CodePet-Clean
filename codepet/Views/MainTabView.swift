@@ -51,6 +51,8 @@ struct MainTabView: View {
                             ReflectionTab()
                         case .tips:
                             TipsTabView()
+                        case .learn:
+                            LearnTabView()
                         case .dictionary:
                             DictionaryView()
                         case .profile:
@@ -128,7 +130,7 @@ struct SidebarNav: View {
 
     @State private var isAvatarHovered = false
 
-    private let mainTabs: [AppState.Tab] = [.reflection, .tips, .dictionary]
+    private let mainTabs: [AppState.Tab] = [.reflection, .tips, .learn, .dictionary]
 
     var body: some View {
         VStack(spacing: 2) {
@@ -245,6 +247,10 @@ struct NavIconView: View {
             case .tips:
                 // TODO: replace with pixel-art Canvas icon — mockup only
                 Image(systemName: "lightbulb.fill")
+                    .font(.pixelSystem(size: 14, weight: .medium))
+                    .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
+            case .learn:
+                Image(systemName: "graduationcap.fill")
                     .font(.pixelSystem(size: 14, weight: .medium))
                     .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
             case .dictionary:

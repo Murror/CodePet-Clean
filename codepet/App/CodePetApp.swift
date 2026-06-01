@@ -17,6 +17,7 @@ struct CodePetApp: App {
     @StateObject private var demoHotkeyMonitor = DemoHotkeyMonitor()
     @StateObject private var healthNudge = HealthNudgeController()
     @StateObject private var tipsState = TipsState()
+    @StateObject private var learnProgress = LearnProgress()
     private var notificationManager = NotificationManager()
 
     init() {
@@ -54,6 +55,7 @@ struct CodePetApp: App {
                 .environmentObject(demoController)
                 .environmentObject(healthNudge)
                 .environmentObject(tipsState)
+                .environmentObject(learnProgress)
                 .frame(minWidth: 400, minHeight: 700)
                 .themed(isDark: appState.isDarkMode)
                 .task {

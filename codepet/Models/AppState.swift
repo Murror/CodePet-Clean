@@ -95,6 +95,7 @@ class AppState: ObservableObject {
         case insights = "Insights"
         case reflection = "Reflection"
         case tips = "Tips"
+        case learn = "Learn"
         case dictionary = "Dictionary"
         case profile = "Profile"
 
@@ -113,6 +114,8 @@ class AppState: ObservableObject {
             case (.reflection, .en): return "Reflection"
             case (.tips,       .vi): return "Mẹo"
             case (.tips,       .en): return "Tips"
+            case (.learn,      .vi): return "Học"
+            case (.learn,      .en): return "Learn"
             case (.dictionary, .vi): return "Từ điển"
             case (.dictionary, .en): return "Dictionary"
             case (.profile,    .vi): return "Hồ sơ"
@@ -128,6 +131,7 @@ class AppState: ObservableObject {
             case .insights: return "chart.bar.fill"
             case .reflection: return "quote.opening"
             case .tips: return "lightbulb.fill"
+            case .learn: return "graduationcap.fill"
             case .dictionary: return "book.fill"
             case .profile: return "person.fill"
             }
