@@ -36,6 +36,7 @@ final class GuidanceEnricher: ObservableObject {
         narrativeStore: NarrativeStore,
         appState: AppState,
         petMemory: String? = nil,
+        projectStore: ProjectStore? = nil,
         force: Bool = false
     ) async {
         // Already have fresh guidance for today — skip (unless forced).
@@ -68,12 +69,16 @@ final class GuidanceEnricher: ObservableObject {
             let skillProgressDTOs = buildSkillProgress(tipsState: tipsState, petId: appState.activeChar)
             let language = appState.uiLanguage.rawValue  // "vi" or "en"
 
+            // Match expert knowledge against the user's project context
+            let knowledgeDTOs = buildExpertKnowledge(projectStore: projectStore)
+
             let request = GenerateGuidanceRequest(
                 language: language,
                 petPersona: petPersona,
                 recentNarratives: recentNarratives,
                 skillProgress: skillProgressDTOs.isEmpty ? nil : skillProgressDTOs,
-                petMemory: petMemory
+                petMemory: petMemory,
+                expertKnowledge: knowledgeDTOs.isEmpty ? nil : knowledgeDTOs
             )
 
             let response = try await api.fetchGuidance(request)
@@ -145,6 +150,54 @@ final class GuidanceEnricher: ObservableObject {
                 skillId: progress.skillId,
                 practiceCount: progress.practiceCount,
                 isMastered: progress.isMastered
+            )
+        }
+    }
+
+    /// Match Astro's knowledge entries against the user's active projects
+    /// and return the top 5 most relevant as DTOs for the Cloud Function.
+    private func buildExpertKnowledge(
+        projectStore: ProjectStore?
+    ) -> [GenerateGuidanceRequest.ExpertKnowledgeDTO] {
+        guard let store = projectStore else { return [] }
+
+        // Build project context from all active projects
+        let reports = ProjectHealthCheck.evaluateAll(projects: store.projects)
+
+        // Aggregate tech stack and health gaps across all projects
+        var allTech: Set<String> = []
+        var allGaps: Set<String> = []
+        for report in reports {
+            for tag in report.inferredTags {
+                allTech.insert(tag.rawValue)
+            }
+            for result in report.results where !result.passed {
+                allGaps.insert(result.checkId)
+            }
+        }
+
+        let context = KnowledgeMatcher.ProjectContext(
+            techStack: Array(allTech),
+            healthGaps: Array(allGaps),
+            recentActivities: [],   // TODO: derive from recent session events
+            inactiveAreas: [],      // TODO: derive from session history
+            projectStage: "building" // TODO: detect from project signals
+        )
+
+        let matched = KnowledgeMatcher.match(
+            entries: AstroKnowledge.entries,
+            context: context,
+            limit: 5
+        )
+
+        let expert = ExpertContent.experts.first { $0.id == "expert_astro" }
+
+        return matched.map { entry in
+            GenerateGuidanceRequest.ExpertKnowledgeDTO(
+                expertName: expert?.name ?? "Astro Tran",
+                kind: entry.kind.rawValue,
+                advice: entry.advice,
+                oneLiner: entry.oneLiner
             )
         }
     }

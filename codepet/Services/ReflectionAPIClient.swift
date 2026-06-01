@@ -228,6 +228,20 @@ struct GenerateGuidanceRequest: Codable {
     let recentNarratives: [NarrativeSummaryDTO]
     let skillProgress: [SkillProgressDTO]?
     let petMemory: String?
+    let expertKnowledge: [ExpertKnowledgeDTO]?
+
+    struct ExpertKnowledgeDTO: Codable {
+        let expertName: String
+        let kind: String           // "principle", "patternResponse", "codeWisdom", "mindset"
+        let advice: String
+        let oneLiner: String
+
+        enum CodingKeys: String, CodingKey {
+            case expertName = "expert_name"
+            case kind, advice
+            case oneLiner = "one_liner"
+        }
+    }
 
     struct NarrativeSummaryDTO: Codable {
         let title: String
@@ -260,6 +274,7 @@ struct GenerateGuidanceRequest: Codable {
         case recentNarratives = "recent_narratives"
         case skillProgress = "skill_progress"
         case petMemory = "pet_memory"
+        case expertKnowledge = "expert_knowledge"
     }
 }
 
