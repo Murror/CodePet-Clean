@@ -14,7 +14,7 @@ struct MentorQADetailView: View {
     let qa: MentorQA
 
     private var expert: Expert? {
-        LearnContent.experts.first { $0.id == qa.expertId }
+        ExpertContent.experts.first { $0.id == qa.expertId }
     }
 
     private var isRead: Bool {

@@ -1,12 +1,12 @@
 import SwiftUI
 
 // =============================================================================
-// MARK: - LearnContent
+// MARK: - ExpertContent
 // =============================================================================
 
 /// Static content for the Learn tab — experts, case studies, and mentor Q&A.
 /// All data is defined inline. No network fetch required.
-enum LearnContent {
+enum ExpertContent {
 
     // =========================================================================
     // MARK: - Experts

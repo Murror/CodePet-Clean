@@ -162,7 +162,7 @@ final class GuidanceEnricher: ObservableObject {
         guard let store = projectStore else { return [] }
 
         // Build project context from all active projects
-        let reports = ProjectHealthCheck.evaluateAll(projects: store.projects)
+        let reports = ProjectHealthEngine.evaluateAll(projects: store.projects)
 
         // Aggregate tech stack and health gaps across all projects
         var allTech: Set<String> = []
@@ -172,7 +172,7 @@ final class GuidanceEnricher: ObservableObject {
                 allTech.insert(tag.rawValue)
             }
             for result in report.results where !result.passed {
-                allGaps.insert(result.checkId)
+                allGaps.insert(result.rule.id)
             }
         }
 

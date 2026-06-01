@@ -14,9 +14,9 @@ struct LearnTabView: View {
     @State private var selectedQA: MentorQA? = nil
 
     // Data
-    private let expert = LearnContent.experts.first!
-    private let caseStudies = LearnContent.caseStudies
-    private let mentorQAs = LearnContent.mentorQAs
+    private let expert = ExpertContent.experts.first!
+    private let caseStudies = ExpertContent.caseStudies
+    private let mentorQAs = ExpertContent.mentorQAs
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),

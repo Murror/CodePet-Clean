@@ -16,7 +16,7 @@ struct CaseStudyDetailView: View {
     @State private var selectedChapter: Chapter? = nil
 
     private var expert: Expert? {
-        LearnContent.experts.first { $0.id == caseStudy.expertId }
+        ExpertContent.experts.first { $0.id == caseStudy.expertId }
     }
 
     private var completedCount: Int {
