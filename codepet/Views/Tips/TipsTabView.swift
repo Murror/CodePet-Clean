@@ -23,12 +23,15 @@ struct TipsTabView: View {
     @EnvironmentObject var narrativeStore: NarrativeStore
     @EnvironmentObject var hookInstaller: HookInstaller
     @EnvironmentObject var projectStore: ProjectStore
+    @EnvironmentObject var learnProgress: LearnProgress
     @Environment(\.uiLanguage) private var uiLanguage
 
     /// Owned by this view — created once with a fresh API client.
-    /// ReflectionAPIClient is stateless (just a URLSession wrapper) so sharing
-    /// the instance isn't required.
     @StateObject private var guidanceEnricher = GuidanceEnricher(api: ReflectionAPIClient())
+
+    // Learn section navigation
+    @State private var selectedCaseStudy: CaseStudy? = nil
+    @State private var selectedQA: MentorQA? = nil
 
     private var petName: String {
         PetCharacter.all[appState.activeChar]?.name ?? ReflectionPet.name
@@ -61,6 +64,7 @@ struct TipsTabView: View {
                     }
                 })
                 setupSection
+                learnFromExpertSection
                 projectFoldersSection
                 skillsSection
                 petNote
@@ -71,6 +75,14 @@ struct TipsTabView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(ReflectionTheme.background)
+        .sheet(item: $selectedCaseStudy) { cs in
+            CaseStudyDetailView(caseStudy: cs)
+                .environmentObject(learnProgress)
+        }
+        .sheet(item: $selectedQA) { qa in
+            MentorQADetailView(qa: qa)
+                .environmentObject(learnProgress)
+        }
         .task {
             // Pass aggregated pet memory for richer AI guidance context
             let memory = PetMemoryStore.shared.allMemoryPrompt()
@@ -279,6 +291,109 @@ struct TipsTabView: View {
 
     private var healthReports: [ProjectHealthReport] {
         ProjectHealthEngine.evaluateAll(projects: projectStore.projects)
+    }
+
+    // MARK: - Learn from Expert
+
+    private let expert = ExpertContent.experts.first!
+    private let caseStudies = ExpertContent.caseStudies
+    private let mentorQAs = ExpertContent.mentorQAs
+
+    private var learnFromExpertSection: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Eyebrow(text: uiLanguage == .vi ? "Học từ chuyên gia" : "Learn from experts")
+
+            // Expert mini-hero
+            PixelCard(fill: Color(hex: expert.avatarColor), borderWidth: 3) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                            .fill(Color.white)
+                        Text(expert.initials)
+                            .font(CodepetTheme.pixel(16))
+                            .foregroundColor(Color(hex: expert.avatarColor))
+                    }
+                    .frame(width: 40, height: 40)
+                    .overlay(
+                        PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                            .stroke(Color(hex: "#2D2B26"), lineWidth: 2)
+                    )
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(expert.name)
+                            .font(.pixelSystem(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                        Text(expert.role)
+                            .font(.pixelSystem(size: 10))
+                            .foregroundColor(Color.white.opacity(0.7))
+                    }
+                    Spacer()
+                }
+                .padding(14)
+            }
+
+            // Case study cards — horizontal scroll
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 14) {
+                    ForEach(caseStudies) { cs in
+                        CaseStudyCard(
+                            caseStudy: cs,
+                            progress: learnProgress.progress(for: cs),
+                            completedCount: learnProgress.completedCount(for: cs)
+                        ) {
+                            selectedCaseStudy = cs
+                        }
+                        .frame(width: 240)
+                    }
+                }
+            }
+
+            // Ask expert — compact horizontal scroll
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(mentorQAs) { qa in
+                        Button(action: { selectedQA = qa }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: qa.iconName)
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Color(hex: qa.iconColor))
+                                    .frame(width: 26, height: 26)
+                                    .background(
+                                        PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                                            .fill(Color(hex: qa.iconColor).opacity(0.12))
+                                    )
+
+                                Text(qa.question)
+                                    .font(.pixelSystem(size: 11, weight: .medium))
+                                    .foregroundColor(Color(hex: "#2D2B26"))
+                                    .lineLimit(1)
+
+                                if learnProgress.readQAIds.contains(qa.id) {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(Color(hex: "#029902"))
+                                } else {
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.3))
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 9)
+                            .background(
+                                PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                                    .fill(Color.white)
+                            )
+                            .overlay(
+                                PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                                    .stroke(Color(hex: "#2D2B26"), lineWidth: 2)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
     }
 
     private var projectFoldersSection: some View {
