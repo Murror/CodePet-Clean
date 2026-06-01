@@ -180,6 +180,7 @@ final class NarrativeEnricher: ObservableObject {
             )
         }
         let rawSummary = events.map { "\($0.tool) \($0.path ?? $0.text ?? "")" }.joined(separator: " · ")
+        let projectPath = turn.rawEvents.compactMap(\.cwd).first
         return SummarizeTurnRequest(
             turnId: turn.id,
             sessionId: turn.sessionId,
@@ -188,7 +189,8 @@ final class NarrativeEnricher: ObservableObject {
             events: events,
             rawSummary: rawSummary,
             petPersona: petPersona,
-            userBrief: Self.currentUserBrief(projectPath: turn.rawEvents.compactMap(\.cwd).first)
+            userBrief: Self.currentUserBrief(projectPath: projectPath),
+            petMemory: PetMemoryStore.shared.promptPayload(for: projectPath)
         )
     }
 

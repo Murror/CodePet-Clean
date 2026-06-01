@@ -346,7 +346,7 @@ struct TipsMockupView: View {
 
     /// Pet-specialized reading list. Falls back to default if pet has no entry.
     private var readings: [TipReadingItem] {
-        TipsContent.tipReadingByPet[appState.activeChar] ?? defaultReadings
+        TipsContent.tipReadingPool[appState.activeChar] ?? defaultReadings
     }
 
     private var readingSection: some View {

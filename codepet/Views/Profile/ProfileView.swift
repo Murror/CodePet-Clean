@@ -387,8 +387,8 @@ struct DebugSection: View {
                          : "Demo Mode (Sprout × Byte)")
                         .font(.body)
                     Text(uiLanguage == .vi
-                         ? "Thay tab Reflection bằng demo 13 phút có sẵn. ⌥1..⌥4 bắn milestone, ⌥5 hiện reflection, ⌥0 nhảy thẳng tới summary."
-                         : "Replaces Reflection tab with hardcoded 13-min demo. ⌥1..⌥4 fires milestones, ⌥5 reveals reflection, ⌥0 panic-skips to summary.")
+                         ? "Thay tab Reflection bằng demo 13 phút có sẵn. ⌥1..⌥4 bắn milestone, ⌥5 hiện reflection, ⌥6..⌥8 health nudge, ⌥9 demo Tips, ⌥0 nhảy thẳng tới summary."
+                         : "Replaces Reflection tab with hardcoded 13-min demo. ⌥1..⌥4 milestones, ⌥5 reflection, ⌥6..⌥8 health nudge, ⌥9 Tips demo, ⌥0 panic-skip.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

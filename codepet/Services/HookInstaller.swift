@@ -141,11 +141,27 @@ final class HookInstaller: ObservableObject {
 
     // MARK: - Embedded hook scripts
 
+    // MARK: - Hook script design principles
+    //
+    // 1. NEVER drop prompt events. Prompts are the turn boundary signal —
+    //    if we lose a prompt, all subsequent tool events get orphaned.
+    // 2. Capture generously, filter in the app. The Swift-side TurnAssembler
+    //    and NarrativeEnricher have `hasWriteEvents` / `isReadOnlyBash` to
+    //    decide what's meaningful. Hooks should just feed data.
+    // 3. Use a Bash DENYLIST (skip known-noisy commands) instead of an
+    //    ALLOWLIST (only keep specific commands). An allowlist silently
+    //    drops every new tool/language the user tries.
+    // 4. Every script must be safe to fail — errors go to /dev/null,
+    //    never block Claude Code.
+
     private static let logPromptScript = """
     #!/bin/bash
+    # CRITICAL: Never filter prompts by length. Short prompts like "continue",
+    # "go ahead", "yes", "ok" are valid turn boundaries. Dropping them causes
+    # all subsequent tool events to be orphaned.
     INPUT=$(cat)
     PROMPT=$(echo "$INPUT" | jq -r '.prompt // empty' 2>/dev/null)
-    if [ -z "$PROMPT" ] || [ ${#PROMPT} -lt 10 ]; then exit 0; fi
+    if [ -z "$PROMPT" ]; then exit 0; fi
 
     SESSION=$(echo "$INPUT" | jq -r '.session_id // empty' 2>/dev/null)
     CWD=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
@@ -167,7 +183,10 @@ final class HookInstaller: ObservableObject {
     CWD=$(echo "$INPUT" | jq -r '.cwd // empty' 2>/dev/null)
     TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    BASH_ALLOWLIST="^(git commit|git push|git merge|git rebase|git tag|npm install|npm run|pip install|brew install|xcodebuild|swift build|swift test|fastlane|rm |mv |mkdir |make |docker |kubectl )"
+    # Bash commands to SKIP — high-frequency read-only noise.
+    # Everything else is captured. The app-side `isReadOnlyBash` does
+    # fine-grained filtering; the hook just needs to avoid flooding.
+    BASH_DENYLIST="^(cat |head |tail |less |more |wc |file |stat |pwd|echo |printf |which |whoami|type |man |help |true|false|:|test )"
 
     PATH_=""
     TEXT=""
@@ -180,13 +199,25 @@ final class HookInstaller: ObservableObject {
         Bash)
             CMD=$(echo "$INPUT" | jq -r '.tool_input.command // empty' 2>/dev/null)
             if [ -z "$CMD" ]; then exit 0; fi
-            if ! echo "$CMD" | grep -qE "$BASH_ALLOWLIST"; then exit 0; fi
-            TEXT="Bash: $(echo "$CMD" | head -c 80)"
+            FIRST_CMD=$(echo "$CMD" | head -c 120)
+            # Skip only known-noisy read-only commands
+            if echo "$FIRST_CMD" | grep -qE "$BASH_DENYLIST"; then exit 0; fi
+            TEXT="Bash: $(echo "$FIRST_CMD" | head -c 80)"
+            ;;
+        Read|Glob|Grep)
+            # Read-only tools — capture lightly for context but the app
+            # won't count them as "write events" for narrative purposes.
+            PATH_=$(echo "$INPUT" | jq -r '.tool_input.file_path // .tool_input.path // .tool_input.pattern // empty' 2>/dev/null)
+            TEXT="$TOOL $(echo "$PATH_" | head -c 60)"
             ;;
         *)
-            exit 0
+            # Unknown/future tools — capture with tool name so nothing
+            # is silently lost. The app can ignore what it doesn't need.
+            TEXT="$TOOL"
             ;;
     esac
+
+    if [ -z "$TEXT" ]; then exit 0; fi
 
     if command -v jq >/dev/null 2>&1; then
         jq -nc --arg t "$TIME" --arg s "$SESSION" --arg c "$CWD" --arg tn "$TOOL" --arg p "$PATH_" --arg tx "$TEXT" \

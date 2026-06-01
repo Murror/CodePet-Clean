@@ -4,13 +4,24 @@ import SwiftUI
 
 enum ReflectionTheme {
 
-    // Accent
-    static let accent = Color(red: 0x7F / 255.0, green: 0x77 / 255.0, blue: 0xDD / 255.0)
+    // MARK: - Brand palette
+    // Canonical Codepet brand colors — use these for high-impact accents,
+    // badges, and interactive elements. Keep surfaces/backgrounds soft.
+    static let brandPurple = Color(red: 0x95 / 255.0, green: 0x38 / 255.0, blue: 0xCF / 255.0) // #9538CF
+    static let brandOrange = Color(red: 0xF5 / 255.0, green: 0x83 / 255.0, blue: 0x45 / 255.0) // #F58345
+    static let brandYellow = Color(red: 0xFC / 255.0, green: 0xBE / 255.0, blue: 0x1D / 255.0) // #FCBE1D
+    static let brandGreen  = Color(red: 0x02 / 255.0, green: 0x99 / 255.0, blue: 0x02 / 255.0) // #029902
+    static let brandBlue   = Color(red: 0x1C / 255.0, green: 0x40 / 255.0, blue: 0xCF / 255.0) // #1C40CF
+    static let brandPink   = Color(red: 0xFF / 255.0, green: 0x8C / 255.0, blue: 0xC9 / 255.0) // #FF8CC9
+    static let brandRed    = Color(red: 0xE2 / 255.0, green: 0x4B / 255.0, blue: 0x4A / 255.0) // #E24B4A
 
-    // Mood
-    static let moodCalm = Color(red: 0x5D / 255.0, green: 0xCA / 255.0, blue: 0xA5 / 255.0)
-    static let moodEngaged = Color(red: 0x85 / 255.0, green: 0xB7 / 255.0, blue: 0xEB / 255.0)
-    static let moodAlert = Color(red: 0xEF / 255.0, green: 0x9F / 255.0, blue: 0x27 / 255.0)
+    // Accent — brand purple for primary interactive elements
+    static let accent = brandPurple
+
+    // Mood — mapped to brand colors for vibrancy
+    static let moodCalm = brandGreen
+    static let moodEngaged = brandBlue
+    static let moodAlert = brandOrange
 
     static func color(for mood: PetMood) -> Color {
         switch mood {
@@ -20,13 +31,40 @@ enum ReflectionTheme {
         }
     }
 
-    // Source tints
-    static let cursorTintBg = Color(red: 0x7F / 255.0, green: 0x77 / 255.0, blue: 0xDD / 255.0).opacity(0.10)
-    static let cursorTintFg = Color(red: 0x5B / 255.0, green: 0x54 / 255.0, blue: 0xB8 / 255.0)
-    static let claudeTintBg = Color(red: 0x5D / 255.0, green: 0xCA / 255.0, blue: 0xA5 / 255.0).opacity(0.12)
-    static let claudeTintFg = Color(red: 0x2F / 255.0, green: 0x7F / 255.0, blue: 0x65 / 255.0)
-    static let codexTintBg  = Color(red: 0xEF / 255.0, green: 0x9F / 255.0, blue: 0x27 / 255.0).opacity(0.12)
-    static let codexTintFg  = Color(red: 0xB6 / 255.0, green: 0x6E / 255.0, blue: 0x0D / 255.0)
+    // Narrative-mood → brand-color bubble fills (distinct wash per mood)
+    // Content readability is king — fills stay very subtle (0.05–0.08) so
+    // dark text (#2D2B26) and markdown links always pop against the background.
+    // The mood color shows through the left-border strip and title badge instead.
+    static func bubbleFill(for mood: NarrativeMood) -> Color {
+        switch mood {
+        case .excited:   return brandOrange.opacity(0.06)
+        case .thinking:  return brandBlue.opacity(0.05)
+        case .proud:     return brandGreen.opacity(0.05)
+        case .concerned: return brandPink.opacity(0.06)
+        case .cheering:  return brandYellow.opacity(0.08)
+        case .idle:      return bubbleWarmStart
+        }
+    }
+
+    // Narrative-mood → accent for left-border strips, thread lines, badge tints
+    static func moodAccentColor(for mood: NarrativeMood) -> Color {
+        switch mood {
+        case .excited:   return brandOrange
+        case .thinking:  return brandBlue
+        case .proud:     return brandGreen
+        case .concerned: return brandPink
+        case .cheering:  return brandYellow
+        case .idle:      return brandPurple
+        }
+    }
+
+    // Source tints — derived from brand palette
+    static let cursorTintBg = brandPurple.opacity(0.10)
+    static let cursorTintFg = brandPurple
+    static let claudeTintBg = brandGreen.opacity(0.12)
+    static let claudeTintFg = brandGreen
+    static let codexTintBg  = brandOrange.opacity(0.12)
+    static let codexTintFg  = brandOrange
     static let manualTintBg = Color(red: 0x2D / 255.0, green: 0x2B / 255.0, blue: 0x26 / 255.0).opacity(0.06)
     static let manualTintFg = Color(red: 0x66 / 255.0, green: 0x66 / 255.0, blue: 0x66 / 255.0)
 
@@ -58,6 +96,43 @@ enum ReflectionTheme {
     static let cardBackground = Color.white
     static let borderLight = Color(red: 0xEB / 255.0, green: 0xE8 / 255.0, blue: 0xDF / 255.0)
 
+    // Sidebar — light wash of brand purple
+    static let sidebarTop = brandPurple.opacity(0.06)
+    static let sidebarBottom = brandPurple.opacity(0.02)
+    static let sidebarBorder = brandPurple.opacity(0.10)
+
+    // Narrative bubble fills — warm (orange-tinted) and cool (purple-tinted)
+    static let bubbleWarmStart = Color(red: 0xFF / 255.0, green: 0xF5 / 255.0, blue: 0xE8 / 255.0) // warm orange wash
+    static let bubbleWarmEnd = Color(red: 0xFF / 255.0, green: 0xEE / 255.0, blue: 0xD4 / 255.0)
+    static let bubblePurpleStart = brandPurple.opacity(0.06) // cool purple wash
+    static let bubblePurpleEnd = brandPurple.opacity(0.04)
+
+    // Thread line — brand purple gradient
+    static let threadLineTop = brandPurple.opacity(0.30)
+    static let threadLineBottom = brandPurple.opacity(0.06)
+
+    // Session strip — orange for warmth (frees purple for primary accents)
+    static let stripBackground = brandOrange.opacity(0.10)
+    static let stripText = brandOrange
+
+    // Reminder card — red for urgency/attention
+    static let reminderBackground = brandRed.opacity(0.08)
+    static let reminderBorder = brandRed
+    static let reminderText = brandRed
+
+    // Lesson card — brand yellow/orange
+    static let lessonFill = Color(red: 0xFC / 255.0, green: 0xEB / 255.0, blue: 0xA8 / 255.0) // warm yellow
+    static let lessonIconColor = brandOrange
+    static let lessonTextColor = Color(red: 0x85 / 255.0, green: 0x4F / 255.0, blue: 0x0B / 255.0)
+
+    // Next steps card — brand blue
+    static let nextStepsFill = Color(red: 0xD6 / 255.0, green: 0xEA / 255.0, blue: 0xF8 / 255.0)
+    static let nextStepsIconColor = brandBlue
+    static let nextStepsTextColor = Color(red: 0x0C / 255.0, green: 0x44 / 255.0, blue: 0x7C / 255.0)
+
+    // Live badge
+    static let liveBadge = brandGreen
+
     // Fonts — Reflection lives in the body/content tier, so all three helpers
     // resolve to Inter. Use `CodepetTheme.display()` for true display text.
     static func serif(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
@@ -87,32 +162,32 @@ struct PetAvatar: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            // Radial halo — pet feels more present
+            // Circle container with pet color fill
             Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [character.color.opacity(0.28), character.color.opacity(0.0)],
-                        center: .center,
-                        startRadius: size * 0.1,
-                        endRadius: size * 0.65
-                    )
-                )
-                .frame(width: size, height: size)
-
-            Circle()
-                .fill(character.color.opacity(0.16))
+                .fill(character.color.opacity(0.14))
                 .frame(width: size, height: size)
                 .overlay(
-                    CharacterImage(character.id, size: size * 0.88)
-                        .charIdle(character.id)
+                    Circle()
+                        .stroke(character.color.opacity(0.35), lineWidth: max(size * 0.035, 1.5))
+                )
+                .overlay(
+                    // Header avatar: breathing only (no charIdle — its -6px offset
+                    // and ±2° rotation are too aggressive for this small context).
+                    // compositingGroup() flattens the scaleEffect from petBreathing
+                    // into the render buffer so clipShape reliably clips it.
+                    CharacterImage(character.id, size: size * 0.75)
                         .petBreathing()
+                        .frame(width: size, height: size)
+                        .compositingGroup()
+                        .clipShape(Circle())
                 )
 
+            // Mood indicator dot
             Circle()
                 .fill(ReflectionTheme.color(for: mood))
                 .overlay(Circle().stroke(Color.white, lineWidth: max(size * 0.04, 1.5)))
-                .frame(width: size * 0.28, height: size * 0.28)
-                .offset(x: size * 0.02, y: size * 0.02)
+                .frame(width: size * 0.26, height: size * 0.26)
+                .offset(x: size * 0.04, y: size * 0.04)
         }
         .frame(width: size, height: size)
     }

@@ -26,13 +26,19 @@ struct WelcomeSessionView: View {
     private var heroBanner: some View {
         HStack(alignment: .center, spacing: 16) {
             if let pet = pet {
-                Image(pet.imageName)
-                    .resizable().interpolation(.none).scaledToFit()
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(pet.color.opacity(0.14))
                     .frame(width: 72, height: 72)
-                    .background(Circle().fill(pet.color.opacity(0.18)))
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(pet.color.opacity(0.55), lineWidth: 2))
-                    .shadow(color: pet.color.opacity(0.4), radius: 10, y: 4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(pet.color.opacity(0.35), lineWidth: 2)
+                    )
+                    .overlay(
+                        Image(pet.imageName)
+                            .resizable().interpolation(.none).scaledToFit()
+                            .frame(width: 50, height: 50)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(uiLanguage == .vi

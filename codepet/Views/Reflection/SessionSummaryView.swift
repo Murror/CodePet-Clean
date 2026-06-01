@@ -61,8 +61,8 @@ struct SessionSummaryView: View {
 
     private func readyBubble(summary: SessionSummary) -> some View {
         PixelCard(
-            fill: Color(hex: "#FFF1DB"),
-            borderColor: Color(hex: "#2D2B26").opacity(0.35),
+            fill: ReflectionTheme.bubblePurpleStart,
+            borderColor: Color(hex: "#2D2B26").opacity(0.22),
             shadowOffset: 3,
             borderWidth: 2
         ) {
@@ -79,7 +79,7 @@ struct SessionSummaryView: View {
                     Text(uiLanguage == .vi ? "TÓM TẮT PHIÊN" : "SESSION RECAP")
                         .font(.pixelSystem(size: 10))
                         .tracking(1.4)
-                        .foregroundColor(Color(hex: "#7C3AED"))
+                        .foregroundColor(ReflectionTheme.brandPurple)
 
                     Spacer()
 
@@ -90,7 +90,7 @@ struct SessionSummaryView: View {
                         } label: {
                             Image(systemName: "arrow.clockwise")
                                 .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(Color(hex: "#7C3AED").opacity(0.6))
+                                .foregroundColor(ReflectionTheme.brandPurple.opacity(0.6))
                                 .rotationEffect(.degrees(isRefreshing ? 360 : 0))
                                 .animation(
                                     isRefreshing
@@ -132,26 +132,20 @@ struct SessionSummaryView: View {
 
     private func lessonRow(_ text: String) -> some View {
         PixelCard(
-            fill: Color(hex: "#FCEBA8"),
-            borderColor: Color(hex: "#2D2B26").opacity(0.3),
+            fill: ReflectionTheme.lessonFill,
+            borderColor: ReflectionTheme.lessonIconColor.opacity(0.30),
             shadowOffset: 2,
             blockSize: 3,
             steps: 2,
             borderWidth: 2
         ) {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "lightbulb.fill")
-                    .font(.pixelSystem(size: 12, weight: .medium))
-                    .foregroundColor(Color(hex: "#B6850A"))
-                    .padding(.top, 2)
-                Text(text)
-                    .font(CodepetTheme.body(16, weight: .medium))
-                    .foregroundColor(Color(hex: "#2D2B26"))
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(text)
+                .font(CodepetTheme.body(16, weight: .medium))
+                .foregroundColor(ReflectionTheme.lessonTextColor)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -159,8 +153,8 @@ struct SessionSummaryView: View {
 
     private var loadingBubble: some View {
         PixelCard(
-            fill: Color(hex: "#FFF1DB"),
-            borderColor: Color(hex: "#2D2B26").opacity(0.35),
+            fill: ReflectionTheme.bubblePurpleStart,
+            borderColor: Color(hex: "#2D2B26").opacity(0.22),
             shadowOffset: 3,
             borderWidth: 2
         ) {
@@ -177,7 +171,7 @@ struct SessionSummaryView: View {
                     Text(uiLanguage == .vi ? "TÓM TẮT PHIÊN" : "SESSION RECAP")
                         .font(.pixelSystem(size: 10))
                         .tracking(1.4)
-                        .foregroundColor(Color(hex: "#7C3AED"))
+                        .foregroundColor(ReflectionTheme.brandPurple)
                 }
 
                 if hasMeaningfulWork {
@@ -193,7 +187,7 @@ struct SessionSummaryView: View {
                             }
                         }
                         .buttonStyle(PixelButtonStyle(
-                            fill: Color(hex: "#7C3AED"),
+                            fill: ReflectionTheme.brandPurple,
                             font: .pixelSystem(size: 12, weight: .semibold)
                         ))
                     }
@@ -218,30 +212,27 @@ struct SessionSummaryView: View {
         ZStack {
             if let pet = pet {
                 Circle()
-                    .stroke(pet.color.opacity(0.35), lineWidth: 1.5)
-                    .scaleEffect(1.0 + petGlow * 0.18)
-                    .opacity(1.0 - petGlow * 0.7)
+                    .fill(pet.color.opacity(0.14))
                     .frame(width: size, height: size)
-
-                Image(pet.imageName)
-                    .resizable()
-                    .interpolation(.none)
-                    .scaledToFit()
-                    .frame(width: size, height: size)
-                    .background(Circle().fill(pet.color.opacity(0.18)))
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(pet.color.opacity(0.55), lineWidth: 1.5))
-                    .scaleEffect(petFloat ? 1.02 : 0.98)
-                    .offset(y: petFloat ? -2 : 2)
-                    .shadow(
-                        color: pet.color.opacity(petFloat ? 0.45 : 0.3),
-                        radius: petFloat ? 10 : 6,
-                        x: 0,
-                        y: petFloat ? 5 : 3
+                    .overlay(
+                        Circle()
+                            .stroke(pet.color.opacity(0.35), lineWidth: 1.5)
+                    )
+                    .overlay(
+                        Image(pet.imageName)
+                            .resizable()
+                            .interpolation(.none)
+                            .scaledToFit()
+                            .frame(width: size * 0.75, height: size * 0.75)
+                            .scaleEffect(petFloat ? 1.02 : 0.98)
+                            .offset(y: petFloat ? -1 : 1)
+                            .frame(width: size, height: size)
+                            .compositingGroup()
+                            .clipShape(Circle())
                     )
             } else {
                 Circle()
-                    .fill(ReflectionTheme.accent.opacity(0.2))
+                    .fill(ReflectionTheme.accent.opacity(0.14))
                     .frame(width: size, height: size)
             }
         }

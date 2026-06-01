@@ -55,11 +55,8 @@ struct ProjectBriefCard: View {
             descriptionSection
                 .padding(.top, 10)
 
-            // MARK: Activity log section
-            if hasChangelog {
-                activityLogSection
-                    .padding(.top, 12)
-            }
+            // Activity log removed — the "Last time" reminder now serves
+            // as the primary context cue, keeping the project card minimal.
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)

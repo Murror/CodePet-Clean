@@ -15,6 +15,8 @@ struct CodePetApp: App {
     @StateObject private var projectStore = ProjectStore()
     @StateObject private var demoController = DemoScriptController()
     @StateObject private var demoHotkeyMonitor = DemoHotkeyMonitor()
+    @StateObject private var healthNudge = HealthNudgeController()
+    @StateObject private var tipsState = TipsState()
     private var notificationManager = NotificationManager()
 
     init() {
@@ -50,10 +52,14 @@ struct CodePetApp: App {
                 .environmentObject(hookInstaller)
                 .environmentObject(projectStore)
                 .environmentObject(demoController)
+                .environmentObject(healthNudge)
+                .environmentObject(tipsState)
                 .frame(minWidth: 400, minHeight: 700)
                 .themed(isDark: appState.isDarkMode)
                 .task {
                     projectStore.load()
+                    TipsPersistence.shared.load(into: tipsState)
+                    TipsPersistence.shared.startAutoSave(tipsState)
                     reflectionComposition.sessionEnricher.projectStore = projectStore
                     reflectionComposition.updateLanguage(appState.uiLanguage)
                     reflectionComposition.start()
@@ -72,6 +78,11 @@ struct CodePetApp: App {
                     appState.syncFromMCP(mcpBridge)
 
                     demoHotkeyMonitor.bind(controller: demoController)
+                    demoHotkeyMonitor.onTipsDemo = { [weak demoController, weak tipsState, weak appState] in
+                        guard let dc = demoController, let ts = tipsState, let app = appState else { return }
+                        dc.populateTipsDemo(tipsState: ts, petId: app.activeChar)
+                        app.selectedTab = .tips
+                    }
                     // Sync display language into the demo controller so the
                     // synthesized Session/Turn/Narrative render in the right
                     // language.
@@ -104,6 +115,7 @@ struct CodePetApp: App {
                     // Save game state when app goes to background
                     gameState.forceSave()
                     appState.lastVisit = Date()
+                    TipsPersistence.shared.save(tipsState)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                     // Process return from idle when app comes back

@@ -14,22 +14,27 @@ struct SessionChatBubble: View {
         Button(action: onTap) {
             ZStack {
                 Circle()
-                    .fill(petColor.opacity(0.18))
+                    .fill(
+                        LinearGradient(
+                            colors: [ReflectionTheme.brandPurple, ReflectionTheme.brandPink],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
 
                 if let pet = pet {
                     Image(pet.imageName)
                         .resizable()
                         .interpolation(.none)
                         .scaledToFit()
-                        .padding(8)
+                        .padding(10)
                 }
             }
-            .frame(width: 60, height: 60)
+            .frame(width: 56, height: 56)
             .codepetShadow(CodepetTheme.Shadow(
-                color: petColor.opacity(0.35),
-                radius: 14, x: 0, y: 6
+                color: ReflectionTheme.accent.opacity(0.4),
+                radius: 16, x: 0, y: 6
             ))
-            .offset(y: float ? -3 : 0)
+            .offset(y: float ? -4 : 0)
         }
         .buttonStyle(.plain)
         .onAppear { startAnimations() }

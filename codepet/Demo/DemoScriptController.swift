@@ -60,6 +60,45 @@ final class DemoScriptController: ObservableObject {
         activeHealthModal = nil
     }
 
+    /// Populate the Tips tab with sample data so it looks live during demos.
+    /// Bound to ⌥9.
+    func populateTipsDemo(tipsState: TipsState, petId: String) {
+        // Reset all tips state first so repeated ⌥9 presses don't stack
+        tipsState.reset()
+        TipsPersistence.shared.resetAll()
+
+        // Simulate some skill practice across the active pet's 4 skills
+        // Skill 0: mastered (5/5)
+        for _ in 0..<5 { tipsState.recordPractice(for: petId, index: 0) }
+        // Skill 1: in-progress (3/5)
+        for _ in 0..<3 { tipsState.recordPractice(for: petId, index: 1) }
+        // Skill 2: just started (1/5)
+        tipsState.recordPractice(for: petId, index: 2)
+        // Skill 3: untouched (0/5)
+
+        // Mark one setup item as completed
+        tipsState.markSetupCompleted(petId: petId, index: 0)
+        tipsState.markSetupCompleted(petId: petId, index: 1)
+
+        // Inject a mock daily guidance result
+        let isVi = language == .vi
+        tipsState.currentGuidance = GuidanceResult(
+            headline: isVi
+                ? "Tuần này bạn đang viết test nhiều hơn trước"
+                : "You're writing more tests this week than before",
+            body: isVi
+                ? "3 trong 5 session gần đây có test — tốt lắm. Thử thêm test cho edge case nữa nhé."
+                : "3 of your last 5 sessions included tests — nice. Try adding edge case coverage next.",
+            actionLabel: isVi ? "Dạy mình" : "Teach me",
+            mood: "proud",
+            sourcePatterns: [
+                isVi ? "test trong 3/5 session" : "tests in 3/5 sessions",
+                isVi ? "edge case chưa cover" : "uncovered edge cases"
+            ],
+            generatedAt: Date()
+        )
+    }
+
     /// "Panic" skip: forces all 4 milestones to be fired + reveals the
     /// reflection. Bound to ⌥0 for safety during live demo if something
     /// gets out of order.

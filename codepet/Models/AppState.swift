@@ -49,6 +49,9 @@ class AppState: ObservableObject {
     @Published var showWeeklyRecap: Bool = false
     /// Set by Skills tab to deep-link into a kingdom on the Home tab
     @Published var pendingKingdomId: Int? = nil
+    /// Set by Tips tab to pre-fill a chat prompt on the Reflection tab.
+    /// The Reflection chat view consumes and nils this after use.
+    @Published var pendingChatPrompt: String? = nil
     @Published var petEnergy: Int = 60
     @Published var petMood: String = "Idle"
     /// When true, Reflection tab shows the hardcoded "Sprout × Byte" demo

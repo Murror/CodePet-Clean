@@ -50,7 +50,7 @@ struct MainTabView: View {
                         case .reflection:
                             ReflectionTab()
                         case .tips:
-                            TipsMockupView()
+                            TipsTabView()
                         case .dictionary:
                             DictionaryView()
                         case .profile:

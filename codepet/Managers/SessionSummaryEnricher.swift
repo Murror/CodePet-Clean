@@ -71,15 +71,17 @@ final class SessionSummaryEnricher: ObservableObject {
             var summaryPayload: SummarizeSessionResponse.SummaryPayload?
             var model = ""
             var briefUpdate: String?
+            var projectOverview: String?
 
             for try await event in api.summarizeSessionStream(request) {
                 switch event {
                 case .started, .jsonDelta:
                     break
-                case .done(let payload, let m, let bu):
+                case .done(let payload, let m, let bu, let po):
                     summaryPayload = payload
                     model = m
                     briefUpdate = bu
+                    projectOverview = po
                 }
             }
 
@@ -102,19 +104,39 @@ final class SessionSummaryEnricher: ObservableObject {
                 logger.error("failed to persist session summary: \(error.localizedDescription)")
             }
 
-            // Auto-update project brief with changelog entry.
+            // Auto-update project brief: overview (description) + changelog entry.
             // Resolve the raw cwd to the canonical project root (ProjectStore keys
             // by resolved root, not raw cwd).
-            logger.info("Brief update pipeline: briefUpdate=\(briefUpdate ?? "<nil>"), rawPath=\(session.projectPath ?? "<nil>"), sessionId=\(session.id)")
+            logger.info("Brief update pipeline: briefUpdate=\(briefUpdate ?? "<nil>"), overview=\(projectOverview ?? "<nil>"), rawPath=\(session.projectPath ?? "<nil>")")
             if let ps = projectStore {
                 let resolvedPath = ps.resolvedProjectPath(for: session.projectPath, sessionId: session.id)
                 logger.info("Brief update resolved path: \(resolvedPath ?? "<nil>"), projectExists=\(ps.project(for: resolvedPath) != nil)")
                 if let projectPath = resolvedPath {
-                    appendBriefUpdate(briefUpdate, projectPath: projectPath, projectStore: ps)
+                    updateProjectBrief(
+                        overview: projectOverview,
+                        changelog: briefUpdate,
+                        projectPath: projectPath,
+                        projectStore: ps
+                    )
                 }
             } else {
                 logger.warning("Brief update skipped: projectStore is nil")
             }
+
+            // Record in pet memory for cross-session personalization
+            let resolvedForMemory = projectStore?.resolvedProjectPath(for: session.projectPath, sessionId: session.id) ?? session.projectPath
+            let durationMin: Int = {
+                guard let ended = session.endedAt else { return 0 }
+                return max(1, Int(ended.timeIntervalSince(session.startedAt) / 60))
+            }()
+            PetMemoryStore.shared.recordSessionEnd(
+                projectPath: resolvedForMemory,
+                sessionDate: session.endedAt ?? Date(),
+                durationMinutes: durationMin,
+                summary: payload.summary,
+                lesson: payload.lesson,
+                filesWorkedOn: session.filePaths
+            )
 
             return true
         } catch {
@@ -123,21 +145,47 @@ final class SessionSummaryEnricher: ObservableObject {
         }
     }
 
-    /// Appends a dated changelog entry to the project brief.
-    private func appendBriefUpdate(_ update: String?, projectPath: String, projectStore ps: ProjectStore) {
-        let trimmed = (update ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            logger.info("Brief update skipped: trimmed content is empty (raw=\(update ?? "<nil>"))")
-            return
+    /// Updates the project brief: replaces the description with a fresh overview
+    /// and appends a dated changelog entry.
+    private func updateProjectBrief(
+        overview: String?,
+        changelog: String?,
+        projectPath: String,
+        projectStore ps: ProjectStore
+    ) {
+        let currentBrief = ps.brief(for: projectPath)
+        let separator = "\n\n---\n"
+
+        // Split current brief into description + existing changelog
+        let parts: (desc: String, log: String)
+        if let sepRange = currentBrief.range(of: separator) {
+            parts = (
+                String(currentBrief[currentBrief.startIndex..<sepRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines),
+                String(currentBrief[sepRange.lowerBound...])
+            )
+        } else {
+            parts = (currentBrief.trimmingCharacters(in: .whitespacesAndNewlines), "")
         }
 
-        let dateStr = Self.briefDateFormatter.string(from: Date())
-        let entry = "\n\n---\n**\(dateStr)**: \(trimmed)"
+        // Update description with new overview (if provided and non-empty)
+        let overviewTrimmed = (overview ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let newDesc = overviewTrimmed.isEmpty ? parts.desc : overviewTrimmed
 
-        let currentBrief = ps.brief(for: projectPath)
-        let updatedBrief = currentBrief + entry
+        // Append new changelog entry (if provided and non-empty)
+        let changelogTrimmed = (changelog ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        var newLog = parts.log
+        if !changelogTrimmed.isEmpty {
+            let dateStr = Self.briefDateFormatter.string(from: Date())
+            newLog += "\n\n---\n**\(dateStr)**: \(changelogTrimmed)"
+        }
+
+        let updatedBrief = newDesc + newLog
+        guard updatedBrief != currentBrief else {
+            logger.info("Brief unchanged, skipping update")
+            return
+        }
         ps.updateBrief(projectId: projectPath, brief: updatedBrief)
-        logger.info("Auto-updated project brief for \(projectPath): +\(trimmed.count) chars")
+        logger.info("Updated project brief for \(projectPath): desc=\(overviewTrimmed.isEmpty ? "unchanged" : "updated"), log=\(changelogTrimmed.isEmpty ? "unchanged" : "+entry")")
     }
 
     private static let briefDateFormatter: DateFormatter = {
@@ -167,7 +215,8 @@ final class SessionSummaryEnricher: ObservableObject {
             language: language,
             turns: turns,
             petPersona: persona,
-            userBrief: NarrativeEnricher.currentUserBrief(projectPath: session.projectPath)
+            userBrief: NarrativeEnricher.currentUserBrief(projectPath: session.projectPath),
+            petMemory: PetMemoryStore.shared.promptPayload(for: session.projectPath)
         )
     }
 }

@@ -12,6 +12,7 @@ struct SummarizeTurnRequest: Codable {
     let rawSummary: String
     let petPersona: PetPersonaDTO?
     let userBrief: String?     // user's project brief from welcome screen
+    let petMemory: String?     // compact cross-session memory for personalization
 
     struct EventDTO: Codable {
         let time: String       // "HH:mm"
@@ -50,6 +51,7 @@ struct SummarizeTurnRequest: Codable {
         case rawSummary = "raw_summary"
         case petPersona = "pet_persona"
         case userBrief = "user_brief"
+        case petMemory = "pet_memory"
     }
 }
 
@@ -107,6 +109,7 @@ struct SummarizeSessionRequest: Codable {
     let turns: [TurnDTO]
     let petPersona: SummarizeTurnRequest.PetPersonaDTO?
     let userBrief: String?
+    let petMemory: String?
 
     struct TurnDTO: Codable {
         let prompt: String
@@ -128,6 +131,7 @@ struct SummarizeSessionRequest: Codable {
         case turns
         case petPersona = "pet_persona"
         case userBrief = "user_brief"
+        case petMemory = "pet_memory"
     }
 }
 
@@ -216,6 +220,74 @@ struct ChatSessionRequest: Codable {
     }
 }
 
+// MARK: - Guidance DTOs
+
+struct GenerateGuidanceRequest: Codable {
+    let language: String       // "vi" | "en"
+    let petPersona: SummarizeTurnRequest.PetPersonaDTO?
+    let recentNarratives: [NarrativeSummaryDTO]
+    let skillProgress: [SkillProgressDTO]?
+    let petMemory: String?
+
+    struct NarrativeSummaryDTO: Codable {
+        let title: String
+        let whatHappened: String
+        let lesson: String?
+        let mood: String?
+
+        enum CodingKeys: String, CodingKey {
+            case title
+            case whatHappened = "what_happened"
+            case lesson, mood
+        }
+    }
+
+    struct SkillProgressDTO: Codable {
+        let skillId: String
+        let practiceCount: Int
+        let isMastered: Bool
+
+        enum CodingKeys: String, CodingKey {
+            case skillId = "skill_id"
+            case practiceCount = "practice_count"
+            case isMastered = "is_mastered"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case language
+        case petPersona = "pet_persona"
+        case recentNarratives = "recent_narratives"
+        case skillProgress = "skill_progress"
+        case petMemory = "pet_memory"
+    }
+}
+
+struct GenerateGuidanceResponse: Codable {
+    let guidance: GuidancePayload
+    let model: String
+    let generatedAt: String
+
+    struct GuidancePayload: Codable, Equatable {
+        let headline: String
+        let body: String
+        let actionLabel: String
+        let mood: String
+        let sourcePatterns: [String]
+
+        enum CodingKeys: String, CodingKey {
+            case headline, body, mood
+            case actionLabel = "action_label"
+            case sourcePatterns = "source_patterns"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case guidance, model
+        case generatedAt = "generated_at"
+    }
+}
+
 // MARK: - Narrative Stream DTOs
 
 enum NarrativeStreamEvent: Equatable {
@@ -246,6 +318,7 @@ protocol ReflectionAPIClientProtocol {
     func summarizeSession(_ request: SummarizeSessionRequest) async throws -> SummarizeSessionResponse
     func summarizeSessionStream(_ request: SummarizeSessionRequest) -> AsyncThrowingStream<SessionSummaryStreamEvent, Error>
     func chatSessionStream(_ request: ChatSessionRequest) -> AsyncThrowingStream<ChatStreamEvent, Error>
+    func fetchGuidance(_ request: GenerateGuidanceRequest) async throws -> GenerateGuidanceResponse
 }
 
 enum ReflectionAPIError: Error {
@@ -261,6 +334,7 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
     static let endpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/summarizeTurn")!
     private static let sessionEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/summarizeSession")!
     private static let chatEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/chatSession")!
+    private static let guidanceEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/generateGuidance")!
 
     private let session: URLSession
     private let authTokenProvider: () async throws -> String
@@ -620,5 +694,33 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
         default:
             break
         }
+    }
+
+    // MARK: - Guidance (non-streaming)
+
+    func fetchGuidance(_ request: GenerateGuidanceRequest) async throws -> GenerateGuidanceResponse {
+        let token = try await authTokenProvider()
+
+        var urlRequest = URLRequest(url: Self.guidanceEndpoint)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await session.data(for: urlRequest)
+        guard let http = response as? HTTPURLResponse else {
+            throw ReflectionAPIError.malformedResponse
+        }
+
+        if http.statusCode == 200 {
+            do {
+                return try JSONDecoder().decode(GenerateGuidanceResponse.self, from: data)
+            } catch {
+                throw ReflectionAPIError.malformedResponse
+            }
+        }
+
+        let parsed = try? JSONDecoder().decode(SummarizeTurnError.self, from: data)
+        throw ReflectionAPIError.http(status: http.statusCode, body: parsed)
     }
 }

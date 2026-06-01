@@ -12,6 +12,7 @@ struct ReflectionTab: View {
     @EnvironmentObject var chatController: SessionChatController
     @EnvironmentObject var demo: DemoScriptController
     @EnvironmentObject var projectStore: ProjectStore
+    @EnvironmentObject var healthNudge: HealthNudgeController
     @Environment(\.uiLanguage) private var uiLanguage
 
     @State private var selectedSessionId: String? = nil
@@ -100,29 +101,36 @@ struct ReflectionTab: View {
                     .frame(width: 280)
             }
 
-            Divider()
-                .background(ReflectionTheme.borderLight)
-
             Group {
                 if let session = selectedSession {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 36) {
-                            if session.isWelcome {
-                                WelcomeSessionView()
-                            } else {
-                                // Project brief card — shown when session belongs to a detected project
-                                if let resolved = projectStore.resolvedProjectPath(for: session.projectPath, sessionId: session.id),
-                                   !resolved.isEmpty {
-                                    ProjectBriefCard(projectPath: resolved)
-                                }
-                                petHeader(for: session)
-                                sessionBody(for: session)
-                                footer
-                            }
+                    VStack(spacing: 0) {
+                        // Health nudge banner — slides in when the pet wants the user to take a break
+                        if let nudge = healthNudge.activeNudge {
+                            HealthNudgeBanner(nudge: nudge, onDismiss: { healthNudge.dismiss() })
+                                .padding(.horizontal, 40)
+                                .padding(.top, 12)
+                                .padding(.bottom, 4)
                         }
-                        .padding(.horizontal, 40)
-                        .padding(.vertical, 32)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 36) {
+                                if session.isWelcome {
+                                    WelcomeSessionView()
+                                } else {
+                                    // Project brief card — shown when session belongs to a detected project
+                                    if let resolved = projectStore.resolvedProjectPath(for: session.projectPath, sessionId: session.id),
+                                       !resolved.isEmpty {
+                                        ProjectBriefCard(projectPath: resolved)
+                                    }
+                                    petHeader(for: session)
+                                    sessionBody(for: session)
+                                    footer
+                                }
+                            }
+                            .padding(.horizontal, 40)
+                            .padding(.vertical, 32)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                     }
                 } else {
                     emptyState
@@ -185,10 +193,33 @@ struct ReflectionTab: View {
             // Initial data load — runs once on first render.
             recomputeSessionData()
             registerNewProjects()
+
+            // Tips tab deep-link: when arriving on Reflection with a pending
+            // chat prompt, auto-select the most recent real session and open chat.
+            // This must live in onAppear (not onChange) because MainTabView uses a
+            // switch statement that recreates ReflectionTab on every tab change,
+            // so onChange(of: selectedTab) never fires — the value is already
+            // .reflection by the time the new view instance is created.
+            if appState.pendingChatPrompt != nil {
+                if let mostRecent = cachedSessions.first(where: { !$0.isWelcome }) {
+                    selectedSessionId = mostRecent.id
+                    Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 400_000_000) // 0.4s
+                        withAnimation(.easeOut(duration: 0.22)) {
+                            chatExpanded = true
+                        }
+                    }
+                }
+            }
         }
         // --- Data version bumpers: each upstream @Published change increments
         // the version counter. Only ONE recompute fires per runloop cycle.
-        .onChange(of: reflectionStore.rawJSONLEvents.count) { _ in dataVersion += 1 }
+        .onChange(of: reflectionStore.rawJSONLEvents.count) { _ in
+            dataVersion += 1
+            // New coding events arrived — mark the session as active so the
+            // health nudge timer starts counting.
+            healthNudge.markActive()
+        }
         .onChange(of: narrativeStore.narratives.count) { _ in dataVersion += 1 }
         .onChange(of: summaryStore.summaries.count) { _ in dataVersion += 1 }
         .onChange(of: enricher.failedTurns.count) { _ in dataVersion += 1 }
@@ -497,7 +528,12 @@ struct ReflectionTab: View {
         }
         .frame(width: 40)
         .frame(maxHeight: .infinity)
-        .background(Color(red: 0xFD / 255.0, green: 0xFC / 255.0, blue: 0xF8 / 255.0))
+        .background(
+            LinearGradient(
+                colors: [ReflectionTheme.sidebarTop, ReflectionTheme.sidebarBottom],
+                startPoint: .top, endPoint: .bottom
+            )
+        )
     }
 
     // MARK: - Full sessions sidebar
@@ -513,8 +549,12 @@ struct ReflectionTab: View {
                 } label: {
                     Image(systemName: "sidebar.left")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(ReflectionTheme.mutedText)
-                        .frame(width: 24, height: 24)
+                        .foregroundColor(ReflectionTheme.accent)
+                        .frame(width: 28, height: 28)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(ReflectionTheme.accent.opacity(0.12))
+                        )
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -522,7 +562,7 @@ struct ReflectionTab: View {
 
                 if !sidebarCollapsed {
                     Text(uiLanguage == .vi ? "Phiên" : "Sessions")
-                        .font(ReflectionTheme.serif(16, weight: .medium))
+                        .font(ReflectionTheme.serif(16, weight: .semibold))
                         .foregroundColor(ReflectionTheme.primaryText)
                 }
                 Spacer()
@@ -535,12 +575,6 @@ struct ReflectionTab: View {
                 VStack(alignment: .leading, spacing: 18) {
                     // Welcome group — always pinned at top
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(uiLanguage == .vi ? "CHÀO MỪNG" : "WELCOME")
-                            .font(CodepetTheme.pixel(12))
-                            .tracking(1.0)
-                            .foregroundColor(ReflectionTheme.mutedText)
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 2)
                         welcomeSidebarRow(Session.makeWelcome())
                     }
 
@@ -553,7 +587,17 @@ struct ReflectionTab: View {
             }
         }
         .frame(maxHeight: .infinity, alignment: .top)
-        .background(Color(red: 0xFD / 255.0, green: 0xFC / 255.0, blue: 0xF8 / 255.0))
+        .background(
+            LinearGradient(
+                colors: [ReflectionTheme.sidebarTop, ReflectionTheme.sidebarBottom],
+                startPoint: .top, endPoint: .bottom
+            )
+        )
+        .overlay(alignment: .trailing) {
+            Rectangle()
+                .fill(ReflectionTheme.sidebarBorder)
+                .frame(width: 0.5)
+        }
     }
 
     /// A single collapsible project group. Sessions stay in the view tree
@@ -573,33 +617,32 @@ struct ReflectionTab: View {
                     }
                 }
             } label: {
-                HStack(spacing: 5) {
+                HStack(spacing: 6) {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(ReflectionTheme.mutedText)
+                        .foregroundColor(ReflectionTheme.accent.opacity(0.6))
                         .frame(width: 10)
                         .rotationEffect(.degrees(isCollapsed ? 0 : 90))
-                    Image(systemName: group.projectPath != nil ? "folder.fill" : "tray")
-                        .font(.system(size: 10))
-                        .foregroundColor(ReflectionTheme.mutedText)
+                    Circle()
+                        .fill(ReflectionTheme.accent)
+                        .frame(width: 6, height: 6)
                     Text(group.displayName.uppercased())
                         .font(CodepetTheme.pixel(12))
-                        .tracking(1.0)
-                        .foregroundColor(ReflectionTheme.mutedText)
+                        .tracking(1.2)
+                        .foregroundColor(ReflectionTheme.accent)
                     Spacer()
                     Text("\(group.sessions.count)")
-                        .font(ReflectionTheme.sans(10, weight: .medium))
-                        .foregroundColor(ReflectionTheme.mutedText.opacity(0.7))
+                        .font(ReflectionTheme.sans(9, weight: .semibold))
+                        .foregroundColor(ReflectionTheme.accent)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
                         .background(
                             Capsule()
-                                .fill(ReflectionTheme.mutedText.opacity(0.1))
+                                .fill(ReflectionTheme.accent.opacity(0.12))
                         )
-                        .opacity(isCollapsed ? 1 : 0)
                 }
                 .padding(.horizontal, 16)
-                .padding(.vertical, 4)
+                .padding(.vertical, 5)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -625,17 +668,18 @@ struct ReflectionTab: View {
             selectedSessionId = session.id
         } label: {
             HStack(alignment: .center, spacing: 10) {
-                Image(systemName: "sparkle")
-                    .font(.pixelSystem(size: 13, weight: .semibold))
-                    .foregroundColor(ReflectionTheme.accent)
-                    .frame(width: 22, height: 22)
-                    .background(
-                        Circle().fill(ReflectionTheme.accent.opacity(0.12))
-                    )
+                ZStack {
+                    Circle()
+                        .fill(ReflectionTheme.accent.opacity(0.15))
+                        .frame(width: 28, height: 28)
+                    Image(systemName: "sparkle")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(ReflectionTheme.accent)
+                }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(uiLanguage == .vi ? "Bắt đầu" : "Get started")
                         .font(ReflectionTheme.sans(12.5, weight: .semibold))
-                        .foregroundColor(ReflectionTheme.primaryText)
+                        .foregroundColor(ReflectionTheme.accent)
                     Text(uiLanguage == .vi
                          ? "Kết nối Claude Code để bắt đầu"
                          : "Connect Claude Code to begin")
@@ -647,10 +691,10 @@ struct ReflectionTab: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: 10)
                     .fill(isSelected
                           ? LinearGradient(colors: [ReflectionTheme.accent.opacity(0.18), ReflectionTheme.accent.opacity(0.08)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                          : LinearGradient(colors: [Color.clear, Color.clear], startPoint: .topLeading, endPoint: .bottomTrailing))
+                          : LinearGradient(colors: [ReflectionTheme.accent.opacity(0.05), Color.clear], startPoint: .topLeading, endPoint: .bottomTrailing))
             )
             .padding(.horizontal, 8)
         }
@@ -660,21 +704,21 @@ struct ReflectionTab: View {
     private func sidebarSessionRow(_ session: Session) -> some View {
         let isSelected = session.id == selectedSessionId
         let isHovered = session.id == hoveredSessionId
+        let isLive = sessionStateColor(session) == ReflectionTheme.accent
         return Button {
             selectedSessionId = session.id
-            // Ensure the group containing this session stays visible
-            // (no-op if already expanded — Set.remove is safe on missing keys)
         } label: {
             HStack(alignment: .top, spacing: 10) {
                 Circle()
                     .fill(sessionStateColor(session))
-                    .frame(width: 6, height: 6)
-                    .padding(.top, 7)
+                    .frame(width: isLive ? 8 : 6, height: isLive ? 8 : 6)
+                    .padding(.top, isLive ? 6 : 7)
+                    .shadow(color: isLive ? ReflectionTheme.accent.opacity(0.5) : .clear, radius: isLive ? 4 : 0)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(sessionRowTitle(for: session))
                         .font(ReflectionTheme.sans(12.5, weight: isSelected ? .semibold : .regular))
-                        .foregroundColor(ReflectionTheme.primaryText)
+                        .foregroundColor(isSelected ? ReflectionTheme.primaryText : ReflectionTheme.secondaryText)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
@@ -689,13 +733,19 @@ struct ReflectionTab: View {
             .padding(.horizontal, 12)
             .padding(.vertical, 9)
             .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? ReflectionTheme.accent.opacity(0.10)
-                          : (isHovered ? Color.black.opacity(0.03) : Color.clear))
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isSelected
+                          ? LinearGradient(
+                              colors: [ReflectionTheme.accent.opacity(0.15), ReflectionTheme.accent.opacity(0.06)],
+                              startPoint: .topLeading, endPoint: .bottomTrailing)
+                          : LinearGradient(
+                              colors: [isHovered ? Color.black.opacity(0.03) : Color.clear,
+                                       isHovered ? Color.black.opacity(0.01) : Color.clear],
+                              startPoint: .topLeading, endPoint: .bottomTrailing))
             )
             .overlay(alignment: .leading) {
                 if isSelected {
-                    RoundedRectangle(cornerRadius: 1.5)
+                    RoundedRectangle(cornerRadius: 2)
                         .fill(ReflectionTheme.accent)
                         .frame(width: 3)
                         .padding(.vertical, 6)
@@ -743,18 +793,61 @@ struct ReflectionTab: View {
 
     @ViewBuilder
     private func petHeader(for session: Session) -> some View {
-        HStack(alignment: .center, spacing: 12) {
-            PetAvatar(mood: .calm, size: 56)
-            VStack(alignment: .leading, spacing: 4) {
-                Text(petName)
-                    .font(ReflectionTheme.serif(18, weight: .medium))
-                    .foregroundColor(ReflectionTheme.primaryText)
-                Text(dateDisplay(session.startedAt))
-                    .font(ReflectionTheme.sans(11))
-                    .foregroundColor(ReflectionTheme.mutedText)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: 12) {
+                PetAvatar(mood: .calm, size: 56)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(petName)
+                        .font(ReflectionTheme.serif(18, weight: .medium))
+                        .foregroundColor(ReflectionTheme.primaryText)
+                    Text(dateDisplay(session.startedAt))
+                        .font(ReflectionTheme.sans(11))
+                        .foregroundColor(ReflectionTheme.mutedText)
+                }
+                Spacer()
             }
-            Spacer()
+
+            // "Last time on this project" reminder — shows previous session's
+            // summary so the user remembers where they left off.
+            if let prev = previousSession(for: session),
+               let summary = prev.summary {
+                let durationMinutes: Int? = {
+                    guard let ended = prev.endedAt else { return nil }
+                    let mins = Int(ended.timeIntervalSince(prev.startedAt) / 60)
+                    return mins > 0 ? mins : nil
+                }()
+                LastTimeReminderView(
+                    summary: summary,
+                    sessionDate: prev.endedAt ?? prev.startedAt,
+                    sessionDurationMinutes: durationMinutes
+                )
+                .padding(.leading, 68) // align with text, past the 56px avatar + 12px gap
+                .padding(.top, 12)
+            }
         }
+    }
+
+    /// Find the session immediately before `session` in the same project.
+    /// Returns nil if this is the first session or no previous session has a summary.
+    private func previousSession(for session: Session) -> Session? {
+        let resolvedPath = projectStore.resolvedProjectPath(for: session.projectPath, sessionId: session.id)
+        guard let path = resolvedPath, !path.isEmpty else { return nil }
+
+        // Find the project group that contains this session
+        guard let group = cachedGroups.first(where: { $0.projectPath == path }) else { return nil }
+
+        // Sessions in the group are sorted newest-first; we need the one right after `session`
+        // (i.e. the previous session chronologically).
+        let sorted = group.sessions.sorted {
+            ($0.turns.last?.startedAt ?? .distantPast) > ($1.turns.last?.startedAt ?? .distantPast)
+        }
+        guard let idx = sorted.firstIndex(where: { $0.id == session.id }),
+              idx + 1 < sorted.count else { return nil }
+
+        let candidate = sorted[idx + 1]
+        // Only show if the previous session actually has a summary
+        guard candidate.summary != nil else { return nil }
+        return candidate
     }
 
     // MARK: - Session body
@@ -788,27 +881,40 @@ struct ReflectionTab: View {
     }
 
     private func sessionHeaderStrip(for session: Session) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        HStack(spacing: 8) {
+            Image(systemName: "clock")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(ReflectionTheme.stripText)
             Text(sessionMetaLabel(for: session))
-                .font(ReflectionTheme.sans(13, weight: .medium))
-                .foregroundColor(ReflectionTheme.primaryText)
-            Rectangle()
-                .fill(ReflectionTheme.borderLight)
-                .frame(maxWidth: .infinity)
-                .frame(height: 1)
+                .font(ReflectionTheme.sans(12, weight: .medium))
+                .foregroundColor(ReflectionTheme.stripText)
+            // Live badge for active (non-ended) sessions
+            if session.endedAt == nil && !session.turns.isEmpty {
+                Text("LIVE")
+                    .font(ReflectionTheme.sans(9, weight: .bold))
+                    .tracking(0.5)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule().fill(ReflectionTheme.liveBadge)
+                    )
+            }
+            Spacer()
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(
+            RoundedRectangle(cornerRadius: 10)
+                .fill(ReflectionTheme.stripBackground)
+        )
     }
 
     @ViewBuilder
     private func turnSection(for turn: Turn, isLast: Bool) -> some View {
         VStack(alignment: .leading, spacing: 20) {
-            // Turn title + time metadata
+            // Turn time metadata (title now lives inside the narrative bubble)
             VStack(alignment: .leading, spacing: 6) {
-                if let title = turn.narrative?.title {
-                    Text(title)
-                        .font(ReflectionTheme.serif(18, weight: .medium))
-                        .foregroundColor(ReflectionTheme.primaryText)
-                }
                 HStack(spacing: 6) {
                     Text(timeDisplay(turn.startedAt))
                         .font(ReflectionTheme.sans(12))
