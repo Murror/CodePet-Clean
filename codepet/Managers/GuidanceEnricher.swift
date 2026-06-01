@@ -84,12 +84,17 @@ final class GuidanceEnricher: ObservableObject {
             let response = try await api.fetchGuidance(request)
 
             // Convert API response → TipsState model
+            let expertQuote = response.guidance.expertQuote?.isEmpty == false ? response.guidance.expertQuote : nil
+            let expertName = response.guidance.expertName?.isEmpty == false ? response.guidance.expertName : nil
+
             let guidance = GuidanceResult(
                 headline: response.guidance.headline,
                 body: response.guidance.body,
                 actionLabel: response.guidance.actionLabel.isEmpty ? nil : response.guidance.actionLabel,
                 mood: response.guidance.mood,
                 sourcePatterns: response.guidance.sourcePatterns,
+                expertQuote: expertQuote,
+                expertName: expertName,
                 generatedAt: Date()
             )
 

@@ -146,6 +146,57 @@ struct GuidanceCardView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .lineSpacing(3)
 
+                    // Expert quote callout
+                    if let quote = guidance.expertQuote, !quote.isEmpty,
+                       let name = guidance.expertName, !name.isEmpty {
+                        VStack(alignment: .leading, spacing: 6) {
+                            // Quote
+                            HStack(alignment: .top, spacing: 8) {
+                                Rectangle()
+                                    .fill(Color.white)
+                                    .frame(width: 3)
+                                    .cornerRadius(1.5)
+
+                                Text("\u{201C}\(quote)\u{201D}")
+                                    .font(ReflectionTheme.serif(13, weight: .medium))
+                                    .foregroundColor(textPrimary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .italic()
+                            }
+
+                            // Attribution
+                            HStack(spacing: 6) {
+                                // Mini avatar
+                                ZStack {
+                                    PixelStaircaseRectangle(blockSize: 1, steps: 1)
+                                        .fill(Color.white)
+                                    Text("AT")
+                                        .font(.pixelSystem(size: 7, weight: .bold))
+                                        .foregroundColor(cardColor)
+                                }
+                                .frame(width: 18, height: 18)
+                                .overlay(
+                                    PixelStaircaseRectangle(blockSize: 1, steps: 1)
+                                        .stroke(textPrimary.opacity(0.3), lineWidth: 1)
+                                )
+
+                                Text(name)
+                                    .font(.pixelSystem(size: 10, weight: .bold))
+                                    .foregroundColor(textPrimary)
+
+                                Text("\u{00B7} from real experience")
+                                    .font(.pixelSystem(size: 10))
+                                    .foregroundColor(textSecondary)
+                            }
+                        }
+                        .padding(12)
+                        .background(
+                            PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                                .fill(Color.black.opacity(0.12))
+                        )
+                        .padding(.top, 4)
+                    }
+
                     // Source patterns
                     if !guidance.sourcePatterns.isEmpty {
                         HStack(spacing: 6) {

@@ -289,11 +289,15 @@ struct GenerateGuidanceResponse: Codable {
         let actionLabel: String
         let mood: String
         let sourcePatterns: [String]
+        let expertQuote: String?
+        let expertName: String?
 
         enum CodingKeys: String, CodingKey {
             case headline, body, mood
             case actionLabel = "action_label"
             case sourcePatterns = "source_patterns"
+            case expertQuote = "expert_quote"
+            case expertName = "expert_name"
         }
     }
 

@@ -30,6 +30,10 @@ struct GuidanceResult: Codable, Equatable {
     let mood: String               // NarrativeMood raw value
     /// Brief list of patterns the AI noticed (e.g. "skipped tests twice").
     let sourcePatterns: [String]
+    /// First-person quote from the expert whose knowledge informed this guidance.
+    let expertQuote: String?
+    /// The expert's name (e.g. "Astro Tran").
+    let expertName: String?
     let generatedAt: Date
 
     /// Whether this guidance is still fresh (generated today).
