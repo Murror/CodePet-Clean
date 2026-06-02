@@ -113,6 +113,17 @@ struct CodePetApp: App {
                         demoController.reset()
                     }
                 }
+                // Auto-progress skills when the AI detects them in coding sessions
+                .onReceive(reflectionComposition.enricher.$lastDetectedSkills) { skills in
+                    guard !skills.isEmpty else { return }
+                    let petId = appState.activeChar
+                    let skillMap = skillIndexMap(for: petId)
+                    for skill in skills {
+                        if let index = skillMap[skill.skillId] {
+                            tipsState.recordPractice(for: petId, index: index)
+                        }
+                    }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in
                     // Save game state when app goes to background
                     gameState.forceSave()
@@ -178,5 +189,40 @@ struct CodePetApp: App {
             MenuBarView()
                 .environmentObject(appState)
         }
+    }
+
+    /// Maps AI-detected skill IDs to the pet's skill tile index.
+    /// The AI outputs IDs like "component_composition"; the TipsState
+    /// tracks progress by pet + index (e.g. "nova_0").
+    private func skillIndexMap(for petId: String) -> [String: Int] {
+        guard let tiles = TipsContent.tipSkillsByPet[petId] else { return [:] }
+        // Build a lookup from normalized skill name → index
+        var map: [String: Int] = [:]
+        let knownIds = [
+            "component_composition",
+            "loading_error_states",
+            "form_validation_ux",
+            "accessibility_basics"
+        ]
+        // Map each known skill ID to the tile index whose title best matches
+        for (i, tile) in tiles.enumerated() {
+            let title = tile.title.en.lowercased()
+            for knownId in knownIds {
+                let readable = knownId.replacingOccurrences(of: "_", with: " ")
+                if title.contains(readable) || readable.contains(title.prefix(10).lowercased()) {
+                    map[knownId] = i
+                }
+            }
+        }
+        // Fallback: direct index mapping for Nova's known layout
+        if map.isEmpty && petId == "nova" {
+            map = [
+                "component_composition": 0,
+                "loading_error_states": 1,
+                "form_validation_ux": 2,
+                "accessibility_basics": 3
+            ]
+        }
+        return map
     }
 }

@@ -18,6 +18,11 @@ final class NarrativeEnricher: ObservableObject {
     /// replacing the ~8s blank wait.
     @Published private(set) var enrichingTurns: Set<String> = []
 
+    /// Skills detected in the most recent narrative. The UI layer observes
+    /// this and auto-progresses the corresponding skills in TipsState.
+    /// Reset to empty after each enrichment.
+    @Published private(set) var lastDetectedSkills: [DetectedSkill] = []
+
     private let api: ReflectionAPIClientProtocol
     private let store: NarrativeStore
     var language: String
@@ -84,6 +89,14 @@ final class NarrativeEnricher: ObservableObject {
                 } catch {
                     logger.error("failed to persist narrative: turn=\(turn.id) error=\(error.localizedDescription)")
                 }
+
+                // Publish detected skills for the UI to handle
+                let strongSkills = narrative.detectedSkills.filter { $0.confidence == "strong" }
+                if !strongSkills.isEmpty {
+                    lastDetectedSkills = strongSkills
+                    logger.info("detected \(strongSkills.count) skills: \(strongSkills.map(\.skillId).joined(separator: ", "))")
+                }
+
                 return .ready
             } catch let err as ReflectionAPIError {
                 switch err {
@@ -145,6 +158,11 @@ final class NarrativeEnricher: ObservableObject {
             throw ReflectionAPIError.malformedResponse
         }
 
+        // Convert detected skill DTOs to model objects
+        let skills: [DetectedSkill] = (payload.detectedSkills ?? []).map { dto in
+            DetectedSkill(skillId: dto.skillId, confidence: dto.confidence, evidence: dto.evidence)
+        }
+
         return Narrative(
             title: payload.title,
             whatYouWanted: payload.whatYouWanted,
@@ -152,6 +170,7 @@ final class NarrativeEnricher: ObservableObject {
             lesson: payload.lesson,
             nextSteps: payload.nextSteps ?? "",
             mood: payload.mood ?? "idle",
+            detectedSkills: skills,
             model: model,
             generatedAt: Date(),
             schemaVersion: 1

@@ -61,13 +61,25 @@ struct SummarizeTurnResponse: Codable {
     let model: String
     let cacheHit: Bool
 
+    struct DetectedSkillDTO: Codable, Equatable {
+        let skillId: String
+        let confidence: String  // "strong" | "weak"
+        let evidence: String
+
+        enum CodingKeys: String, CodingKey {
+            case skillId = "skill_id"
+            case confidence, evidence
+        }
+    }
+
     struct NarrativePayload: Codable, Equatable {
         let title: String
         let whatYouWanted: String
         let whatHappened: String
         let lesson: String
         let nextSteps: String?
-        let mood: String?  // "idle" | "excited" | "thinking" | "proud" | "concerned" | "cheering"
+        let mood: String?
+        let detectedSkills: [DetectedSkillDTO]?
 
         enum CodingKeys: String, CodingKey {
             case title
@@ -76,6 +88,7 @@ struct SummarizeTurnResponse: Codable {
             case lesson
             case nextSteps = "next_steps"
             case mood
+            case detectedSkills = "detected_skills"
         }
     }
 
