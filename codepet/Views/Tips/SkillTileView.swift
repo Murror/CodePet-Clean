@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Redesigned skill tile — shows AI-detected practice evidence and
-/// suggested next learning activities. No manual "Mark practiced" button.
+/// Redesigned skill tile — bold brand colors, AI-detected practice evidence,
+/// and suggested next learning activities. Inspired by vibrant card-based UIs.
 struct SkillTileView: View {
     @EnvironmentObject var tipsState: TipsState
     @EnvironmentObject var narrativeStore: NarrativeStore
@@ -12,7 +12,6 @@ struct SkillTileView: View {
     let index: Int
     let tile: TipSkillTile
 
-    /// Called when user taps a case study chapter link.
     var onOpenChapter: ((CaseStudy, Chapter) -> Void)?
 
     private var progress: SkillProgress {
@@ -21,14 +20,33 @@ struct SkillTileView: View {
 
     private let dark = Color(hex: "#2D2B26")
 
-    /// The AI skill ID that maps to this tile index.
+    // ── Brand color per skill ──
+    private var skillColor: Color {
+        let colors = [
+            Color(hex: "#9538CF"),  // Purple — component composition
+            Color(hex: "#1C40CF"),  // Blue — loading & error states
+            Color(hex: "#029902"),  // Green — form validation
+            Color(hex: "#F58345"),  // Orange — accessibility
+        ]
+        return colors[index % colors.count]
+    }
+
+    private var skillColorLight: Color {
+        let colors = [
+            Color(hex: "#EEEDFE"),
+            Color(hex: "#E6F1FB"),
+            Color(hex: "#E1F5EE"),
+            Color(hex: "#FAECE7"),
+        ]
+        return colors[index % colors.count]
+    }
+
     private var skillId: String {
         let ids = ["component_composition", "loading_error_states", "form_validation_ux", "accessibility_basics"]
         guard index < ids.count else { return "" }
         return ids[index]
     }
 
-    /// Recent narratives that detected this skill, sorted most recent first.
     private var recentEvidence: [(evidence: String, date: Date)] {
         narrativeStore.narratives.values
             .sorted { $0.generatedAt > $1.generatedAt }
@@ -41,7 +59,6 @@ struct SkillTileView: View {
             .map { $0 }
     }
 
-    /// Case study chapters that teach this skill.
     private var relatedChapters: [(caseStudy: CaseStudy, chapter: Chapter)] {
         let mapping: [String: [String]] = [
             "component_composition": ["cs_codepet_mvp_ch2"],
@@ -63,72 +80,121 @@ struct SkillTileView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // ── Header: icon + title + score ──
-            HStack(spacing: 8) {
-                Image(systemName: tile.icon)
-                    .font(.pixelSystem(size: 16, weight: .medium))
-                    .foregroundColor(progress.isMastered ? ReflectionTheme.brandGreen : ReflectionTheme.accent)
+            // ── Colored banner with icon ──
+            ZStack {
+                skillColor
 
+                // Decorative circles
+                Circle()
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 60, height: 60)
+                    .offset(x: -40, y: -20)
+                Circle()
+                    .fill(Color.white.opacity(0.05))
+                    .frame(width: 40, height: 40)
+                    .offset(x: 50, y: 15)
+
+                HStack {
+                    // Icon in white pixel square
+                    ZStack {
+                        PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                            .fill(Color.white)
+                        Image(systemName: tile.icon)
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(skillColor)
+                    }
+                    .frame(width: 36, height: 36)
+                    .overlay(
+                        PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                            .stroke(dark, lineWidth: 2)
+                    )
+
+                    Spacer()
+
+                    // Progress dots (on banner)
+                    HStack(spacing: 4) {
+                        ForEach(0..<5, id: \.self) { dotIndex in
+                            Circle()
+                                .fill(dotIndex < progress.practiceCount
+                                      ? Color.white
+                                      : Color.white.opacity(0.25))
+                                .frame(width: 7, height: 7)
+                        }
+                    }
+
+                    // Score or mastered badge
+                    if progress.isMastered {
+                        Text(uiLanguage == .vi ? "Thành thạo" : "Mastered")
+                            .font(.pixelSystem(size: 9, weight: .bold))
+                            .foregroundColor(skillColor)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(
+                                PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                                    .fill(Color.white)
+                            )
+                            .overlay(
+                                PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                                    .stroke(dark, lineWidth: 1.5)
+                            )
+                    } else {
+                        Text("\(progress.practiceCount)/5")
+                            .font(.pixelSystem(size: 11, weight: .bold))
+                            .foregroundColor(Color.white.opacity(0.8))
+                    }
+                }
+                .padding(.horizontal, 14)
+            }
+            .frame(height: 60)
+            .clipped()
+
+            // ── Body: title + evidence + next ──
+            VStack(alignment: .leading, spacing: 0) {
+                // Title
                 Text(tile.title(uiLanguage))
                     .font(.pixelSystem(size: 14, weight: .bold))
-                    .foregroundColor(ReflectionTheme.primaryText)
-                    .lineLimit(1)
+                    .foregroundColor(dark)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 4)
 
-                Spacer()
+                // Hint
+                Text(tile.hint(uiLanguage))
+                    .font(.pixelSystem(size: 10))
+                    .foregroundColor(dark.opacity(0.5))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 10)
 
-                if progress.isMastered {
-                    Text(uiLanguage == .vi ? "Thành thạo" : "Mastered")
-                        .font(.pixelSystem(size: 10, weight: .bold))
-                        .foregroundColor(ReflectionTheme.brandGreen)
+                // ── Evidence or empty state ──
+                if recentEvidence.isEmpty {
+                    emptyState
                 } else {
-                    Text("\(progress.practiceCount)/5")
-                        .font(.pixelSystem(size: 11))
-                        .foregroundColor(ReflectionTheme.mutedText)
+                    evidenceSection
+                }
+
+                // ── Up next ──
+                if !progress.isMastered && !relatedChapters.isEmpty {
+                    upNextSection
+                        .padding(.top, 8)
                 }
             }
-            .padding(.bottom, 6)
-
-            // Hint
-            Text(tile.hint(uiLanguage))
-                .font(.pixelSystem(size: 11))
-                .foregroundColor(ReflectionTheme.mutedText)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, 10)
-
-            // Progress dots
-            HStack(spacing: 3) {
-                ForEach(0..<5, id: \.self) { dotIndex in
-                    Circle()
-                        .fill(dotIndex < progress.practiceCount
-                              ? (progress.isMastered ? ReflectionTheme.brandGreen : ReflectionTheme.accent)
-                              : ReflectionTheme.borderLight)
-                        .frame(width: 6, height: 6)
-                }
-            }
-            .padding(.bottom, 12)
-
-            // ── Divider ──
-            Rectangle()
-                .fill(dark.opacity(0.08))
-                .frame(height: 1)
-                .padding(.bottom, 10)
-
-            // ── Evidence or empty state ──
-            if recentEvidence.isEmpty {
-                emptyState
-            } else {
-                evidenceSection
-            }
-
-            // ── Up next (if not mastered) ──
-            if !progress.isMastered && !relatedChapters.isEmpty {
-                upNextSection
-                    .padding(.top, 8)
-            }
+            .padding(14)
+            .background(Color(hex: "#FDFCFF"))
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .pixelBox(fill: ReflectionTheme.cardBackground)
+        .background(
+            PixelStaircaseRectangle(blockSize: 3, steps: 2)
+                .fill(dark)
+                .offset(x: 3, y: 3)
+        )
+        .background(
+            PixelStaircaseRectangle(blockSize: 3, steps: 2)
+                .fill(Color.white)
+        )
+        .clipShape(PixelStaircaseRectangle(blockSize: 3, steps: 2))
+        .overlay(
+            PixelStaircaseRectangle(blockSize: 3, steps: 2)
+                .stroke(dark, lineWidth: 3)
+        )
     }
 
     // MARK: - Evidence Section
@@ -137,26 +203,26 @@ struct SkillTileView: View {
         VStack(alignment: .leading, spacing: 6) {
             sectionLabel(
                 text: progress.isMastered
-                    ? (uiLanguage == .vi ? "Lịch sử luyện tập" : "Practice history")
-                    : (uiLanguage == .vi ? "Luyện tập gần đây" : "Recent practice")
+                    ? (uiLanguage == .vi ? "Lịch sử" : "History")
+                    : (uiLanguage == .vi ? "Gần đây" : "Recent")
             )
 
             ForEach(Array(recentEvidence.enumerated()), id: \.offset) { _, item in
                 HStack(alignment: .top, spacing: 6) {
                     Circle()
-                        .fill(progress.isMastered ? ReflectionTheme.brandGreen : ReflectionTheme.accent)
+                        .fill(skillColor)
                         .frame(width: 4, height: 4)
                         .padding(.top, 5)
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 1) {
                         Text(item.evidence)
-                            .font(.pixelSystem(size: 11))
-                            .foregroundColor(ReflectionTheme.secondaryText)
+                            .font(.pixelSystem(size: 10))
+                            .foregroundColor(dark.opacity(0.7))
                             .fixedSize(horizontal: false, vertical: true)
 
                         Text(relativeDate(item.date))
-                            .font(.pixelSystem(size: 9))
-                            .foregroundColor(ReflectionTheme.mutedText)
+                            .font(.pixelSystem(size: 8))
+                            .foregroundColor(dark.opacity(0.35))
                     }
                 }
             }
@@ -166,14 +232,22 @@ struct SkillTileView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            sectionLabel(text: uiLanguage == .vi ? "Chưa phát hiện luyện tập" : "No practice detected yet")
+        HStack(spacing: 8) {
+            Image(systemName: "sparkles")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(skillColor.opacity(0.6))
 
             Text(emptyPrompt)
                 .font(.pixelSystem(size: 10))
-                .foregroundColor(ReflectionTheme.mutedText)
+                .foregroundColor(dark.opacity(0.45))
                 .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 6)
+                .fill(skillColorLight.opacity(0.5))
+        )
     }
 
     private var emptyPrompt: String {
@@ -185,7 +259,7 @@ struct SkillTileView: View {
         case "loading_error_states":
             return uiLanguage == .vi
                 ? "Thêm try-catch hoặc loading spinner và Codepet sẽ nhận ra."
-                : "Add a try-catch or loading spinner and Codepet will notice."
+                : "Add try-catch or a loading spinner and Codepet will notice."
         case "form_validation_ux":
             return uiLanguage == .vi
                 ? "Thêm validation cho form và Codepet sẽ nhận ra."
@@ -193,7 +267,7 @@ struct SkillTileView: View {
         case "accessibility_basics":
             return uiLanguage == .vi
                 ? "Thêm alt text hoặc keyboard nav và Codepet sẽ nhận ra."
-                : "Add alt text or keyboard navigation and Codepet will notice."
+                : "Add alt text or keyboard nav and Codepet will notice."
         default:
             return uiLanguage == .vi
                 ? "Code thêm và Codepet sẽ phát hiện kỹ năng này."
@@ -201,35 +275,40 @@ struct SkillTileView: View {
         }
     }
 
-    // MARK: - Up Next Section
+    // MARK: - Up Next
 
     private var upNextSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            sectionLabel(text: uiLanguage == .vi ? "Bước tiếp theo" : "Up next")
+            sectionLabel(text: uiLanguage == .vi ? "Bước tiếp" : "Up next")
 
             ForEach(relatedChapters.prefix(1), id: \.chapter.id) { cs, ch in
                 Button(action: { onOpenChapter?(cs, ch) }) {
                     HStack(spacing: 8) {
                         Image(systemName: "book.closed.fill")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(ReflectionTheme.accent)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.white)
+                            .frame(width: 22, height: 22)
+                            .background(
+                                PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                                    .fill(skillColor)
+                            )
 
                         Text(ch.title)
-                            .font(.pixelSystem(size: 11))
-                            .foregroundColor(ReflectionTheme.primaryText)
+                            .font(.pixelSystem(size: 10, weight: .medium))
+                            .foregroundColor(dark)
                             .lineLimit(1)
 
                         Spacer()
 
                         Image(systemName: "chevron.right")
                             .font(.system(size: 9, weight: .bold))
-                            .foregroundColor(ReflectionTheme.mutedText)
+                            .foregroundColor(dark.opacity(0.3))
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 7)
                     .background(
                         RoundedRectangle(cornerRadius: 6)
-                            .fill(ReflectionTheme.accent.opacity(0.06))
+                            .fill(skillColorLight.opacity(0.5))
                     )
                 }
                 .buttonStyle(.plain)
@@ -241,15 +320,14 @@ struct SkillTileView: View {
 
     private func sectionLabel(text: String) -> some View {
         Text(text.uppercased())
-            .font(.pixelSystem(size: 9, weight: .bold))
+            .font(.pixelSystem(size: 8, weight: .bold))
             .tracking(0.8)
-            .foregroundColor(ReflectionTheme.mutedText)
-            .padding(.bottom, 4)
+            .foregroundColor(dark.opacity(0.35))
+            .padding(.bottom, 3)
     }
 
     private func relativeDate(_ date: Date) -> String {
         let cal = Calendar.current
-        let now = Date()
         if cal.isDateInToday(date) {
             let fmt = DateFormatter()
             fmt.dateFormat = "h:mm a"
