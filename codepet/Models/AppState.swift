@@ -52,6 +52,8 @@ class AppState: ObservableObject {
     /// Set by Tips tab to pre-fill a chat prompt on the Reflection tab.
     /// The Reflection chat view consumes and nils this after use.
     @Published var pendingChatPrompt: String? = nil
+    /// Challenge context for exercise-aware chat. Set when user starts an exercise.
+    @Published var pendingChallengeContext: SkillChallenge? = nil
     @Published var petEnergy: Int = 60
     @Published var petMood: String = "Idle"
     /// When true, Reflection tab shows the hardcoded "Sprout × Byte" demo

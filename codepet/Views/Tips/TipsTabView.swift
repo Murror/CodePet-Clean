@@ -452,8 +452,9 @@ struct TipsTabView: View {
                             index: index,
                             tile: tile,
                             onStartChallenge: { challenge in
+                                // Set challenge context + prompt — MainTabView opens the chat panel
+                                appState.pendingChallengeContext = challenge
                                 appState.pendingChatPrompt = challenge.description
-                                appState.selectedTab = .reflection
                             }
                         )
                     }

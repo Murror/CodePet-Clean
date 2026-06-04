@@ -171,6 +171,7 @@ struct CompanionPanelView: View {
     @State private var showSwitchSheet = false
     @State private var messages: [CompanionChatMessage] = []
     @State private var isTyping = false
+    @State private var activeChallenge: SkillChallenge? = nil
     var onClose: () -> Void = {}
 
     private var character: PetCharacter {
@@ -253,17 +254,27 @@ struct CompanionPanelView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        // Character-specific greeting
+                        // Greeting — exercise-specific or character default
                         CompanionBubble(
                             character: character,
-                            message: role.greetingBubble(appState)
+                            message: activeChallenge != nil
+                                ? exerciseGreeting(activeChallenge!)
+                                : role.greetingBubble(appState)
                         )
 
-                        // Quick actions (character-specific, hide after first message)
+                        // Quick actions — exercise steps or character defaults
                         if messages.isEmpty {
-                            QuickActionsGrid(actions: role.quickActions, characterColor: character.color, onAction: { action in
-                                sendMessage(action)
-                            })
+                            if let challenge = activeChallenge {
+                                QuickActionsGrid(
+                                    actions: exerciseQuickActions(challenge),
+                                    characterColor: character.color,
+                                    onAction: { action in sendMessage(action) }
+                                )
+                            } else {
+                                QuickActionsGrid(actions: role.quickActions, characterColor: character.color, onAction: { action in
+                                    sendMessage(action)
+                                })
+                            }
                         }
 
                         // Chat messages
@@ -352,6 +363,20 @@ struct CompanionPanelView: View {
             .background(character.color.opacity(0.08))
         }
         .background(character.color.opacity(0.05))
+        .onAppear {
+            // Consume exercise context if present
+            if let challenge = appState.pendingChallengeContext {
+                activeChallenge = challenge
+                appState.pendingChallengeContext = nil
+            }
+        }
+        .onChange(of: appState.pendingChallengeContext) { newChallenge in
+            if let challenge = newChallenge {
+                activeChallenge = challenge
+                messages = [] // reset for new exercise
+                appState.pendingChallengeContext = nil
+            }
+        }
         .sheet(isPresented: $showSwitchSheet) {
             CharacterSwitchSheet(onSelect: { charId in
                 appState.activeChar = charId
@@ -363,6 +388,55 @@ struct CompanionPanelView: View {
     }
 
     // MARK: - Send Message
+
+    // MARK: - Exercise-Aware Chat
+
+    private func exerciseGreeting(_ challenge: SkillChallenge) -> String {
+        let diffLabel: String = {
+            switch challenge.difficulty {
+            case .starter: return "a starter exercise"
+            case .practice: return "a practice exercise"
+            case .stretch: return "a stretch challenge"
+            }
+        }()
+        return "Let's work on \(diffLabel): \"\(challenge.title)\". Here's what we need to do:\n\n\(challenge.description)\n\nI'll guide you step by step. Ready?"
+    }
+
+    private func exerciseQuickActions(_ challenge: SkillChallenge) -> [String] {
+        return [
+            "Walk me through step by step",
+            "What should I do first?",
+            "Open this in Claude Code",
+            "I'm stuck, help me"
+        ]
+    }
+
+    private func exerciseResponse(for input: String, challenge: SkillChallenge) -> String {
+        let lower = input.lowercased()
+
+        if lower.contains("step by step") || lower.contains("walk me") {
+            return "Here's the plan:\n\n1. Open your project in Claude Code\n2. Ask Claude Code: \"\(challenge.description)\"\n3. Review what Claude Code does\n4. Test the changes in your browser\n\nOnce you do this, Codepet will automatically detect the skill and mark the exercise complete. Want to start?"
+        }
+
+        if lower.contains("first") || lower.contains("start") || lower.contains("begin") {
+            return "First, open Claude Code in your terminal and navigate to your project folder. Then type this prompt:\n\n\"\(challenge.description)\"\n\nClaude Code will analyze your project and make the changes. Watch what it does — that's where the learning happens."
+        }
+
+        if lower.contains("claude code") || lower.contains("open") {
+            return "Open your terminal and run:\n\ncd ~/Desktop/your-project\nclaude\n\nThen paste this prompt:\n\n\"\(challenge.description)\"\n\nClaude Code will do the heavy lifting. Your job is to understand WHY it makes each change."
+        }
+
+        if lower.contains("stuck") || lower.contains("help") || lower.contains("confused") {
+            return "No worries! Here's a simpler way to think about it:\n\nThe goal is: \(challenge.acceptanceCriteria)\n\nThat's the only thing that matters. Ask Claude Code to help you with exactly that. You don't need to know how to do it yourself yet — watching Claude Code work IS the learning."
+        }
+
+        if lower.contains("done") || lower.contains("finished") || lower.contains("completed") {
+            return "Amazing! If you've made the changes, Codepet should automatically detect the skill from your coding session. Check the Tips tab — your exercise should show as completed, and your skill progress will update.\n\nReady for the next exercise?"
+        }
+
+        // Default exercise-aware response
+        return "Remember, for this exercise you need to: \(challenge.acceptanceCriteria)\n\nThe easiest way is to open Claude Code and ask it to help. Want me to walk you through it step by step?"
+    }
 
     private func sendMessage(_ text: String) {
         let userText = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -392,6 +466,11 @@ struct CompanionPanelView: View {
     // MARK: - Response Generation
 
     private func generateResponse(for input: String) -> String {
+        // Exercise-aware responses take priority
+        if let challenge = activeChallenge {
+            return exerciseResponse(for: input, challenge: challenge)
+        }
+
         let lower = input.lowercased()
 
         // Check character-specific keyword responses first
