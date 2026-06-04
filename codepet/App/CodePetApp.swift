@@ -18,6 +18,7 @@ struct CodePetApp: App {
     @StateObject private var healthNudge = HealthNudgeController()
     @StateObject private var tipsState = TipsState()
     @StateObject private var learnProgress = LearnProgress()
+    @StateObject private var challengeProgress = ChallengeProgress()
     private var notificationManager = NotificationManager()
 
     init() {
@@ -56,12 +57,24 @@ struct CodePetApp: App {
                 .environmentObject(healthNudge)
                 .environmentObject(tipsState)
                 .environmentObject(learnProgress)
+                .environmentObject(challengeProgress)
                 .frame(minWidth: 400, minHeight: 700)
                 .themed(isDark: appState.isDarkMode)
                 .task {
                     projectStore.load()
                     TipsPersistence.shared.load(into: tipsState)
                     TipsPersistence.shared.startAutoSave(tipsState)
+
+                    // Generate challenges for the most active project
+                    if challengeProgress.activeChallenges.isEmpty,
+                       let topProject = projectStore.projects.values.sorted(by: { $0.lastSeenAt > $1.lastSeenAt }).first {
+                        let challenges = ChallengeGenerator.generateAll(
+                            projectName: topProject.name,
+                            projectPath: topProject.path
+                        )
+                        challengeProgress.activeChallenges = challenges
+                        challengeProgress.save()
+                    }
                     reflectionComposition.sessionEnricher.projectStore = projectStore
                     reflectionComposition.updateLanguage(appState.uiLanguage)
                     reflectionComposition.start()
@@ -121,6 +134,15 @@ struct CodePetApp: App {
                     for skill in skills {
                         if let index = skillMap[skill.skillId] {
                             tipsState.recordPractice(for: petId, index: index)
+                        }
+                        // Auto-verify challenges
+                        let active = challengeProgress.activeChallenges(for: skill.skillId)
+                        let completed = ChallengeMatcher.findCompletedChallenges(
+                            detectedSkill: skill,
+                            activeChallenges: active
+                        )
+                        for challenge in completed {
+                            challengeProgress.markCompleted(challenge.id)
                         }
                     }
                 }
