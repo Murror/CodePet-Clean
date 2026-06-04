@@ -443,13 +443,18 @@ struct TipsTabView: View {
             if let tiles = petSkillTiles {
                 LazyVGrid(
                     columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)],
+                    alignment: .leading,
                     spacing: 14
                 ) {
                     ForEach(Array(tiles.enumerated()), id: \.offset) { index, tile in
                         SkillTileView(
                             petId: appState.activeChar,
                             index: index,
-                            tile: tile
+                            tile: tile,
+                            onStartChallenge: { challenge in
+                                appState.pendingChatPrompt = challenge.description
+                                appState.selectedTab = .reflection
+                            }
                         )
                     }
                 }

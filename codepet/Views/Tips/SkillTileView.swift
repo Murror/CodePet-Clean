@@ -10,6 +10,9 @@ struct SkillTileView: View {
     let petId: String
     let index: Int
     let tile: TipSkillTile
+    var onStartChallenge: ((SkillChallenge) -> Void)? = nil
+
+    @State private var selectedChallenge: SkillChallenge? = nil
 
     private var progress: SkillProgress {
         tipsState.progress(for: petId, index: index)
@@ -180,39 +183,55 @@ struct SkillTileView: View {
             PixelStaircaseRectangle(blockSize: 3, steps: 2)
                 .stroke(dark, lineWidth: 3)
         )
+        .sheet(item: $selectedChallenge) { challenge in
+            ChallengeDetailView(
+                challenge: challenge,
+                skillColor: skillColor,
+                isCompleted: challengeProgress.isCompleted(challenge.id),
+                onStartCoding: {
+                    onStartChallenge?(challenge)
+                }
+            )
+        }
     }
 
     // MARK: - Challenge Row
 
     private func challengeRow(_ challenge: SkillChallenge) -> some View {
-        HStack(spacing: 8) {
-            // Difficulty indicator
-            difficultyIcon(challenge.difficulty)
+        Button(action: { selectedChallenge = challenge }) {
+            HStack(spacing: 8) {
+                difficultyIcon(challenge.difficulty)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(challenge.title)
-                    .font(.pixelSystem(size: 11, weight: .bold))
-                    .foregroundColor(dark)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(challenge.title)
+                        .font(.pixelSystem(size: 11, weight: .bold))
+                        .foregroundColor(dark)
+                        .lineLimit(1)
 
-                Text(challenge.description)
-                    .font(.pixelSystem(size: 10))
-                    .foregroundColor(dark.opacity(0.5))
-                    .lineLimit(2)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text(challenge.description)
+                        .font(.pixelSystem(size: 10))
+                        .foregroundColor(dark.opacity(0.5))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(dark.opacity(0.25))
             }
-
-            Spacer(minLength: 0)
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(skillColorLight.opacity(0.6))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 6)
+                    .stroke(skillColor.opacity(0.15), lineWidth: 1)
+            )
         }
-        .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(skillColorLight.opacity(0.6))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 6)
-                .stroke(skillColor.opacity(0.15), lineWidth: 1)
-        )
+        .buttonStyle(.plain)
     }
 
     private func difficultyIcon(_ difficulty: SkillChallenge.ChallengeDifficulty) -> some View {
