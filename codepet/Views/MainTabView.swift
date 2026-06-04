@@ -80,6 +80,24 @@ struct MainTabView: View {
                     )
                 }
 
+                // Global pet chat bubble — visible on all tabs except when chat is already open
+                if !showChat && appState.selectedTab != .skills {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            SessionChatBubble(onTap: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showChat = true
+                                }
+                            })
+                            .padding(.trailing, 20)
+                            .padding(.bottom, 20)
+                        }
+                    }
+                    .zIndex(100)
+                }
+
                 // Welcome back overlay (after idle)
                 if gameState.showWelcomeBack {
                     WelcomeBackView(
@@ -108,6 +126,13 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: showChat)
+        .onChange(of: appState.pendingChatPrompt) { prompt in
+            if prompt != nil && !showChat {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showChat = true
+                }
+            }
+        }
         .onChange(of: appState.selectedTab) { newTab in
             SoundManager.shared.playTabSwitch()
             if newTab == .home {
