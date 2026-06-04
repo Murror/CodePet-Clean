@@ -38,6 +38,7 @@ struct PromptPlaygroundView: View {
                     analysis: result,
                     scenario: scenario,
                     teacher: teacher,
+                    userPrompt: promptText,
                     onRetry: {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             showResult = false
@@ -398,6 +399,7 @@ struct PlaygroundResultView: View {
     let analysis: PromptAnalysis
     let scenario: PlaygroundScenario
     let teacher: PetCharacter?
+    let userPrompt: String
     let onRetry: () -> Void
     let onComplete: () -> Void
 
@@ -530,6 +532,11 @@ struct PlaygroundResultView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: "#FFF5F5")))
                     }
+                }
+
+                // Run for real — execute the graded prompt in-app
+                if analysis.overallScore >= 40 {
+                    RunForRealSection(prompt: userPrompt, scenario: scenario, teacher: teacher)
                 }
 
                 // Action buttons

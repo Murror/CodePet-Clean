@@ -48,9 +48,11 @@ struct MainTabView: View {
                         case .insights:
                             InsightsView()
                         case .reflection:
-                            ReflectionTab()
+                            ReflectionTab(companionOpen: showChat)
                         case .tips:
-                            TipsMockupView()
+                            TipsTabView()
+                        case .learn:
+                            TipsTabView() // Learn content lives inside Tips now
                         case .dictionary:
                             DictionaryView()
                         case .profile:
@@ -76,6 +78,24 @@ struct MainTabView: View {
                         characterId: appState.activeChar,
                         onDismiss: { appState.showTierUnlock = false }
                     )
+                }
+
+                // Global pet chat bubble — visible on all tabs except when chat is already open
+                if !showChat && appState.selectedTab != .skills {
+                    VStack {
+                        Spacer()
+                        HStack {
+                            Spacer()
+                            SessionChatBubble(onTap: {
+                                withAnimation(.easeInOut(duration: 0.2)) {
+                                    showChat = true
+                                }
+                            })
+                            .padding(.trailing, 20)
+                            .padding(.bottom, 20)
+                        }
+                    }
+                    .zIndex(100)
                 }
 
                 // Welcome back overlay (after idle)
@@ -106,6 +126,13 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: showChat)
+        .onChange(of: appState.pendingChatPrompt) { prompt in
+            if prompt != nil && !showChat {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    showChat = true
+                }
+            }
+        }
         .onChange(of: appState.selectedTab) { newTab in
             SoundManager.shared.playTabSwitch()
             if newTab == .home {
@@ -245,6 +272,10 @@ struct NavIconView: View {
             case .tips:
                 // TODO: replace with pixel-art Canvas icon — mockup only
                 Image(systemName: "lightbulb.fill")
+                    .font(.pixelSystem(size: 14, weight: .medium))
+                    .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
+            case .learn:
+                Image(systemName: "graduationcap.fill")
                     .font(.pixelSystem(size: 14, weight: .medium))
                     .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
             case .dictionary:
