@@ -10,8 +10,18 @@ enum PracticePromptGrader {
     struct Grade: Equatable {
         let score: Int          // 0–100
         let letter: String      // S / A / B / C / D
-        let strengths: [String]
-        let tips: [String]      // what to add to score higher
+        let checklist: [Check]  // the 4 qualities of a good prompt, met or not
+
+        /// One quality of a good vibe-coding prompt.
+        struct Check: Equatable {
+            let met: Bool
+            let label: String   // short name, e.g. "Names a place"
+            let hint: String    // beginner-friendly guidance + example, shown when not met
+        }
+
+        // Kept for any caller that just wants flat lists.
+        var strengths: [String] { checklist.filter { $0.met }.map { $0.label } }
+        var tips: [String] { checklist.filter { !$0.met }.map { $0.hint } }
     }
 
     private static let actionVerbs = [
@@ -25,40 +35,50 @@ enum PracticePromptGrader {
         let words = text.split { $0 == " " || $0 == "\n" }.count
 
         var score = 0
-        var strengths: [String] = []
-        var tips: [String] = []
+        var checklist: [Grade.Check] = []
 
         // 1) Enough detail to act on (0–30)
-        if words >= 25 { score += 30; strengths.append("Detailed enough to act on") }
-        else if words >= 12 { score += 18; tips.append("Add a bit more detail — what, where, and what 'done' looks like") }
-        else { tips.append("Too short — describe the change in a sentence or two") }
+        let detailMet = words >= 12
+        if words >= 25 { score += 30 } else if words >= 12 { score += 18 }
+        checklist.append(.init(
+            met: detailMet,
+            label: "Enough detail",
+            hint: words >= 12
+                ? "Almost — add a touch more so it's unmistakable: what to change, where, and what it should look like when done."
+                : "It's very short. Describe the change in a full sentence or two, the way you'd explain it to a teammate who can't see your screen."
+        ))
 
         // 2) A concrete action verb (0–20)
-        if actionVerbs.contains(where: { lower.contains($0) }) {
-            score += 20; strengths.append("Clear action")
-        } else {
-            tips.append("Start with a concrete verb (extract, wrap, add, validate…)")
-        }
+        let verbMet = actionVerbs.contains(where: { lower.contains($0) })
+        if verbMet { score += 20 }
+        checklist.append(.init(
+            met: verbMet,
+            label: "Clear action",
+            hint: "Begin with a doing-word so the task is obvious — e.g. \"Create…\", \"Add…\", \"Move…\", \"Wrap…\", \"Validate…\"."
+        ))
 
         // 3) Names a target — a file, component, or place (0–25)
-        if mentionsTarget(lower) {
-            score += 25; strengths.append("Points at a specific place")
-        } else {
-            tips.append("Say where — name the file, component, or section to change")
-        }
+        let targetMet = mentionsTarget(lower)
+        if targetMet { score += 25 }
+        checklist.append(.init(
+            met: targetMet,
+            label: "Names a place",
+            hint: "Point to where it goes — name a file or part, e.g. \"in a new file app/lib/utils.ts\" or \"the sign-up form\"."
+        ))
 
-        // 4) States an outcome / acceptance ("so that", "should", "make sure") (0–25)
-        if lower.contains("so that") || lower.contains("should") ||
-           lower.contains("make sure") || lower.contains("without breaking") ||
-           lower.contains("still work") {
-            score += 25; strengths.append("Describes the desired outcome")
-        } else {
-            tips.append("Add the outcome — what should be true when it's done")
-        }
+        // 4) States an outcome / acceptance (0–25)
+        let outcomeMet = lower.contains("so that") || lower.contains("should") ||
+            lower.contains("make sure") || lower.contains("without breaking") ||
+            lower.contains("still work") || lower.contains("instead of")
+        if outcomeMet { score += 25 }
+        checklist.append(.init(
+            met: outcomeMet,
+            label: "Says what 'done' looks like",
+            hint: "Add the result you want, starting with \"so that…\" — e.g. \"…so that both pages use it instead of repeating the code.\""
+        ))
 
         score = min(100, score)
-        return Grade(score: score, letter: letter(for: score),
-                     strengths: strengths, tips: tips)
+        return Grade(score: score, letter: letter(for: score), checklist: checklist)
     }
 
     private static func mentionsTarget(_ lower: String) -> Bool {

@@ -12,12 +12,17 @@ import SwiftUI
 struct ExerciseWorkspaceView: View {
     let challenge: SkillChallenge
     let character: PetCharacter
+    var onClose: () -> Void = {}
+
+    @EnvironmentObject private var hookInstaller: HookInstaller
+    @EnvironmentObject private var challengeProgress: ChallengeProgress
 
     @StateObject private var runner = ClaudeCodeRunner()
     @State private var promptText = ""
     @State private var sandboxPath = ""
     @State private var sandboxError: String? = nil
     @State private var showFile = false
+    @State private var showExample = false
 
     private var primaryFile: String { PracticeSandbox.primaryFile(forSkill: challenge.skillId) }
 
@@ -31,6 +36,7 @@ struct ExerciseWorkspaceView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    topBar
                     exerciseHeader
                     sandboxRow
                     filePreview
@@ -63,8 +69,29 @@ struct ExerciseWorkspaceView: View {
             }
         }
         .background(character.color.opacity(0.05))
-        .onAppear { prepareSandbox() }
+        .onAppear { prepareSandbox(); hookInstaller.checkInstallation() }
         .onDisappear { runner.cancel() }
+    }
+
+    // MARK: - Top bar (close)
+
+    private var topBar: some View {
+        HStack(spacing: 8) {
+            CharacterImage(character.id, size: 28)
+            Text("Practice")
+                .font(.pixelSystem(size: 17, weight: .bold))
+                .foregroundColor(Color(hex: "#2D2B26"))
+            Spacer()
+            Button(action: onClose) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
+                    .frame(width: 28, height: 28)
+                    .background(Color(hex: "#F0F0EC"))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+        }
     }
 
     // MARK: - Header
@@ -73,17 +100,19 @@ struct ExerciseWorkspaceView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 Text(challenge.title)
-                    .font(.pixelSystem(size: 14, weight: .bold))
+                    // Match the "Practice" heading's typeface (Inter), not the
+                    // blocky Minecraft pixel font that pixelSystem uses at ≥18pt.
+                    .font(CodepetTheme.inter(20, weight: .bold))
                     .foregroundColor(Color(hex: "#2D2B26"))
                 Spacer()
                 difficultyBadge
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text("GOAL")
-                    .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.45))
                 Text(challenge.acceptanceCriteria)
-                    .font(.pixelSystem(size: 11))
+                    .font(.pixelSystem(size: 15))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.75))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -102,7 +131,7 @@ struct ExerciseWorkspaceView: View {
             }
         }()
         return Text(label)
-            .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
+            .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
             .foregroundColor(.white)
             .padding(.horizontal, 7).padding(.vertical, 3)
             .background(RoundedRectangle(cornerRadius: 5).fill(color))
@@ -116,11 +145,11 @@ struct ExerciseWorkspaceView: View {
                 .font(.system(size: 11))
                 .foregroundColor(Color(hex: "#3FA66A"))
             Text("Practice copy — your real projects are never touched")
-                .font(.pixelSystem(size: 9))
+                .font(.pixelSystem(size: 11))
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
             Spacer()
             Button("Reset") { resetSandbox() }
-                .font(.pixelSystem(size: 9, weight: .semibold))
+                .font(.pixelSystem(size: 11, weight: .semibold))
                 .foregroundColor(Color(hex: "#2D2B26"))
                 .padding(.horizontal, 9).padding(.vertical, 4)
                 .background(Color(hex: "#F0F0EC")).cornerRadius(6)
@@ -140,7 +169,7 @@ struct ExerciseWorkspaceView: View {
                     Image(systemName: "doc.text")
                         .font(.system(size: 10))
                     Text(primaryFile)
-                        .font(.pixelSystem(size: 10, design: .monospaced))
+                        .font(.pixelSystem(size: 12, design: .monospaced))
                 }
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
             }
@@ -149,13 +178,13 @@ struct ExerciseWorkspaceView: View {
             if showFile {
                 ScrollView {
                     Text(PracticeSandbox.currentContents(of: primaryFile) ?? "—")
-                        .font(.pixelSystem(size: 9, design: .monospaced))
+                        .font(.pixelSystem(size: 13, design: .monospaced))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.8))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled)
                         .padding(8)
                 }
-                .frame(maxHeight: 180)
+                .frame(maxHeight: 300)
                 .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "#2D2B26").opacity(0.05)))
             }
         }
@@ -167,53 +196,132 @@ struct ExerciseWorkspaceView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 6) {
                 Text("YOUR PROMPT")
-                    .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
+                    .font(.pixelSystem(size: 10, weight: .bold, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.45))
                 Text("— you write this, then run it")
-                    .font(.pixelSystem(size: 8))
+                    .font(.pixelSystem(size: 10))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.35))
             }
             ZStack(alignment: .topLeading) {
                 if promptText.isEmpty {
                     Text("Tell Claude Code exactly what to change in \(primaryFile)…")
-                        .font(.pixelSystem(size: 11))
+                        .font(.pixelSystem(size: 15))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.3))
                         .padding(.horizontal, 11).padding(.vertical, 12)
                 }
                 TextEditor(text: $promptText)
-                    .font(.pixelSystem(size: 11))
-                    .frame(minHeight: 72, maxHeight: 130)
+                    .font(.pixelSystem(size: 15))
+                    .frame(minHeight: 150, maxHeight: 320)
                     .padding(6)
                     .scrollContentBackground(.hidden)
                     .disabled(runner.isRunning)
             }
             .background(RoundedRectangle(cornerRadius: 10).fill(character.color.opacity(0.08)))
+
+            exampleDisclosure
+        }
+    }
+
+    // MARK: - Example prompt (beginner reference)
+
+    /// A read-only worked example for the current skill. We deliberately DON'T
+    /// offer a "use this" button — the practice is writing the prompt yourself
+    /// (see HANDOFF-practice-space.md: "The USER writes the prompt from scratch").
+    /// This just shows a beginner what a complete, well-formed prompt looks like.
+    private var exampleDisclosure: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Button(action: { withAnimation { showExample.toggle() } }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "lightbulb")
+                        .font(.system(size: 10))
+                    Text(showExample ? "Hide example" : "New to this? See an example prompt")
+                        .font(.pixelSystem(size: 13, weight: .semibold))
+                    Image(systemName: showExample ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 8))
+                }
+                .foregroundColor(character.color)
+            }
+            .buttonStyle(.plain)
+
+            if showExample {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(examplePrompt)
+                        .font(.pixelSystem(size: 14))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.85))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                    Text("Notice it has all four: a clear action, where it goes, enough detail, and what 'done' looks like. Now write your own version.")
+                        .font(.pixelSystem(size: 12))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "#2D2B26").opacity(0.04)))
+            }
+        }
+    }
+
+    /// A concrete model prompt per skill, referencing the sandbox file.
+    private var examplePrompt: String {
+        switch challenge.skillId {
+        case "component_composition":
+            return "Move the hero section at the top of \(primaryFile) into a new file app/components/Hero.tsx, then import it back into \(primaryFile) so the page still looks exactly the same. Keep all its text and styles."
+        case "loading_error_states":
+            return "In \(primaryFile), find where the class data is loaded and wrap it in a try/catch. Show a short, friendly message if it fails, so the page doesn't break when the data can't load."
+        case "form_validation_ux":
+            return "In the sign-up form in \(primaryFile), check the email field isn't empty and contains an '@' before submitting. If it's invalid, show an inline message next to the field so the user knows what to fix."
+        case "accessibility_basics":
+            return "Add descriptive alt text to every image in \(primaryFile) that's missing it, so screen readers can describe each one. Don't change anything else."
+        default:
+            return "In \(primaryFile), make the change described in the goal, and say what should be true when it's done so that the result matches: \(challenge.acceptanceCriteria.lowercased())."
         }
     }
 
     private func gradeBanner(_ g: PracticePromptGrader.Grade) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            Text(g.letter)
-                .font(.pixelSystem(size: 22, weight: .black, design: .monospaced))
-                .foregroundColor(gradeColor(g.score))
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Prompt score: \(g.score)%")
-                    .font(.pixelSystem(size: 10, weight: .bold))
-                    .foregroundColor(Color(hex: "#2D2B26"))
-                if let tip = g.tips.first {
-                    Text("Tip: \(tip)")
-                        .font(.pixelSystem(size: 9))
-                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .center, spacing: 10) {
+                Text(g.letter)
+                    .font(.pixelSystem(size: 26, weight: .black, design: .monospaced))
+                    .foregroundColor(gradeColor(g.score))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Prompt score: \(g.score)%")
+                        .font(.pixelSystem(size: 12, weight: .bold))
+                        .foregroundColor(Color(hex: "#2D2B26"))
+                    Text(g.score >= 75
+                         ? "Strong prompt — ready to run."
+                         : "A clear prompt has all four. Add the unchecked ones:")
+                        .font(.pixelSystem(size: 12))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.55))
                         .fixedSize(horizontal: false, vertical: true)
-                } else if let s = g.strengths.first {
-                    Text("✓ \(s)")
-                        .font(.pixelSystem(size: 9))
-                        .foregroundColor(Color(hex: "#3FA66A"))
+                }
+                Spacer()
+            }
+            VStack(alignment: .leading, spacing: 5) {
+                ForEach(Array(g.checklist.enumerated()), id: \.offset) { _, c in
+                    HStack(alignment: .top, spacing: 7) {
+                        Image(systemName: c.met ? "checkmark.circle.fill" : "circle")
+                            .font(.system(size: 13))
+                            .foregroundColor(c.met ? Color(hex: "#3FA66A") : Color(hex: "#2D2B26").opacity(0.28))
+                            .padding(.top, 1)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(c.label)
+                                .font(.pixelSystem(size: 13, weight: .semibold))
+                                .foregroundColor(c.met ? Color(hex: "#2D2B26").opacity(0.45) : Color(hex: "#2D2B26"))
+                                .strikethrough(c.met, color: Color(hex: "#2D2B26").opacity(0.35))
+                            if !c.met {
+                                Text(c.hint)
+                                    .font(.pixelSystem(size: 12))
+                                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
                 }
             }
-            Spacer()
         }
         .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 10).fill(gradeColor(g.score).opacity(0.10)))
     }
 
@@ -232,7 +340,7 @@ struct ExerciseWorkspaceView: View {
             if runner.isRunning {
                 Button(action: { runner.cancel() }) {
                     Text("Stop")
-                        .font(.pixelSystem(size: 12, weight: .bold))
+                        .font(.pixelSystem(size: 14, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 16).padding(.vertical, 7)
                         .background(Color(hex: "#C7563F")).cornerRadius(8)
@@ -241,13 +349,13 @@ struct ExerciseWorkspaceView: View {
                 HStack(spacing: 5) {
                     ProgressView().controlSize(.small)
                     Text("\(character.name) is working…")
-                        .font(.pixelSystem(size: 10))
+                        .font(.pixelSystem(size: 12))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
                 }
             } else {
                 Button(action: startRun) {
                     Text("▶  Run my prompt")
-                        .font(.pixelSystem(size: 12, weight: .bold))
+                        .font(.pixelSystem(size: 14, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 16).padding(.vertical, 7)
                         .background(canRun ? character.color : Color(hex: "#D0D0CC"))
@@ -257,7 +365,7 @@ struct ExerciseWorkspaceView: View {
                 .disabled(!canRun)
                 if promptText.trimmingCharacters(in: .whitespaces).isEmpty {
                     Text("Write your prompt first")
-                        .font(.pixelSystem(size: 9))
+                        .font(.pixelSystem(size: 11))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.45))
                 }
             }
@@ -313,7 +421,7 @@ struct ExerciseWorkspaceView: View {
         HStack(alignment: .top, spacing: 8) {
             CharacterImage(character.id, size: 26)
             Text(text)
-                .font(.pixelSystem(size: 11))
+                .font(.pixelSystem(size: 13))
                 .foregroundColor(Color(hex: "#2D2B26"))
                 .padding(10)
                 .background(RoundedRectangle(cornerRadius: 10).fill(character.color.opacity(0.15)))
@@ -322,21 +430,43 @@ struct ExerciseWorkspaceView: View {
 
     // MARK: - Review (the second half of the practice)
 
+    private var isChallengeCompleted: Bool { challengeProgress.isCompleted(challenge.id) }
+
     private var reviewStep: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 CharacterImage(character.id, size: 24)
-                Text("Your turn to judge it")
-                    .font(.pixelSystem(size: 11, weight: .bold))
+                Text(isChallengeCompleted ? "Marked complete ✓" : "Your turn to judge it")
+                    .font(.pixelSystem(size: 15, weight: .bold))
                     .foregroundColor(Color(hex: "#2D2B26"))
             }
             Text("Did it meet the goal — \(challenge.acceptanceCriteria)? Open \(primaryFile) above to see the result, and ask yourself *why* this change helps.")
-                .font(.pixelSystem(size: 10))
+                .font(.pixelSystem(size: 13))
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
+            progressInfo
             HStack(spacing: 10) {
+                if isChallengeCompleted {
+                    HStack(spacing: 5) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color(hex: "#3FA66A"))
+                        Text("Exercise complete — nice work.")
+                            .font(.pixelSystem(size: 13, weight: .semibold))
+                            .foregroundColor(Color(hex: "#2D2B26"))
+                    }
+                } else {
+                    Button(action: markComplete) {
+                        Text("✓  Mark complete")
+                            .font(.pixelSystem(size: 14, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14).padding(.vertical, 6)
+                            .background(Color(hex: "#3FA66A")).cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
+                }
                 Button("Reset & try again") { resetSandbox(); runner.cancel() }
-                    .font(.pixelSystem(size: 10, weight: .semibold))
+                    .font(.pixelSystem(size: 14, weight: .semibold))
                     .foregroundColor(Color(hex: "#2D2B26"))
                     .padding(.horizontal, 12).padding(.vertical, 6)
                     .background(Color(hex: "#F0F0EC")).cornerRadius(8)
@@ -348,9 +478,52 @@ struct ExerciseWorkspaceView: View {
         .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: "#3FA66A").opacity(0.12)))
     }
 
+    private func markComplete() {
+        challengeProgress.markCompleted(challenge.id)
+        SoundManager.shared.playTap()
+    }
+
+    // MARK: - Progress explainer ("does this count?")
+
+    /// Explains the two ways an exercise gets marked complete: manually, via the
+    /// button below once the user is happy it met the goal, or automatically,
+    /// when \(character.name) detects the skill in a real coding session. That
+    /// auto-detection needs the CodePet hooks — when they're not installed it
+    /// silently can't fire, so we surface that here instead of leaving the user
+    /// wondering why real work never advances anything.
+    private var progressInfo: some View {
+        let installed = hookInstaller.status == .installed
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: installed ? "checkmark.seal.fill" : "info.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(installed ? Color(hex: "#3FA66A") : Color(hex: "#D4960A"))
+                Text("How progress works")
+                    .font(.pixelSystem(size: 13, weight: .bold))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+            }
+            Text("Hit **Mark complete** below once you're happy this met the goal. \(character.name) also marks it complete automatically when it notices you doing the skill for real in your own project.")
+                .font(.pixelSystem(size: 13))
+                .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
+                .fixedSize(horizontal: false, vertical: true)
+            if !installed {
+                Text("⚠ Automatic detection is off — the CodePet hooks aren't connected. Marking complete here still works; connect Claude Code in the **Reflection** tab to also earn credit from real sessions.")
+                    .font(.pixelSystem(size: 13))
+                    .foregroundColor(Color(hex: "#8A6D1A"))
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "#F4E5C0").opacity(0.7)))
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: "#2D2B26").opacity(0.04)))
+    }
+
     private func banner(_ text: String, bg: Color, fg: Color) -> some View {
         Text(text)
-            .font(.pixelSystem(size: 10))
+            .font(.pixelSystem(size: 12))
             .foregroundColor(fg)
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)

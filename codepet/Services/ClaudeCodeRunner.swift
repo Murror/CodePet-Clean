@@ -55,6 +55,9 @@ final class ClaudeCodeRunner: ObservableObject {
     private var process: Process?
     private var stdoutBuffer = Data()
     private let queue = DispatchQueue(label: "app.murror.codepet.claude-runner")
+    /// Last assistant prose we emitted. `stream-json` repeats the final message
+    /// inside the terminal `result` event, so we use this to skip the echo.
+    private var lastAssistantText = ""
 
     // Login shells to try, in order. `-l` loads the user's profile so `claude`
     // (commonly at ~/.claude/local, /opt/homebrew/bin, /usr/local/bin, or an
@@ -80,6 +83,7 @@ final class ClaudeCodeRunner: ObservableObject {
         stdoutBuffer.removeAll()
         events.removeAll()
         touchedFiles.removeAll()
+        lastAssistantText = ""
         state = .running
 
         var dir = projectDir
@@ -211,6 +215,11 @@ final class ClaudeCodeRunner: ObservableObject {
 
         case "result":
             let summary = (obj["result"] as? String) ?? "Run complete."
+            // `stream-json` repeats the final assistant message here. If we already
+            // showed it as prose, don't echo it a second time.
+            if summary.trimmingCharacters(in: .whitespacesAndNewlines) == lastAssistantText {
+                break
+            }
             emit(.init(kind: .result, toolName: nil, filePath: nil, text: summary))
 
         default:
@@ -223,6 +232,7 @@ final class ClaudeCodeRunner: ObservableObject {
         case "text":
             let t = (item["text"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
             if !t.isEmpty {
+                lastAssistantText = t
                 emit(.init(kind: .assistantText, toolName: nil, filePath: nil, text: t))
             }
         case "tool_use":

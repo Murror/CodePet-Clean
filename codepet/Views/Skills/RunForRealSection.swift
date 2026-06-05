@@ -221,7 +221,7 @@ struct CodeExecutionView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("WHAT CLAUDE CODE DID")
-                .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
+                .font(.pixelSystem(size: 12, weight: .bold, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.45))
             VStack(alignment: .leading, spacing: 5) {
                 ForEach(events) { event in
@@ -239,7 +239,7 @@ struct CodeExecutionView: View {
         switch event.kind {
         case .assistantText:
             Text(event.text)
-                .font(.pixelSystem(size: 11))
+                .font(.pixelSystem(size: 14))
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.85))
                 .fixedSize(horizontal: false, vertical: true)
         case .toolUse:
@@ -248,19 +248,19 @@ struct CodeExecutionView: View {
                     .font(.system(size: 10))
                     .foregroundColor(accent)
                 Text(event.text)
-                    .font(.pixelSystem(size: 10, design: .monospaced))
+                    .font(.pixelSystem(size: 13, design: .monospaced))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(0.8))
                     .lineLimit(2)
             }
         case .toolResult:
             Text(event.text)
-                .font(.pixelSystem(size: 9, design: .monospaced))
+                .font(.pixelSystem(size: 12, design: .monospaced))
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                 .lineLimit(3)
                 .padding(.leading, 16)
         case .result:
             Text(event.text)
-                .font(.pixelSystem(size: 10, weight: .medium))
+                .font(.pixelSystem(size: 13, weight: .medium))
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
         case .system:
             EmptyView()
