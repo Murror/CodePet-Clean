@@ -3,10 +3,12 @@ import SwiftUI
 struct DictionaryView: View {
 
     @Environment(\.uiLanguage) private var uiLanguage
+    @EnvironmentObject private var projectStore: ProjectStore
 
     @State private var selectedTopicId: String = DictionaryContent.topics.first!.id
     @State private var searchQuery: String = ""
     @State private var expandedTermIds: Set<String> = []
+    @State private var showProjectPanel: Bool = true
 
     private var visibleTerms: [DictionaryTerm] {
         let trimmed = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -18,6 +20,12 @@ struct DictionaryView: View {
 
     private var isSearching: Bool {
         !searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// The most-recent project's matched terms + inferred stack. Computed once
+    /// per render and reused for the panel AND every card's "Used in…" badge.
+    private var projectGroup: DictionaryMatcher.ProjectTermGroup? {
+        DictionaryMatcher.match(projects: projectStore.projects)
     }
 
     var body: some View {
@@ -136,18 +144,114 @@ struct DictionaryView: View {
         if visibleTerms.isEmpty {
             emptyState
         } else {
-            ScrollView {
-                LazyVStack(spacing: 14) {
-                    ForEach(visibleTerms) { term in
-                        DictionaryCard(
-                            term: term,
-                            isExpanded: expandedTermIds.contains(term.id),
-                            onToggleExpand: { toggleExpand(term.id) }
-                        )
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(spacing: 14) {
+                        if !isSearching, let group = projectGroup {
+                            projectPanel(group, proxy: proxy)
+                        }
+                        ForEach(visibleTerms) { term in
+                            DictionaryCard(
+                                term: term,
+                                isExpanded: expandedTermIds.contains(term.id),
+                                onToggleExpand: { toggleExpand(term.id) },
+                                projectTags: projectGroup?.tags ?? [],
+                                projectName: projectGroup?.projectName
+                            )
+                            .id(term.id)
+                        }
+                    }
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 24)
+                }
+            }
+        }
+    }
+
+    // MARK: - Surface B: project-aware panel
+
+    private func projectPanel(_ group: DictionaryMatcher.ProjectTermGroup, proxy: ScrollViewProxy) -> some View {
+        PixelCard(fill: Color(hex: "#EEEDFE")) {
+            VStack(alignment: .leading, spacing: 12) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { showProjectPanel.toggle() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "shippingbox.fill")
+                            .foregroundColor(CodepetTheme.accentPurple)
+                        Text(uiLanguage == .vi
+                             ? "Trong \(group.projectName), bạn đang dùng:"
+                             : "In \(group.projectName), you're using:")
+                            .font(CodepetTheme.display(14, weight: .bold))
+                            .foregroundColor(CodepetTheme.primaryText)
+                        Spacer()
+                        Image(systemName: showProjectPanel ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundColor(CodepetTheme.mutedText)
                     }
                 }
-                .padding(.horizontal, 32)
-                .padding(.vertical, 24)
+                .buttonStyle(.plain)
+
+                if showProjectPanel {
+                    stackPills(group.tags)
+                    termGrid(group, proxy: proxy)
+                }
+            }
+            .padding(16)
+        }
+        .padding(.bottom, 4)
+    }
+
+    private func stackPills(_ tags: Set<ProjectTag>) -> some View {
+        let labels = projectTagLabels(tags)
+        return HStack(spacing: 6) {
+            ForEach(labels, id: \.self) { label in
+                Text(label)
+                    .font(.pixelSystem(size: 10, weight: .semibold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(Capsule().fill(techTagColor(label)))
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func termGrid(_ group: DictionaryMatcher.ProjectTermGroup, proxy: ScrollViewProxy) -> some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 130), spacing: 8)], alignment: .leading, spacing: 8) {
+            ForEach(group.terms) { matched in
+                Button {
+                    jumpTo(matched.term, proxy: proxy)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundColor(CodepetTheme.accentPurple)
+                        Text(matched.term.title(uiLanguage))
+                            .font(CodepetTheme.body(12, weight: .semibold))
+                            .foregroundColor(CodepetTheme.primaryText)
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 7)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(Color.white.opacity(0.7))
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private func jumpTo(_ term: DictionaryTerm, proxy: ScrollViewProxy) {
+        searchQuery = ""
+        selectedTopicId = term.topicId
+        expandedTermIds.insert(term.id)
+        DispatchQueue.main.async {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                proxy.scrollTo(term.id, anchor: .top)
             }
         }
     }

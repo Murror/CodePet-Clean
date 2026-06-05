@@ -8,14 +8,22 @@ struct DictionaryCard: View {
     let isExpanded: Bool
     let onToggleExpand: () -> Void
 
+    /// The active/most-recent project's inferred stack + name, computed once by
+    /// `DictionaryView` and passed down so cards don't re-infer per render.
+    var projectTags: Set<ProjectTag> = []
+    var projectName: String? = nil
+
+    private var usedInProject: String? {
+        guard let projectName else { return nil }
+        return DictionaryMatcher.projectUsing(term, projectTags: projectTags, projectName: projectName)
+    }
+
     var body: some View {
         PixelCard {
             VStack(alignment: .leading, spacing: 12) {
-                Text(term.title(uiLanguage))
-                    .font(CodepetTheme.display(18, weight: .bold))
-                    .foregroundColor(CodepetTheme.primaryText)
+                header
 
-                Text(markdown: term.shortDefinition(uiLanguage))
+                Text(markdown: term.cardDefinition(uiLanguage))
                     .font(CodepetTheme.body(13))
                     .foregroundColor(CodepetTheme.bodyText)
                     .fixedSize(horizontal: false, vertical: true)
@@ -49,10 +57,51 @@ struct DictionaryCard: View {
         .animation(.easeInOut(duration: 0.22), value: isExpanded)
     }
 
+    // MARK: - Header (title + optional "used in project" badge)
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(term.title(uiLanguage))
+                .font(CodepetTheme.display(18, weight: .bold))
+                .foregroundColor(CodepetTheme.primaryText)
+            Spacer(minLength: 8)
+            if let project = usedInProject {
+                usedInBadge(project)
+            }
+        }
+    }
+
+    private func usedInBadge(_ project: String) -> some View {
+        let tint = techTagColor(projectTagLabels(Set(term.tags)).first ?? "")
+        return HStack(spacing: 4) {
+            Image(systemName: "shippingbox.fill")
+                .font(.system(size: 8, weight: .bold))
+            Text(uiLanguage == .vi ? "Dùng trong \(project)" : "Used in \(project)")
+                .font(.pixelSystem(size: 10, weight: .semibold))
+                .lineLimit(1)
+        }
+        .foregroundColor(tint)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(tint.opacity(0.14)))
+    }
+
+    // MARK: - Deep dive
+
     @ViewBuilder
     private var deepDive: some View {
         VStack(alignment: .leading, spacing: 16) {
-            section(title: uiLanguage == .vi ? "Ví dụ ẩn dụ" : "Analogy", body: term.analogy(uiLanguage))
+            section(title: uiLanguage == .vi ? "Hiểu sâu hơn" : "What it really means",
+                    body: term.whatItReallyMeans(uiLanguage))
+
+            if let diagram = term.diagram {
+                VStack(alignment: .leading, spacing: 6) {
+                    sectionLabel(uiLanguage == .vi ? "Hình dung" : "Picture it")
+                    DictionaryDiagramView(spec: diagram)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 4)
+                }
+            }
 
             if let code = term.codeExample {
                 VStack(alignment: .leading, spacing: 6) {
