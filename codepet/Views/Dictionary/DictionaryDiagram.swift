@@ -165,25 +165,94 @@ private func label(_ spec: DiagramSpec, _ i: Int, _ lang: AppLanguage, default d
     return spec.labels[i](lang)
 }
 
+/// A tiny muted caption naming a piece's ROLE (e.g. "you give", "if true").
+/// This is what makes a diagram teach instead of assume — every template uses it
+/// to say *what each part is*, not just show it.
+private func roleCaption(_ text: String) -> some View {
+    Text(text)
+        .font(.pixelSystem(size: 9, weight: .semibold))
+        .foregroundColor(CodepetTheme.mutedText)
+        .lineLimit(1)
+        .fixedSize()
+}
+
 // MARK: - Templates
 
 /// A named box with a value inside (variable, constant, string, number, boolean).
+///
+/// Drawn as ONE labeled container — the name is a colored band (the sticker on
+/// the box), the value sits in the body below it — with "name"/"value" role tags
+/// so the picture teaches the concept instead of assuming it.
 private struct LabeledBoxDiagram: View {
     @Environment(\.uiLanguage) private var lang
     let spec: DiagramSpec
 
+    private let bandHeight: CGFloat = 32
+    private let bodyHeight: CGFloat = 40
+    private let ink = Color(hex: "#2D2B26")
+
     var body: some View {
         let name = label(spec, 0, lang, default: "name")
         let value = label(spec, 1, lang)
-        VStack(spacing: 6) {
-            DiagramChip(text: name, accent: spec.accent.color)   // the "sticker"
-            DiagramArrow(systemName: "arrow.down", color: spec.accent.color.opacity(0.6))
-            DiagramBox(text: value.isEmpty ? "…" : value, accent: spec.accent.color, mono: true, emphasized: true)
+        let accent = spec.accent.color
+        let nameRole = lang == .vi ? "tên" : "name"
+        let valueRole = lang == .vi ? "giá trị" : "value"
+
+        HStack(spacing: 8) {
+            // Role tags, each centred on the band it points at.
+            VStack(spacing: 0) {
+                roleTag(nameRole, tint: accent).frame(height: bandHeight)
+                roleTag(valueRole, tint: CodepetTheme.mutedText).frame(height: bodyHeight)
+            }
+
+            // The labeled box: name band (the sticker) over the value body.
+            VStack(spacing: 0) {
+                Text(name)
+                    .font(.pixelSystem(size: 13, weight: .semibold))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .padding(.horizontal, 10)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: bandHeight)
+                    .background(accent)
+
+                Rectangle().fill(ink).frame(height: 2)
+
+                Text(value.isEmpty ? "…" : value)
+                    .font(.system(size: 17, weight: .bold, design: .monospaced))
+                    .foregroundColor(CodepetTheme.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .padding(.horizontal, 10)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: bodyHeight)
+                    .background(accent.opacity(0.14))
+            }
+            .frame(width: 150)
+            .overlay(Rectangle().stroke(ink, lineWidth: 2))
+            .background(Rectangle().fill(ink).offset(x: 3, y: 3))   // pixel shadow
+        }
+        .fixedSize()
+    }
+
+    private func roleTag(_ text: String, tint: Color) -> some View {
+        HStack(spacing: 3) {
+            Text(text)
+                .font(.pixelSystem(size: 10, weight: .semibold))
+                .foregroundColor(CodepetTheme.mutedText)
+                .lineLimit(1)
+                .fixedSize()
+            Image(systemName: "arrow.right")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(tint.opacity(0.7))
         }
     }
 }
 
 /// input ▸ machine ▸ output (function, parameter, return-value, pure-function, side-effect).
+/// Each box carries a role caption so the picture reads as a sentence:
+/// "you give X → the function runs → you get back Y".
 private struct BeforeAfterDiagram: View {
     @Environment(\.uiLanguage) private var lang
     let spec: DiagramSpec
@@ -192,17 +261,33 @@ private struct BeforeAfterDiagram: View {
         let input = label(spec, 0, lang, default: "input")
         let machine = label(spec, 1, lang, default: "f()")
         let output = label(spec, 2, lang, default: "output")
-        HStack(spacing: 8) {
-            DiagramBox(text: input, accent: CodepetTheme.mutedText)
-            DiagramArrow()
-            DiagramBox(text: machine, accent: spec.accent.color, mono: true, emphasized: true)
-            DiagramArrow()
-            DiagramBox(text: output, accent: spec.accent.color)
+        let inRole = lang == .vi ? "đưa vào" : "you give"
+        let fnRole = lang == .vi ? "hàm" : "the function"
+        let outRole = lang == .vi ? "nhận lại" : "you get back"
+        HStack(alignment: .top, spacing: 8) {
+            step(input, role: inRole, accent: CodepetTheme.mutedText)
+            arrow
+            step(machine, role: fnRole, accent: spec.accent.color, mono: true, emphasized: true)
+            arrow
+            step(output, role: outRole, accent: spec.accent.color)
+        }
+    }
+
+    private var arrow: some View {
+        DiagramArrow().padding(.top, 13)   // line up with the box centre, above its caption
+    }
+
+    private func step(_ text: String, role: String, accent: Color, mono: Bool = false, emphasized: Bool = false) -> some View {
+        VStack(spacing: 5) {
+            DiagramBox(text: text, accent: accent, mono: mono, emphasized: emphasized)
+            roleCaption(role)
         }
     }
 }
 
 /// A condition splitting into a true branch and a false branch (if-else, conditional).
+/// The condition is named as the true/false question; each branch says which
+/// answer leads there, so the fork reads itself.
 private struct ForkDiagram: View {
     @Environment(\.uiLanguage) private var lang
     let spec: DiagramSpec
@@ -211,27 +296,38 @@ private struct ForkDiagram: View {
         let condition = label(spec, 0, lang, default: "condition?")
         let yes = label(spec, 1, lang, default: "true")
         let no = label(spec, 2, lang, default: "false")
-        VStack(spacing: 8) {
-            DiagramBox(text: condition, accent: spec.accent.color, mono: true, emphasized: true)
+        let qRole = lang == .vi ? "câu hỏi đúng / sai" : "true-or-false question"
+        let yesRole = lang == .vi ? "nếu đúng" : "if true"
+        let noRole = lang == .vi ? "nếu sai" : "if false"
+        VStack(spacing: 7) {
+            VStack(spacing: 4) {
+                roleCaption(qRole)
+                DiagramBox(text: condition, accent: spec.accent.color, mono: true, emphasized: true)
+            }
             DiagramArrow(systemName: "arrow.down", color: spec.accent.color.opacity(0.6))
-            HStack(spacing: 16) {
-                branch(symbol: "checkmark", text: yes, tint: CodepetTheme.accentTeal)
-                branch(symbol: "xmark", text: no, tint: CodepetTheme.accentOrange)
+            HStack(alignment: .top, spacing: 16) {
+                branch(symbol: "checkmark", role: yesRole, text: yes, tint: CodepetTheme.accentTeal)
+                branch(symbol: "xmark", role: noRole, text: no, tint: CodepetTheme.accentOrange)
             }
         }
     }
 
-    private func branch(symbol: String, text: String, tint: Color) -> some View {
+    private func branch(symbol: String, role: String, text: String, tint: Color) -> some View {
         VStack(spacing: 4) {
-            Image(systemName: symbol)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(tint)
+            HStack(spacing: 3) {
+                Image(systemName: symbol)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(tint)
+                roleCaption(role)
+            }
             DiagramBox(text: text, accent: tint)
         }
     }
 }
 
 /// A repeating body with a stop condition (loop, iteration, break-continue).
+/// The circular arrow is named "repeat", the body box "each pass", and the stop
+/// row keeps its own exit wording — so it's clear what loops and what ends it.
 private struct CycleDiagram: View {
     @Environment(\.uiLanguage) private var lang
     let spec: DiagramSpec
@@ -239,12 +335,20 @@ private struct CycleDiagram: View {
     var body: some View {
         let body = label(spec, 0, lang, default: "do this")
         let stop = label(spec, 1, lang)
+        let repeatRole = lang == .vi ? "lặp lại" : "repeat"
+        let eachRole = lang == .vi ? "mỗi vòng" : "each pass"
         HStack(spacing: 12) {
-            Image(systemName: "arrow.triangle.2.circlepath")
-                .font(.system(size: 30, weight: .bold))
-                .foregroundColor(spec.accent.color)
+            VStack(spacing: 3) {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: 30, weight: .bold))
+                    .foregroundColor(spec.accent.color)
+                roleCaption(repeatRole)
+            }
             VStack(alignment: .leading, spacing: 6) {
-                DiagramBox(text: body, accent: spec.accent.color, emphasized: true)
+                VStack(alignment: .leading, spacing: 3) {
+                    roleCaption(eachRole)
+                    DiagramBox(text: body, accent: spec.accent.color, emphasized: true)
+                }
                 if !stop.isEmpty {
                     HStack(spacing: 4) {
                         Image(systemName: "stop.fill")
@@ -252,7 +356,9 @@ private struct CycleDiagram: View {
                             .foregroundColor(CodepetTheme.accentOrange)
                         Text(stop)
                             .font(.pixelSystem(size: 11, weight: .semibold))
-                            .foregroundColor(CodepetTheme.mutedText)
+                            .foregroundColor(CodepetTheme.bodyText)
+                            .lineLimit(1)
+                            .fixedSize()
                     }
                 }
             }
@@ -261,6 +367,8 @@ private struct CycleDiagram: View {
 }
 
 /// Two nodes exchanging a request and a response (http, api).
+/// Numbered role captions ("① sends request" / "② gets response") show the order
+/// and direction so the back-and-forth is legible, not just two arrows.
 private struct RequestResponseDiagram: View {
     @Environment(\.uiLanguage) private var lang
     let spec: DiagramSpec
@@ -270,30 +378,41 @@ private struct RequestResponseDiagram: View {
         let request = label(spec, 1, lang, default: "request")
         let server = label(spec, 2, lang, default: "server")
         let response = label(spec, 3, lang, default: "response")
+        let reqRole = lang == .vi ? "① gửi yêu cầu" : "① sends request"
+        let resRole = lang == .vi ? "② nhận trả lời" : "② gets response"
         HStack(spacing: 10) {
             DiagramBox(text: client, accent: spec.accent.color)
-            VStack(spacing: 6) {
-                exchange(text: request, symbol: "arrow.right", tint: spec.accent.color)
-                exchange(text: response, symbol: "arrow.left", tint: CodepetTheme.accentTeal)
+            VStack(spacing: 8) {
+                exchange(role: reqRole, text: request, forward: true, tint: spec.accent.color)
+                exchange(role: resRole, text: response, forward: false, tint: CodepetTheme.accentTeal)
             }
             DiagramBox(text: server, accent: spec.accent.color, emphasized: true)
         }
     }
 
-    private func exchange(text: String, symbol: String, tint: Color) -> some View {
-        HStack(spacing: 4) {
-            Text(text)
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                .foregroundColor(CodepetTheme.mutedText)
-                .lineLimit(1)
-            Image(systemName: symbol)
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(tint)
+    private func exchange(role: String, text: String, forward: Bool, tint: Color) -> some View {
+        VStack(spacing: 2) {
+            roleCaption(role)
+            HStack(spacing: 4) {
+                if !forward {
+                    Image(systemName: "arrow.left").font(.system(size: 11, weight: .bold)).foregroundColor(tint)
+                }
+                Text(text)
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundColor(CodepetTheme.bodyText)
+                    .lineLimit(1)
+                    .fixedSize()
+                if forward {
+                    Image(systemName: "arrow.right").font(.system(size: 11, weight: .bold)).foregroundColor(tint)
+                }
+            }
         }
     }
 }
 
 /// Ordered snapshots on a line (git, commit, branch, pull-request).
+/// Numbered dots + a "time →" axis make the sequence and direction explicit, so
+/// it reads as "saves over time" rather than three disconnected dots.
 private struct TimelineDiagram: View {
     @Environment(\.uiLanguage) private var lang
     let spec: DiagramSpec
@@ -302,25 +421,37 @@ private struct TimelineDiagram: View {
         let snapshots: [String] = spec.labels.isEmpty
             ? ["•", "•", "•"]
             : spec.labels.map { $0(lang) }
-        HStack(spacing: 0) {
-            ForEach(Array(snapshots.enumerated()), id: \.offset) { idx, snap in
-                node(snap)
-                if idx < snapshots.count - 1 {
-                    Rectangle()
-                        .fill(spec.accent.color.opacity(0.5))
-                        .frame(height: 3)
-                        .frame(maxWidth: .infinity)
+        let axis = lang == .vi ? "thời gian →" : "time →"
+        VStack(spacing: 8) {
+            HStack(spacing: 0) {
+                ForEach(Array(snapshots.enumerated()), id: \.offset) { idx, snap in
+                    node(snap, index: idx + 1)
+                    if idx < snapshots.count - 1 {
+                        Rectangle()
+                            .fill(spec.accent.color.opacity(0.5))
+                            .frame(height: 3)
+                            .frame(maxWidth: .infinity)
+                    }
                 }
+                Image(systemName: "arrowtriangle.right.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundColor(spec.accent.color.opacity(0.7))
             }
+            roleCaption(axis)
         }
     }
 
-    private func node(_ text: String) -> some View {
+    private func node(_ text: String, index: Int) -> some View {
         VStack(spacing: 6) {
-            Circle()
-                .fill(spec.accent.color)
-                .frame(width: 16, height: 16)
-                .overlay(Circle().stroke(Color(hex: "#2D2B26"), lineWidth: 2))
+            ZStack {
+                Circle()
+                    .fill(spec.accent.color)
+                    .frame(width: 18, height: 18)
+                    .overlay(Circle().stroke(Color(hex: "#2D2B26"), lineWidth: 2))
+                Text("\(index)")
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundColor(.white)
+            }
             Text(text)
                 .font(.pixelSystem(size: 10, weight: .semibold))
                 .foregroundColor(CodepetTheme.bodyText)
