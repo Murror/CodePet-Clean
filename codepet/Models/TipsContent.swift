@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 /// A pet-specialized vibe-coding skill tile shown in the Tips tab.
 struct TipSkillTile {
@@ -11,7 +12,7 @@ struct TipSkillTile {
 enum TipSetupState: String {
     case done, warning, missing
 
-    /// SF Symbol for the status indicator. View layer maps to a color.
+    /// SF Symbol for the status indicator.
     var icon: String {
         switch self {
         case .done:    return "checkmark.circle.fill"
@@ -19,6 +20,10 @@ enum TipSetupState: String {
         case .missing: return "circle"
         }
     }
+
+    // NOTE: `var color: Color` is defined in TipsMockupView.swift as an
+    // extension on TipSetupState (maps done→green, warning→orange, missing→muted).
+    // Do not redeclare here.
 }
 
 /// A pet-specialized "Your setup" row.
@@ -29,12 +34,48 @@ struct TipSetupItem {
     let actionLabel: L10n?
 }
 
+/// Tech-stack tags used to match readings to projects.
+enum ProjectTag: String, Codable, CaseIterable {
+    // Platform / language
+    case swiftUI       // .swift files + SwiftUI imports
+    case uiKit         // .swift + UIKit / Storyboard
+    case react         // package.json with react dep
+    case vue           // package.json with vue dep
+    case angular       // angular.json
+    case python        // .py files, requirements.txt, pyproject.toml
+    case nodeBackend   // package.json + server-like deps (express, fastify, etc.)
+    case goLang        // go.mod
+    case rust          // Cargo.toml
+
+    // Infrastructure / services
+    case firebase      // GoogleService-Info.plist, firebase.json
+    case docker        // Dockerfile, docker-compose.yml
+    case ci            // .github/workflows, .gitlab-ci.yml, Jenkinsfile
+    case database      // prisma, knex, sequelize, Core Data, .sql files
+    case api           // REST/GraphQL patterns (openapi.yaml, schema.graphql)
+    case testing       // XCTest, jest, pytest, test directories
+    case mobile        // iOS/Android project markers
+}
+
 /// A pet-specialized "Recommended reading" entry.
 struct TipReadingItem {
     let title: L10n
     let author: String   // proper noun, language-neutral
     let kind: L10n
     let why: L10n
+    /// Optional URL to open in the browser. nil = no "Open" action.
+    let url: String?
+    /// Tech-stack tags for project-aware matching. Empty = universal.
+    let tags: [ProjectTag]
+
+    init(title: L10n, author: String, kind: L10n, why: L10n, url: String? = nil, tags: [ProjectTag] = []) {
+        self.title = title
+        self.author = author
+        self.kind = kind
+        self.why = why
+        self.url = url
+        self.tags = tags
+    }
 }
 
 /// Per-pet content for the Tips tab. Each pet represents a discipline, and
@@ -80,6 +121,22 @@ struct TipsContent {
                     en: "Protect prod from abuse — and yourself from runaway scripts."
                 )
             ),
+            TipSkillTile(
+                icon: "macbook.and.iphone",
+                title: L10n(vi: "Responsive layout", en: "Responsive layout"),
+                hint: L10n(
+                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
+                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                )
+            ),
+            TipSkillTile(
+                icon: "speedometer",
+                title: L10n(vi: "Hiệu năng", en: "Performance"),
+                hint: L10n(
+                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
+                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
+                )
+            ),
         ],
 
         // Nova — Frontend Dev (fiery / fast)
@@ -114,6 +171,22 @@ struct TipsContent {
                 hint: L10n(
                     vi: "Điều hướng bàn phím, độ tương phản, alt text. A11y là một phần của ship, không phải thêm thắt.",
                     en: "Keyboard nav, contrast, alt text. A11y is shipping, not extra."
+                )
+            ),
+            TipSkillTile(
+                icon: "macbook.and.iphone",
+                title: L10n(vi: "Responsive layout", en: "Responsive layout"),
+                hint: L10n(
+                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
+                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                )
+            ),
+            TipSkillTile(
+                icon: "speedometer",
+                title: L10n(vi: "Hiệu năng", en: "Performance"),
+                hint: L10n(
+                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
+                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
                 )
             ),
         ],
@@ -152,6 +225,22 @@ struct TipsContent {
                     en: "Every list has zero. Design that view as carefully as the full one."
                 )
             ),
+            TipSkillTile(
+                icon: "macbook.and.iphone",
+                title: L10n(vi: "Responsive layout", en: "Responsive layout"),
+                hint: L10n(
+                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
+                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                )
+            ),
+            TipSkillTile(
+                icon: "speedometer",
+                title: L10n(vi: "Hiệu năng", en: "Performance"),
+                hint: L10n(
+                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
+                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
+                )
+            ),
         ],
 
         // Sage — Product Owner (zen / methodical)
@@ -186,6 +275,22 @@ struct TipsContent {
                 hint: L10n(
                     vi: "Biết ai quyết, ai khuyên, ai chỉ được báo. Đừng lẫn lộn ba bên này.",
                     en: "Know who decides, who advises, who's just informed. Don't confuse the three."
+                )
+            ),
+            TipSkillTile(
+                icon: "macbook.and.iphone",
+                title: L10n(vi: "Responsive layout", en: "Responsive layout"),
+                hint: L10n(
+                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
+                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                )
+            ),
+            TipSkillTile(
+                icon: "speedometer",
+                title: L10n(vi: "Hiệu năng", en: "Performance"),
+                hint: L10n(
+                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
+                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
                 )
             ),
         ],
@@ -224,6 +329,22 @@ struct TipsContent {
                     en: "Prod will fail. Practice it now or panic later. Pick one."
                 )
             ),
+            TipSkillTile(
+                icon: "macbook.and.iphone",
+                title: L10n(vi: "Responsive layout", en: "Responsive layout"),
+                hint: L10n(
+                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
+                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                )
+            ),
+            TipSkillTile(
+                icon: "speedometer",
+                title: L10n(vi: "Hiệu năng", en: "Performance"),
+                hint: L10n(
+                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
+                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
+                )
+            ),
         ],
 
         // Byte — Data / ML (glitchy / fragments)
@@ -260,6 +381,22 @@ struct TipsContent {
                     en: "If you can't reproduce features, you can't reproduce results."
                 )
             ),
+            TipSkillTile(
+                icon: "macbook.and.iphone",
+                title: L10n(vi: "Responsive layout", en: "Responsive layout"),
+                hint: L10n(
+                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
+                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                )
+            ),
+            TipSkillTile(
+                icon: "speedometer",
+                title: L10n(vi: "Hiệu năng", en: "Performance"),
+                hint: L10n(
+                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
+                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
+                )
+            ),
         ],
 
         // Null — Mobile Dev (chaotic / silly)
@@ -294,6 +431,22 @@ struct TipsContent {
                 hint: L10n(
                     vi: "Mỗi MB là rào cản tải về. Bớt asset, lazy-load, ship gọn.",
                     en: "Every MB is a download barrier. Strip assets, lazy-load, ship lean."
+                )
+            ),
+            TipSkillTile(
+                icon: "macbook.and.iphone",
+                title: L10n(vi: "Responsive layout", en: "Responsive layout"),
+                hint: L10n(
+                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
+                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                )
+            ),
+            TipSkillTile(
+                icon: "speedometer",
+                title: L10n(vi: "Hiệu năng", en: "Performance"),
+                hint: L10n(
+                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
+                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
                 )
             ),
         ],
@@ -458,9 +611,11 @@ struct TipsContent {
         ],
     ]
 
-    // MARK: - Reading section per pet
+    // MARK: - Reading pool per pet (expanded, tagged for project matching)
 
-    static let tipReadingByPet: [String: [TipReadingItem]] = [
+    static let tipReadingPool: [String: [TipReadingItem]] = [
+
+        // ── Crash — Backend Dev ──────────────────────────────────────────
         "crash": [
             TipReadingItem(
                 title: L10n(vi: "Designing Data-Intensive Applications", en: "Designing Data-Intensive Applications"),
@@ -469,7 +624,9 @@ struct TipsContent {
                 why: L10n(
                     vi: "Chương 5–7 về replication & consistency là nền tảng mọi backend đứng trên đó.",
                     en: "Chapters 5–7 on replication & consistency are the foundation every backend ships on."
-                )
+                ),
+                url: "https://dataintensive.net",
+                tags: [.nodeBackend, .database, .api]
             ),
             TipReadingItem(
                 title: L10n(vi: "The Twelve-Factor App", en: "The Twelve-Factor App"),
@@ -478,9 +635,57 @@ struct TipsContent {
                 why: L10n(
                     vi: "Kỷ luật vận hành đứng vững qua mọi stack. Đọc lại mỗi năm một lần.",
                     en: "Operational discipline that holds up across every stack. Re-read once a year."
-                )
+                ),
+                url: "https://12factor.net",
+                tags: [.docker, .ci, .nodeBackend, .goLang]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Firebase in Production", en: "Firebase in Production"),
+                author: "Firebase Docs",
+                kind: L10n(vi: "Hướng dẫn · 45 phút", en: "Guide · 45 min"),
+                why: L10n(
+                    vi: "Security rules, composite indexes, offline persistence — ba thứ ai cũng bỏ qua cho đến khi cháy.",
+                    en: "Security rules, composite indexes, offline persistence — three things everyone skips until it burns."
+                ),
+                url: "https://firebase.google.com/docs/firestore/best-practices",
+                tags: [.firebase, .mobile, .swiftUI]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Server-Side Swift with Vapor", en: "Server-Side Swift with Vapor"),
+                author: "raywenderlich.com",
+                kind: L10n(vi: "Loạt bài · 10 bài", en: "Series · 10 tutorials"),
+                why: L10n(
+                    vi: "Backend bằng chính ngôn ngữ bạn đang dùng. Ít context-switch hơn.",
+                    en: "Backend in the same language you already use. Less context-switching."
+                ),
+                url: "https://www.kodeco.com/books/server-side-swift-with-vapor",
+                tags: [.swiftUI, .api]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Node.js Best Practices", en: "Node.js Best Practices"),
+                author: "Yoni Goldberg et al.",
+                kind: L10n(vi: "Repo · 100+ mục", en: "Repo · 100+ items"),
+                why: L10n(
+                    vi: "Checklist thực chiến cho production Node. Đi thẳng vào error handling và security.",
+                    en: "Battle-tested production Node checklist. Jump to error handling and security."
+                ),
+                url: "https://github.com/goldbergyoni/nodebestpractices",
+                tags: [.nodeBackend, .api, .testing]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Build APIs You Won't Hate", en: "Build APIs You Won't Hate"),
+                author: "Phil Sturgeon",
+                kind: L10n(vi: "Sách · 260 trang", en: "Book · 260 pages"),
+                why: L10n(
+                    vi: "Từ naming convention đến versioning. Thực tế hơn bất kỳ spec nào.",
+                    en: "From naming conventions to versioning. More practical than any spec."
+                ),
+                url: "https://apisyouwonthate.com/books/build-apis-you-wont-hate/",
+                tags: [.api, .nodeBackend, .goLang, .python]
             ),
         ],
+
+        // ── Nova — Frontend Dev ──────────────────────────────────────────
         "nova": [
             TipReadingItem(
                 title: L10n(vi: "Refactoring UI", en: "Refactoring UI"),
@@ -489,7 +694,9 @@ struct TipsContent {
                 why: L10n(
                     vi: "Gu thẩm mỹ thực tiễn cho engineer. Giải quyết 90% các khoảnh khắc \"sao UI mình trông kỳ vậy\".",
                     en: "Practical taste for engineers. Solves 90% of 'why does my UI look off' moments."
-                )
+                ),
+                url: "https://www.refactoringui.com",
+                tags: [.react, .vue, .angular]
             ),
             TipReadingItem(
                 title: L10n(vi: "Inclusive Components", en: "Inclusive Components"),
@@ -498,9 +705,57 @@ struct TipsContent {
                 why: L10n(
                     vi: "Accessible từ gốc. Mỗi bài luận là một component được làm đúng từ đầu đến cuối.",
                     en: "Accessible by default. Each essay is one component done right end-to-end."
-                )
+                ),
+                url: "https://inclusive-components.design",
+                tags: [.react, .vue, .angular]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "SwiftUI Thinking", en: "SwiftUI Thinking"),
+                author: "objc.io",
+                kind: L10n(vi: "Sách · 350 trang", en: "Book · 350 pages"),
+                why: L10n(
+                    vi: "Không chỉ API — mà là cách suy nghĩ bằng declarative UI. Layout, state, animation từ gốc.",
+                    en: "Not just API — but thinking in declarative UI. Layout, state, animation from first principles."
+                ),
+                url: "https://www.objc.io/books/thinking-in-swiftui/",
+                tags: [.swiftUI]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "React Patterns", en: "React Patterns"),
+                author: "reactpatterns.com",
+                kind: L10n(vi: "Tham khảo · 15 phút", en: "Reference · 15 min"),
+                why: L10n(
+                    vi: "Compound components, render props, hooks — các pattern giúp code frontend sạch sẽ.",
+                    en: "Compound components, render props, hooks — patterns that keep frontend code clean."
+                ),
+                url: "https://www.patterns.dev/react",
+                tags: [.react]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Testing Library Guiding Principles", en: "Testing Library Guiding Principles"),
+                author: "Kent C. Dodds",
+                kind: L10n(vi: "Bài luận · 10 phút", en: "Essay · 10 min"),
+                why: L10n(
+                    vi: "Test cách người dùng thật sử dụng, không phải test chi tiết cài đặt. Thay đổi cách viết test.",
+                    en: "Test how real users interact, not implementation details. Changes how you write tests."
+                ),
+                url: "https://testing-library.com/docs/guiding-principles",
+                tags: [.react, .vue, .testing]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Human Interface Guidelines", en: "Human Interface Guidelines"),
+                author: "Apple",
+                kind: L10n(vi: "Tham khảo · đọc khi cần", en: "Reference · read as needed"),
+                why: L10n(
+                    vi: "Tiêu chuẩn mà Apple dùng khi review app. Navigation, controls, layout — tất cả ở đây.",
+                    en: "The standard Apple uses to review your app. Navigation, controls, layout — it's all here."
+                ),
+                url: "https://developer.apple.com/design/human-interface-guidelines/",
+                tags: [.swiftUI, .uiKit, .mobile]
             ),
         ],
+
+        // ── Luna — Designer / UX-UI ─────────────────────────────────────
         "luna": [
             TipReadingItem(
                 title: L10n(vi: "The Design of Everyday Things", en: "The Design of Everyday Things"),
@@ -509,18 +764,66 @@ struct TipsContent {
                 why: L10n(
                     vi: "Affordance và signifier — ngôn ngữ giải thích vì sao một thứ thấy đúng hay sai.",
                     en: "Affordances and signifiers — the language of why things feel right or wrong."
-                )
+                ),
+                url: "https://www.nngroup.com/books/design-everyday-things-revised/"
             ),
             TipReadingItem(
                 title: L10n(vi: "The Humane Interface", en: "The Humane Interface"),
                 author: "Jef Raskin",
                 kind: L10n(vi: "Sách · 256 trang", en: "Book · 256 pages"),
                 why: L10n(
-                    vi: "Cognetics — thiết kế cho sự chú ý của con người, không chỉ cho mắt. Đáng ngạc nhiên là vẫn còn rất hợp thời.",
+                    vi: "Cognetics — thiết kế cho sự chú ý của con người, không chỉ cho mắt.",
                     en: "Cognetics — design for human attention, not just human eyes. Surprisingly current."
-                )
+                ),
+                url: "https://en.wikipedia.org/wiki/The_Humane_Interface"
+            ),
+            TipReadingItem(
+                title: L10n(vi: "About Face", en: "About Face"),
+                author: "Alan Cooper",
+                kind: L10n(vi: "Sách · 720 trang", en: "Book · 720 pages"),
+                why: L10n(
+                    vi: "Persona, goal-directed design, interaction patterns. Nặng nhưng đáng đọc chương 1-8.",
+                    en: "Personas, goal-directed design, interaction patterns. Dense but chapters 1-8 are gold."
+                ),
+                url: "https://www.wiley.com/en-us/About+Face%3A+The+Essentials+of+Interaction+Design%2C+4th+Edition-p-9781118766576",
+                tags: [.mobile, .swiftUI, .react]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Atomic Design", en: "Atomic Design"),
+                author: "Brad Frost",
+                kind: L10n(vi: "Sách · miễn phí online", en: "Book · free online"),
+                why: L10n(
+                    vi: "Atoms → molecules → organisms. Tư duy hệ thống cho design system.",
+                    en: "Atoms → molecules → organisms. Systems thinking for design systems."
+                ),
+                url: "https://atomicdesign.bradfrost.com",
+                tags: [.react, .vue, .angular]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "iOS Design Themes", en: "iOS Design Themes"),
+                author: "Apple HIG",
+                kind: L10n(vi: "Tham khảo · 20 phút", en: "Reference · 20 min"),
+                why: L10n(
+                    vi: "Clarity, deference, depth — ba nguyên tắc nền tảng cho mọi app Apple.",
+                    en: "Clarity, deference, depth — three principles that ground every Apple app."
+                ),
+                url: "https://developer.apple.com/design/human-interface-guidelines/designing-for-ios",
+                tags: [.swiftUI, .uiKit, .mobile]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Material Design Guidelines", en: "Material Design Guidelines"),
+                author: "Google",
+                kind: L10n(vi: "Tham khảo · đọc khi cần", en: "Reference · read as needed"),
+                why: L10n(
+                    vi: "Elevation, motion, color system — nền tảng của Android UI và web apps hiện đại.",
+                    en: "Elevation, motion, color system — foundation of Android UI and modern web apps."
+                ),
+                url: "https://m3.material.io",
+                tags: [.react, .vue, .angular, .mobile]
             ),
         ],
+
+        // ── Sage — Product Owner ─────────────────────────────────────────
         "sage": [
             TipReadingItem(
                 title: L10n(vi: "Inspired", en: "Inspired"),
@@ -529,7 +832,8 @@ struct TipsContent {
                 why: L10n(
                     vi: "Cách các đội sản phẩm thực sự giỏi quyết định xây cái gì. Kinh thánh chống lại nhà-máy-tính-năng.",
                     en: "How great product teams really decide what to build. The anti-feature-factory bible."
-                )
+                ),
+                url: "https://www.svpg.com/inspired-how-to-create-tech-products-customers-love/"
             ),
             TipReadingItem(
                 title: L10n(vi: "Continuous Discovery Habits", en: "Continuous Discovery Habits"),
@@ -538,9 +842,54 @@ struct TipsContent {
                 why: L10n(
                     vi: "Biến discovery thành thói quen tuần, không phải sự kiện quý. Khung làm việc cụ thể.",
                     en: "Make discovery a weekly habit, not a quarterly event. Concrete framework."
-                )
+                ),
+                url: "https://www.producttalk.org/2021/05/continuous-discovery-habits/"
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Shape Up", en: "Shape Up"),
+                author: "Basecamp (Ryan Singer)",
+                kind: L10n(vi: "Sách · miễn phí online", en: "Book · free online"),
+                why: L10n(
+                    vi: "Thay thế Scrum bằng 6-week cycle. Đặc biệt phù hợp đội nhỏ ship nhanh.",
+                    en: "Replaces Scrum with 6-week cycles. Especially fits small teams shipping fast."
+                ),
+                url: "https://basecamp.com/shapeup",
+                tags: [.swiftUI, .react, .mobile]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Lean Analytics", en: "Lean Analytics"),
+                author: "Croll & Yoskovitz",
+                kind: L10n(vi: "Sách · 440 trang", en: "Book · 440 pages"),
+                why: L10n(
+                    vi: "Chọn đúng metric cho đúng giai đoạn. Không gì sai bằng tối ưu sai con số.",
+                    en: "Right metric for the right stage. Nothing wastes time like optimizing the wrong number."
+                ),
+                url: "https://leananalyticsbook.com",
+                tags: [.api, .database, .firebase]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "The Mom Test", en: "The Mom Test"),
+                author: "Rob Fitzpatrick",
+                kind: L10n(vi: "Sách · 130 trang", en: "Book · 130 pages"),
+                why: L10n(
+                    vi: "Hỏi khách hàng mà không tự lừa mình. Ngắn, thực tế, đọc một buổi chiều.",
+                    en: "Talk to customers without fooling yourself. Short, practical, one-afternoon read."
+                ),
+                url: "https://www.momtestbook.com"
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Jobs to be Done", en: "Jobs to be Done"),
+                author: "Anthony Ulwick",
+                kind: L10n(vi: "Sách · 300 trang", en: "Book · 300 pages"),
+                why: L10n(
+                    vi: "Người dùng không mua sản phẩm — họ thuê giải pháp. Lý thuyết nền tảng cho product.",
+                    en: "Users don't buy products — they hire solutions. The foundational product theory."
+                ),
+                url: "https://jobs-to-be-done-book.com"
             ),
         ],
+
+        // ── Glitch — DevOps / Infra ──────────────────────────────────────
         "glitch": [
             TipReadingItem(
                 title: L10n(vi: "Site Reliability Engineering", en: "Site Reliability Engineering"),
@@ -549,7 +898,9 @@ struct TipsContent {
                 why: L10n(
                     vi: "Kinh thánh SRE. Đọc trước phần error budget và toil. Phần còn lại đọc lướt sau.",
                     en: "The SRE bible. Skip to error budgets and toil first. Skim the rest later."
-                )
+                ),
+                url: "https://sre.google/sre-book/table-of-contents/",
+                tags: [.docker, .ci, .nodeBackend, .goLang]
             ),
             TipReadingItem(
                 title: L10n(vi: "The Phoenix Project", en: "The Phoenix Project"),
@@ -558,9 +909,56 @@ struct TipsContent {
                 why: L10n(
                     vi: "DevOps kể dưới dạng câu chuyện. Đọc một lần, bạn sẽ nhận ra cùng mẫu hình ở mọi công ty.",
                     en: "DevOps as a story. Read it once and you'll spot the pattern in every org."
-                )
+                ),
+                url: "https://itrevolution.com/product/the-phoenix-project/"
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Docker Deep Dive", en: "Docker Deep Dive"),
+                author: "Nigel Poulton",
+                kind: L10n(vi: "Sách · 260 trang", en: "Book · 260 pages"),
+                why: L10n(
+                    vi: "Từ image đến orchestration. Thực hành nhiều hơn lý thuyết.",
+                    en: "From images to orchestration. More hands-on than theory."
+                ),
+                url: "https://nigelpoulton.com/books/",
+                tags: [.docker, .ci]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "GitHub Actions in Action", en: "GitHub Actions in Action"),
+                author: "GitHub Docs",
+                kind: L10n(vi: "Hướng dẫn · 30 phút", en: "Guide · 30 min"),
+                why: L10n(
+                    vi: "CI/CD bắt đầu từ đây. Đủ cho test, build, deploy tự động.",
+                    en: "CI/CD starts here. Enough for automated test, build, deploy."
+                ),
+                url: "https://docs.github.com/en/actions/learn-github-actions",
+                tags: [.ci, .testing]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Xcode Cloud", en: "Xcode Cloud"),
+                author: "Apple Developer",
+                kind: L10n(vi: "Hướng dẫn · 20 phút", en: "Guide · 20 min"),
+                why: L10n(
+                    vi: "CI/CD được tích hợp sẵn cho dự án Swift. TestFlight deploy tự động.",
+                    en: "Built-in CI/CD for Swift projects. Automated TestFlight deployments."
+                ),
+                url: "https://developer.apple.com/xcode-cloud/",
+                tags: [.swiftUI, .uiKit, .ci, .mobile]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Monitoring with Prometheus & Grafana", en: "Monitoring with Prometheus & Grafana"),
+                author: "Prometheus Docs",
+                kind: L10n(vi: "Hướng dẫn · 1 giờ", en: "Guide · 1 hour"),
+                why: L10n(
+                    vi: "Không monitor = không biết gì đang xảy ra. Bắt đầu đo trước khi cần debug.",
+                    en: "No monitoring = flying blind. Start measuring before you need to debug."
+                ),
+                url: "https://prometheus.io/docs/introduction/overview/",
+                tags: [.docker, .nodeBackend, .goLang]
             ),
         ],
+
+        // ── Byte — AI/ML ─────────────────────────────────────────────────
         "byte": [
             TipReadingItem(
                 title: L10n(vi: "Designing Machine Learning Systems", en: "Designing Machine Learning Systems"),
@@ -569,7 +967,9 @@ struct TipsContent {
                 why: L10n(
                     vi: "ML đầu cuối trong production. Bao trùm phần các khoá học bỏ qua — drift, monitoring, ops.",
                     en: "End-to-end ML in production. Covers what courses skip — drift, monitoring, ops."
-                )
+                ),
+                url: "https://www.oreilly.com/library/view/designing-machine-learning/9781098107956/",
+                tags: [.python, .docker, .database]
             ),
             TipReadingItem(
                 title: L10n(vi: "Hidden Technical Debt in ML Systems", en: "Hidden Technical Debt in ML Systems"),
@@ -578,9 +978,57 @@ struct TipsContent {
                 why: L10n(
                     vi: "Đọc lại mỗi sáu tháng. Mỗi lần một phần khác lại bắt đầu thấm.",
                     en: "Re-read every six months. Each time another section starts to land."
-                )
+                ),
+                url: "https://papers.nips.cc/paper/2015/hash/86df7dcfd896fcaf2674f757a2463eba-Abstract.html",
+                tags: [.python]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Prompt Engineering Guide", en: "Prompt Engineering Guide"),
+                author: "DAIR.AI",
+                kind: L10n(vi: "Tham khảo · đọc khi cần", en: "Reference · read as needed"),
+                why: L10n(
+                    vi: "Tổng hợp mọi kỹ thuật prompt engineering. Cập nhật thường xuyên.",
+                    en: "Comprehensive prompt engineering techniques. Updated regularly."
+                ),
+                url: "https://www.promptingguide.ai",
+                tags: [.python, .nodeBackend, .api]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Core ML for Swift Developers", en: "Core ML for Swift Developers"),
+                author: "Apple Developer",
+                kind: L10n(vi: "Hướng dẫn · 30 phút", en: "Guide · 30 min"),
+                why: L10n(
+                    vi: "Chạy model trên thiết bị — không cần server. Tích hợp trực tiếp vào SwiftUI.",
+                    en: "Run models on-device — no server needed. Integrates directly into SwiftUI."
+                ),
+                url: "https://developer.apple.com/machine-learning/core-ml/",
+                tags: [.swiftUI, .mobile]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Building LLM Apps", en: "Building LLM Apps"),
+                author: "Anthropic Docs",
+                kind: L10n(vi: "Hướng dẫn · 1 giờ", en: "Guide · 1 hour"),
+                why: L10n(
+                    vi: "Từ API call đến RAG pipeline. Thực tế hơn mọi tutorial YouTube.",
+                    en: "From API calls to RAG pipelines. More practical than any YouTube tutorial."
+                ),
+                url: "https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview",
+                tags: [.nodeBackend, .python, .api, .firebase]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "FastAI Practical Deep Learning", en: "FastAI Practical Deep Learning"),
+                author: "Jeremy Howard",
+                kind: L10n(vi: "Khoá học · miễn phí", en: "Course · free"),
+                why: L10n(
+                    vi: "Top-down: bắt đầu bằng kết quả, đào sâu dần. Cách nhanh nhất từ zero đến train model.",
+                    en: "Top-down: start with results, dig deeper. Fastest path from zero to training models."
+                ),
+                url: "https://course.fast.ai",
+                tags: [.python]
             ),
         ],
+
+        // ── Null — Mobile / Architecture ─────────────────────────────────
         "null": [
             TipReadingItem(
                 title: L10n(vi: "iOS App Architecture", en: "iOS App Architecture"),
@@ -589,7 +1037,9 @@ struct TipsContent {
                 why: L10n(
                     vi: "Các pattern sống sót qua app 5+ năm. MVVM, coordinator, DI trong thực tế.",
                     en: "Patterns that survive 5+ year apps. MVVM, coordinators, DI in real practice."
-                )
+                ),
+                url: "https://www.objc.io/books/app-architecture/",
+                tags: [.swiftUI, .uiKit, .mobile]
             ),
             TipReadingItem(
                 title: L10n(vi: "Mobile UX Guidelines", en: "Mobile UX Guidelines"),
@@ -598,7 +1048,53 @@ struct TipsContent {
                 why: L10n(
                     vi: "Vùng chạm, cử chỉ, accessibility trên màn hình nhỏ. Tài liệu tham khảo nên bookmark.",
                     en: "Touch targets, gestures, accessibility on small screens. Bookmarkable reference."
-                )
+                ),
+                url: "https://www.nngroup.com/topic/mobile-ux/",
+                tags: [.mobile, .swiftUI, .uiKit]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Clean Architecture", en: "Clean Architecture"),
+                author: "Robert C. Martin",
+                kind: L10n(vi: "Sách · 432 trang", en: "Book · 432 pages"),
+                why: L10n(
+                    vi: "Dependency rule, boundaries, use cases. Nguyên tắc sống được qua mọi framework.",
+                    en: "Dependency rule, boundaries, use cases. Principles that survive any framework."
+                ),
+                url: "https://www.oreilly.com/library/view/clean-architecture-a/9780134494272/",
+                tags: [.nodeBackend, .goLang, .python, .swiftUI]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Swift Concurrency by Example", en: "Swift Concurrency by Example"),
+                author: "Paul Hudson",
+                kind: L10n(vi: "Loạt bài · miễn phí", en: "Series · free"),
+                why: L10n(
+                    vi: "async/await, actors, structured concurrency. Mỗi pattern có ví dụ chạy được.",
+                    en: "async/await, actors, structured concurrency. Each pattern with runnable examples."
+                ),
+                url: "https://www.hackingwithswift.com/swift/5.5/async-await",
+                tags: [.swiftUI, .mobile]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "The Composable Architecture", en: "The Composable Architecture"),
+                author: "Point-Free",
+                kind: L10n(vi: "Thư viện + video", en: "Library + video series"),
+                why: L10n(
+                    vi: "State management cho SwiftUI mà scale được. Phức tạp nhưng đáng học.",
+                    en: "SwiftUI state management that scales. Complex but worth learning."
+                ),
+                url: "https://github.com/pointfreeco/swift-composable-architecture",
+                tags: [.swiftUI, .mobile, .testing]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Design Patterns in Swift", en: "Design Patterns in Swift"),
+                author: "Refactoring.Guru",
+                kind: L10n(vi: "Tham khảo · đọc khi cần", en: "Reference · read as needed"),
+                why: L10n(
+                    vi: "22 pattern cổ điển với ví dụ Swift. Bookmarkable.",
+                    en: "22 classic patterns with Swift examples. Bookmarkable."
+                ),
+                url: "https://refactoring.guru/design-patterns/swift",
+                tags: [.swiftUI, .uiKit]
             ),
         ],
     ]

@@ -427,6 +427,7 @@ struct CompanionPanelView: View {
             case .starter: return "a starter exercise"
             case .practice: return "a practice exercise"
             case .stretch: return "a stretch challenge"
+            case .expert: return "an expert challenge"
             }
         }()
         return "Let's work on \(diffLabel): \"\(challenge.title)\". Here's what we need to do:\n\n\(challenge.description)\n\nI'll guide you step by step. Ready?"

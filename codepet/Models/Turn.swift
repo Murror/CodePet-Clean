@@ -54,13 +54,26 @@ extension Session {
     }
 }
 
+/// A skill detected by the AI during a coding session.
+struct DetectedSkill: Codable, Hashable {
+    let skillId: String        // e.g. "component_composition"
+    let confidence: String     // "strong" | "weak"
+    let evidence: String       // one-sentence explanation
+
+    enum CodingKeys: String, CodingKey {
+        case skillId = "skill_id"
+        case confidence, evidence
+    }
+}
+
 struct Narrative: Codable, Hashable {
-    let title: String          // ≤60 chars
-    let whatYouWanted: String  // ≤240 chars
-    let whatHappened: String   // ≤240 chars
-    let lesson: String         // ≤240 chars or "" if none
-    let nextSteps: String      // ≤500 chars or "" if none — pet's gentle advice
-    let mood: String           // "idle" | "excited" | "thinking" | "proud" | "concerned" | "cheering"
+    let title: String
+    let whatYouWanted: String
+    let whatHappened: String
+    let lesson: String
+    let nextSteps: String
+    let mood: String
+    let detectedSkills: [DetectedSkill]
     let model: String
     let generatedAt: Date
     let schemaVersion: Int
@@ -72,13 +85,12 @@ struct Narrative: Codable, Hashable {
         case lesson
         case nextSteps = "next_steps"
         case mood
+        case detectedSkills = "detected_skills"
         case model
         case generatedAt = "generated_at"
         case schemaVersion = "schema_version"
     }
 
-    /// Memberwise initializer (required because custom init(from:) suppresses
-    /// the auto-generated one).
     init(
         title: String,
         whatYouWanted: String,
@@ -86,6 +98,7 @@ struct Narrative: Codable, Hashable {
         lesson: String,
         nextSteps: String = "",
         mood: String = "idle",
+        detectedSkills: [DetectedSkill] = [],
         model: String,
         generatedAt: Date,
         schemaVersion: Int
@@ -96,13 +109,13 @@ struct Narrative: Codable, Hashable {
         self.lesson = lesson
         self.nextSteps = nextSteps
         self.mood = mood
+        self.detectedSkills = detectedSkills
         self.model = model
         self.generatedAt = generatedAt
         self.schemaVersion = schemaVersion
     }
 
-    /// Backward-compatible decoder: old narratives without `next_steps` or `mood`
-    /// decode with defaults instead of failing.
+    /// Backward-compatible decoder.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         title = try c.decode(String.self, forKey: .title)
@@ -111,6 +124,7 @@ struct Narrative: Codable, Hashable {
         lesson = try c.decode(String.self, forKey: .lesson)
         nextSteps = try c.decodeIfPresent(String.self, forKey: .nextSteps) ?? ""
         mood = try c.decodeIfPresent(String.self, forKey: .mood) ?? "idle"
+        detectedSkills = try c.decodeIfPresent([DetectedSkill].self, forKey: .detectedSkills) ?? []
         model = try c.decode(String.self, forKey: .model)
         generatedAt = try c.decode(Date.self, forKey: .generatedAt)
         schemaVersion = try c.decode(Int.self, forKey: .schemaVersion)

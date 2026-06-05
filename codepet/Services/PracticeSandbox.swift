@@ -54,7 +54,8 @@ enum PracticeSandbox {
         // us point individual skills at other files later without UI changes.
         switch skillId {
         case "component_composition", "loading_error_states",
-             "form_validation_ux", "accessibility_basics":
+             "form_validation_ux", "accessibility_basics",
+             "responsive_layout", "performance":
             return "app/page.tsx"
         default:
             return "app/page.tsx"

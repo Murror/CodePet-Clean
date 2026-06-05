@@ -128,6 +128,7 @@ struct ExerciseWorkspaceView: View {
             case .starter:  return ("STARTER", Color(hex: "#3FA66A"))
             case .practice: return ("PRACTICE", Color(hex: "#7B6BD8"))
             case .stretch:  return ("STRETCH", Color(hex: "#E08A3C"))
+            case .expert:   return ("EXPERT", Color(hex: "#7B3FE4"))
             }
         }()
         return Text(label)
