@@ -10,6 +10,12 @@ struct DictionaryView: View {
     @State private var expandedTermIds: Set<String> = []
     @State private var showProjectPanel: Bool = true
 
+    /// When true the dictionary is shown as a plain, universal reference: the
+    /// project panel (Surface B) and the per-card "Used in …" badges (Surface
+    /// A) are hidden. Lets a user read definitions detached from whatever
+    /// project they happen to be working on. Persisted so the choice sticks.
+    @AppStorage("cp_dictionaryDetached") private var detached: Bool = false
+
     private var visibleTerms: [DictionaryTerm] {
         let trimmed = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
@@ -26,6 +32,13 @@ struct DictionaryView: View {
     /// per render and reused for the panel AND every card's "Used in…" badge.
     private var projectGroup: DictionaryMatcher.ProjectTermGroup? {
         DictionaryMatcher.match(projects: projectStore.projects)
+    }
+
+    /// The project group actually applied to the UI — `nil` while detached, so
+    /// the panel and every card badge drop out together. (`projectGroup` stays
+    /// live underneath so the re-link bar still knows which project to offer.)
+    private var effectiveGroup: DictionaryMatcher.ProjectTermGroup? {
+        detached ? nil : projectGroup
     }
 
     var body: some View {
@@ -56,7 +69,7 @@ struct DictionaryView: View {
                 .padding(.bottom, 14)
 
             ScrollView {
-                VStack(spacing: 4) {
+                VStack(spacing: 6) {
                     ForEach(DictionaryContent.topics) { topic in
                         topicRow(topic)
                     }
@@ -69,27 +82,57 @@ struct DictionaryView: View {
 
     private func topicRow(_ topic: DictionaryTopic) -> some View {
         let isSelected = topic.id == selectedTopicId && !isSearching
+        let accent = topic.accent.color
+        let count = DictionaryContent.terms(in: topic.id).count
         return Button {
             selectedTopicId = topic.id
             searchQuery = ""
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: topic.icon)
-                    .frame(width: 18)
-                    .foregroundColor(isSelected ? .white : CodepetTheme.bodyText)
+                sidebarIcon(topic.icon, accent: accent, selected: isSelected)
                 Text(topic.title(uiLanguage))
                     .font(CodepetTheme.pixel(13))
                     .foregroundColor(isSelected ? .white : CodepetTheme.primaryText)
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 4)
+                countBadge(count, accent: accent, selected: isSelected)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 9)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(isSelected ? CodepetTheme.accentPurple : Color.clear)
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(isSelected ? accent : Color.clear)
             )
+            // Make the WHOLE row clickable — without this, `.buttonStyle(.plain)`
+            // only hit-tests the opaque icon/title/badge, so clicks landing on
+            // the transparent Spacer gap in the middle of the row do nothing
+            // (felt like "I have to click 2-3 times to switch tabs").
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    private func sidebarIcon(_ name: String, accent: Color, selected: Bool) -> some View {
+        Image(systemName: name)
+            .font(.system(size: 12, weight: .bold))
+            .foregroundColor(selected ? .white : accent)
+            .frame(width: 26, height: 26)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(selected ? Color.white.opacity(0.22) : accent.opacity(0.16))
+            )
+    }
+
+    private func countBadge(_ count: Int, accent: Color, selected: Bool) -> some View {
+        Text("\(count)")
+            .font(.pixelSystem(size: 10, weight: .semibold))
+            .foregroundColor(selected ? .white : accent)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(
+                Capsule().fill(selected ? Color.white.opacity(0.22) : accent.opacity(0.12))
+            )
     }
 
     // MARK: - Content pane
@@ -102,36 +145,140 @@ struct DictionaryView: View {
         }
     }
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(isSearching
-                 ? (uiLanguage == .vi ? "Kết quả tìm kiếm" : "Search results")
-                 : currentTopicTitle)
-                .font(CodepetTheme.display(22, weight: .bold))
-                .foregroundColor(CodepetTheme.primaryText)
+    /// Topic currently driving the header theme (nil while searching).
+    private var currentTopic: DictionaryTopic? {
+        isSearching ? nil : DictionaryContent.topic(forId: selectedTopicId)
+    }
 
-            HStack(spacing: 8) {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(CodepetTheme.mutedText)
-                TextField(uiLanguage == .vi ? "Tìm kiếm trong từ điển…" : "Search all terms…", text: $searchQuery)
-                    .textFieldStyle(.plain)
-                    .font(CodepetTheme.body(13))
-                    .foregroundColor(CodepetTheme.primaryText)
-                if !searchQuery.isEmpty {
-                    Button {
-                        searchQuery = ""
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(CodepetTheme.mutedText)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .codepetInput()
+    /// Accent for the hero banner: the selected topic's color, or purple in
+    /// search mode.
+    private var headerAccent: Color {
+        currentTopic?.accent.color ?? CodepetTheme.accentPurple
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            heroBanner
+            searchField
         }
         .padding(.horizontal, 32)
-        .padding(.top, 28)
-        .padding(.bottom, 18)
+        .padding(.top, 24)
+        .padding(.bottom, 16)
+    }
+
+    /// Always-visible toggle for project tailoring, living in the hero banner.
+    /// On → the project panel + "Used in …" badges appear (when a project is
+    /// detected); off → the dictionary reads as a plain universal reference.
+    /// Stateful label so its effect is legible even before a project exists.
+    private var tailorToggle: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.2)) { detached.toggle() }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: detached ? "pin.slash.fill" : "pin.fill")
+                    .font(.system(size: 10, weight: .bold))
+                Text(detached
+                     ? (uiLanguage == .vi ? "Đã tách" : "Detached")
+                     : (uiLanguage == .vi ? "Theo dự án" : "Tailored"))
+                    .font(.pixelSystem(size: 10, weight: .semibold))
+            }
+            .foregroundColor(detached ? CodepetTheme.mutedText : CodepetTheme.accentPurple)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(
+                Capsule().fill(detached
+                               ? Color.white.opacity(0.7)
+                               : CodepetTheme.accentPurple.opacity(0.16))
+            )
+        }
+        .buttonStyle(.plain)
+        .help(detached
+              ? (uiLanguage == .vi ? "Bật lại gợi ý theo dự án của bạn" : "Tailor the dictionary to your project")
+              : (uiLanguage == .vi ? "Xem từ điển không gắn với dự án" : "Show the dictionary without your project"))
+    }
+
+    private var heroBanner: some View {
+        let accent = headerAccent
+        let icon = currentTopic?.icon ?? "magnifyingglass"
+        let title = isSearching
+            ? (uiLanguage == .vi ? "Kết quả tìm kiếm" : "Search results")
+            : currentTopicTitle
+        let subtitle: String = {
+            if isSearching {
+                let n = visibleTerms.count
+                return uiLanguage == .vi ? "\(n) kết quả" : "\(n) result\(n == 1 ? "" : "s")"
+            }
+            return currentTopic?.blurb(uiLanguage) ?? ""
+        }()
+        return PixelCard(fill: accent.opacity(0.16), shadowOffset: 3, blockSize: 3, steps: 2, borderWidth: 3) {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(width: 52, height: 52)
+                    .pixelBox(fill: accent, shadowOffset: 2, blockSize: 2, steps: 2, borderWidth: 3)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title)
+                        .font(CodepetTheme.display(22, weight: .bold))
+                        .foregroundColor(CodepetTheme.primaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    if !subtitle.isEmpty {
+                        Text(subtitle)
+                            .font(CodepetTheme.body(12))
+                            .foregroundColor(CodepetTheme.bodyText)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                Spacer(minLength: 8)
+
+                tailorToggle
+
+                if !isSearching {
+                    let count = DictionaryContent.terms(in: selectedTopicId).count
+                    VStack(spacing: 1) {
+                        Text("\(count)")
+                            .font(CodepetTheme.display(20, weight: .bold))
+                            .foregroundColor(accent)
+                        Text(uiLanguage == .vi ? "từ" : "terms")
+                            .font(.pixelSystem(size: 9, weight: .semibold))
+                            .tracking(1.0)
+                            .foregroundColor(CodepetTheme.mutedText)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(Color.white.opacity(0.7))
+                    )
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(isSearching ? headerAccent : CodepetTheme.mutedText)
+            TextField(uiLanguage == .vi ? "Tìm kiếm trong từ điển…" : "Search all terms…", text: $searchQuery)
+                .textFieldStyle(.plain)
+                .font(CodepetTheme.body(13))
+                .foregroundColor(CodepetTheme.primaryText)
+            if !searchQuery.isEmpty {
+                Button {
+                    searchQuery = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(CodepetTheme.mutedText)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .codepetInput()
     }
 
     private var currentTopicTitle: String {
@@ -147,7 +294,7 @@ struct DictionaryView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 14) {
-                        if !isSearching, let group = projectGroup {
+                        if !isSearching, let group = effectiveGroup {
                             projectPanel(group, proxy: proxy)
                         }
                         ForEach(visibleTerms) { term in
@@ -155,8 +302,8 @@ struct DictionaryView: View {
                                 term: term,
                                 isExpanded: expandedTermIds.contains(term.id),
                                 onToggleExpand: { toggleExpand(term.id) },
-                                projectTags: projectGroup?.tags ?? [],
-                                projectName: projectGroup?.projectName
+                                projectTags: effectiveGroup?.tags ?? [],
+                                projectName: effectiveGroup?.projectName
                             )
                             .id(term.id)
                         }
@@ -189,6 +336,7 @@ struct DictionaryView: View {
                             .font(.system(size: 11, weight: .semibold))
                             .foregroundColor(CodepetTheme.mutedText)
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
