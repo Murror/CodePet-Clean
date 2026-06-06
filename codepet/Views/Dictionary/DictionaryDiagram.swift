@@ -30,7 +30,31 @@ enum DiagramTemplate: String, Hashable {
     /// Ordered snapshots on a line. labels: each label = one snapshot (2–4).
     /// Used by: git, commit, branch, pull-request.
     case timeline
-    // Phase 1 adds: nestedTree, twoSides, stack, studsContract, keyValue, layers.
+    /// A row of numbered slots, each holding one value. labels: each = one item (2–4).
+    /// Used by: array.
+    case indexedSlots
+    /// Concentric boxes shrinking inward to a base case. labels: outer→inner (2–4),
+    /// last label = the stop. Used by: recursion.
+    case nesting
+    /// A braced container of "key: value" rows. labels: each = one "key: value" line.
+    /// Used by: json.
+    case keyValue
+    /// Two panels side by side with a link between them.
+    /// labels: [0]=left title, [1]=left detail, [2]=right title, [3]=right detail.
+    /// Used by: frontend-backend.
+    case twoSides
+    /// Two stacked layers (structure under style). labels: [0]=bottom, [1]=top,
+    /// [2]="bottom"|"top" = which layer this term highlights. Used by: html, css.
+    case layers
+    /// A typed command and the output it produces. labels: [0]=command, [1]=output.
+    /// Used by: terminal, package-manager.
+    case commandFlow
+    /// You hand a callback to a worker; later it calls you back.
+    /// labels: [0]=you, [1]=hand-over, [2]=worker, [3]=call-back. Used by: callback.
+    case handBack
+    /// A main input▸fn▸result path plus a branch to an outside effect.
+    /// labels: [0]=input, [1]=fn, [2]=result, [3]=side effect. Used by: side-effect.
+    case mainPlusEffects
 }
 
 /// Semantic accent so term data never imports SwiftUI `Color`.
@@ -78,13 +102,13 @@ struct DictionaryDiagramView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             template
-                .frame(maxWidth: .infinity, minHeight: 96, alignment: .center)
+                .frame(maxWidth: .infinity, minHeight: 110, alignment: .center)
                 .padding(.vertical, 6)
 
             if let caption = spec.caption {
                 Text(markdown: caption(lang))
-                    .font(CodepetTheme.body(11))
-                    .foregroundColor(CodepetTheme.mutedText)
+                    .font(CodepetTheme.body(13))
+                    .foregroundColor(CodepetTheme.bodyText)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -99,6 +123,14 @@ struct DictionaryDiagramView: View {
         case .cycle:           CycleDiagram(spec: spec)
         case .requestResponse: RequestResponseDiagram(spec: spec)
         case .timeline:        TimelineDiagram(spec: spec)
+        case .indexedSlots:    IndexedSlotsDiagram(spec: spec)
+        case .nesting:         NestingDiagram(spec: spec)
+        case .keyValue:        KeyValueDiagram(spec: spec)
+        case .twoSides:        TwoSidesDiagram(spec: spec)
+        case .layers:          LayersDiagram(spec: spec)
+        case .commandFlow:     CommandFlowDiagram(spec: spec)
+        case .handBack:        HandBackDiagram(spec: spec)
+        case .mainPlusEffects: MainPlusEffectsDiagram(spec: spec)
         }
     }
 }
@@ -115,8 +147,8 @@ private struct DiagramBox: View {
     var body: some View {
         Text(text)
             .font(mono
-                  ? .system(size: 13, weight: .semibold, design: .monospaced)
-                  : .pixelSystem(size: 12, weight: .semibold))
+                  ? .system(size: 15, weight: .semibold, design: .monospaced)
+                  : .pixelSystem(size: 14, weight: .semibold))
             .foregroundColor(CodepetTheme.primaryText)
             .multilineTextAlignment(.center)
             .lineLimit(1)
@@ -137,11 +169,11 @@ private struct DiagramChip: View {
 
     var body: some View {
         Text(text)
-            .font(.pixelSystem(size: 11, weight: .semibold))
+            .font(.pixelSystem(size: 12, weight: .semibold))
             .foregroundColor(accent)
             .lineLimit(1)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
             .background(
                 Capsule().fill(accent.opacity(0.16))
             )
@@ -154,7 +186,7 @@ private struct DiagramArrow: View {
 
     var body: some View {
         Image(systemName: systemName)
-            .font(.system(size: 13, weight: .bold))
+            .font(.system(size: 15, weight: .bold))
             .foregroundColor(color)
     }
 }
@@ -170,8 +202,8 @@ private func label(_ spec: DiagramSpec, _ i: Int, _ lang: AppLanguage, default d
 /// to say *what each part is*, not just show it.
 private func roleCaption(_ text: String) -> some View {
     Text(text)
-        .font(.pixelSystem(size: 9, weight: .semibold))
-        .foregroundColor(CodepetTheme.mutedText)
+        .font(.pixelSystem(size: 11, weight: .semibold))
+        .foregroundColor(CodepetTheme.bodyText)
         .lineLimit(1)
         .fixedSize()
 }
@@ -187,8 +219,8 @@ private struct LabeledBoxDiagram: View {
     @Environment(\.uiLanguage) private var lang
     let spec: DiagramSpec
 
-    private let bandHeight: CGFloat = 32
-    private let bodyHeight: CGFloat = 40
+    private let bandHeight: CGFloat = 36
+    private let bodyHeight: CGFloat = 44
     private let ink = Color(hex: "#2D2B26")
 
     var body: some View {
@@ -208,7 +240,7 @@ private struct LabeledBoxDiagram: View {
             // The labeled box: name band (the sticker) over the value body.
             VStack(spacing: 0) {
                 Text(name)
-                    .font(.pixelSystem(size: 13, weight: .semibold))
+                    .font(.pixelSystem(size: 15, weight: .semibold))
                     .foregroundColor(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
@@ -220,14 +252,22 @@ private struct LabeledBoxDiagram: View {
                 Rectangle().fill(ink).frame(height: 2)
 
                 Text(value.isEmpty ? "…" : value)
-                    .font(.system(size: 17, weight: .bold, design: .monospaced))
+                    .font(.system(size: 19, weight: .bold, design: .monospaced))
                     .foregroundColor(CodepetTheme.primaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .padding(.horizontal, 10)
                     .frame(maxWidth: .infinity)
                     .frame(height: bodyHeight)
-                    .background(accent.opacity(0.14))
+                    // Opaque white base UNDER the translucent tint — without it
+                    // the dark pixel-shadow rectangle behind the box bleeds
+                    // through the 14%-alpha fill and the value row goes dark.
+                    .background(
+                        ZStack {
+                            Color.white
+                            accent.opacity(0.14)
+                        }
+                    )
             }
             .frame(width: 150)
             .overlay(Rectangle().stroke(ink, lineWidth: 2))
@@ -237,15 +277,15 @@ private struct LabeledBoxDiagram: View {
     }
 
     private func roleTag(_ text: String, tint: Color) -> some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 4) {
             Text(text)
-                .font(.pixelSystem(size: 10, weight: .semibold))
-                .foregroundColor(CodepetTheme.mutedText)
+                .font(.pixelSystem(size: 12, weight: .semibold))
+                .foregroundColor(CodepetTheme.bodyText)
                 .lineLimit(1)
                 .fixedSize()
             Image(systemName: "arrow.right")
-                .font(.system(size: 9, weight: .bold))
-                .foregroundColor(tint.opacity(0.7))
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(tint.opacity(0.8))
         }
     }
 }
@@ -457,6 +497,299 @@ private struct TimelineDiagram: View {
                 .foregroundColor(CodepetTheme.bodyText)
                 .lineLimit(1)
                 .fixedSize()
+        }
+    }
+}
+
+// MARK: - Phase 1 templates
+
+/// A row of numbered slots, each holding one value (array).
+/// The index numbers ARE the lesson: you reach each item by its position from 0.
+private struct IndexedSlotsDiagram: View {
+    @Environment(\.uiLanguage) private var lang
+    let spec: DiagramSpec
+
+    var body: some View {
+        let items = spec.labels.isEmpty ? ["a", "b", "c"] : spec.labels.map { $0(lang) }
+        let posRole = lang == .vi ? "vị trí" : "position"
+        HStack(alignment: .bottom, spacing: 8) {
+            ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
+                VStack(spacing: 4) {
+                    Text("[\(idx)]")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundColor(spec.accent.color)
+                    DiagramBox(text: item, accent: spec.accent.color, mono: true, emphasized: idx == 0)
+                    if idx == 0 { roleCaption(posRole) } else { roleCaption(" ") }
+                }
+            }
+        }
+    }
+}
+
+/// Concentric boxes shrinking inward to a base case (recursion).
+/// Each frame is the same problem on a smaller piece; the innermost is the stop.
+private struct NestingDiagram: View {
+    @Environment(\.uiLanguage) private var lang
+    let spec: DiagramSpec
+
+    var body: some View {
+        let layers = spec.labels.isEmpty ? ["f(3)", "f(2)", "f(1)"] : spec.labels.map { $0(lang) }
+        let stopRole = lang == .vi ? "điểm dừng" : "stop here"
+        let ink = Color(hex: "#2D2B26")
+        ZStack {
+            ForEach(Array(layers.enumerated()), id: \.offset) { idx, text in
+                let depth = layers.count - 1 - idx        // outermost = largest
+                let isBase = idx == layers.count - 1
+                VStack(spacing: 2) {
+                    Text(text)
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundColor(CodepetTheme.primaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    if isBase { roleCaption(stopRole) }
+                }
+                .padding(.horizontal, 12)
+                .frame(width: CGFloat(96 + depth * 56), height: CGFloat(40 + depth * 26), alignment: .top)
+                .padding(.top, 8)
+                .background(
+                    Rectangle().fill(spec.accent.color.opacity(isBase ? 0.28 : 0.10))
+                )
+                .overlay(Rectangle().stroke(ink, lineWidth: 2))
+            }
+        }
+    }
+}
+
+/// A braced container of "key: value" rows (json).
+private struct KeyValueDiagram: View {
+    @Environment(\.uiLanguage) private var lang
+    let spec: DiagramSpec
+
+    var body: some View {
+        let rows = spec.labels.isEmpty ? ["name: \"Ada\""] : spec.labels.map { $0(lang) }
+        let nameRole = lang == .vi ? "tên" : "name"
+        let valueRole = lang == .vi ? "giá trị" : "value"
+        let accent = spec.accent.color
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 10) {
+                roleCaption(nameRole)
+                roleCaption(valueRole)
+            }
+            .padding(.leading, 18)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text("{").font(.system(size: 15, weight: .bold, design: .monospaced)).foregroundColor(accent)
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    Text(row)
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                        .foregroundColor(CodepetTheme.primaryText)
+                        .lineLimit(1)
+                        .fixedSize()
+                        .padding(.leading, 16)
+                }
+                Text("}").font(.system(size: 15, weight: .bold, design: .monospaced)).foregroundColor(accent)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .pixelBox(fill: accent.opacity(0.10), shadowOffset: 2, blockSize: 2, steps: 2, borderWidth: 2)
+        }
+    }
+}
+
+/// Two panels side by side with a link between them (frontend-backend).
+private struct TwoSidesDiagram: View {
+    @Environment(\.uiLanguage) private var lang
+    let spec: DiagramSpec
+
+    var body: some View {
+        let leftTitle = label(spec, 0, lang, default: "Front")
+        let leftSub = label(spec, 1, lang)
+        let rightTitle = label(spec, 2, lang, default: "Back")
+        let rightSub = label(spec, 3, lang)
+        let seeRole = lang == .vi ? "bạn nhìn thấy" : "you see"
+        let hiddenRole = lang == .vi ? "chạy ngầm" : "runs hidden"
+        HStack(alignment: .top, spacing: 8) {
+            panel(title: leftTitle, sub: leftSub, role: seeRole, accent: spec.accent.color)
+            VStack(spacing: 2) {
+                Image(systemName: "arrow.left.arrow.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(CodepetTheme.mutedText)
+            }
+            .padding(.top, 24)
+            panel(title: rightTitle, sub: rightSub, role: hiddenRole, accent: CodepetTheme.accentBlue)
+        }
+    }
+
+    private func panel(title: String, sub: String, role: String, accent: Color) -> some View {
+        VStack(spacing: 5) {
+            roleCaption(role)
+            VStack(spacing: 4) {
+                Text(title)
+                    .font(.pixelSystem(size: 12, weight: .semibold))
+                    .foregroundColor(CodepetTheme.primaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                if !sub.isEmpty {
+                    Text(sub)
+                        .font(CodepetTheme.body(10))
+                        .foregroundColor(CodepetTheme.mutedText)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(width: 124)
+            .pixelBox(fill: accent.opacity(0.12), shadowOffset: 2, blockSize: 2, steps: 2, borderWidth: 2)
+        }
+    }
+}
+
+/// Two stacked layers — structure under style (html, css).
+/// labels[2] picks which layer this term highlights.
+private struct LayersDiagram: View {
+    @Environment(\.uiLanguage) private var lang
+    let spec: DiagramSpec
+
+    var body: some View {
+        let bottom = label(spec, 0, lang, default: "HTML")
+        let top = label(spec, 1, lang, default: "CSS")
+        let highlightTop = label(spec, 2, lang, default: "bottom") == "top"
+        VStack(spacing: 6) {
+            plate(text: top, highlighted: highlightTop)
+            plate(text: bottom, highlighted: !highlightTop)
+        }
+    }
+
+    private func plate(text: String, highlighted: Bool) -> some View {
+        Text(text)
+            .font(.pixelSystem(size: 12, weight: .semibold))
+            .foregroundColor(highlighted ? CodepetTheme.primaryText : CodepetTheme.mutedText)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 11)
+            .frame(width: 220)
+            .pixelBox(
+                fill: spec.accent.color.opacity(highlighted ? 0.22 : 0.07),
+                shadowOffset: highlighted ? 3 : 1, blockSize: 2, steps: 2,
+                borderWidth: highlighted ? 3 : 2
+            )
+            .opacity(highlighted ? 1 : 0.85)
+    }
+}
+
+/// A typed command and the output it produces (terminal, package-manager).
+private struct CommandFlowDiagram: View {
+    @Environment(\.uiLanguage) private var lang
+    let spec: DiagramSpec
+
+    var body: some View {
+        let command = label(spec, 0, lang, default: "command")
+        let output = label(spec, 1, lang, default: "output")
+        let typeRole = lang == .vi ? "bạn gõ" : "you type"
+        let outRole = lang == .vi ? "máy trả về" : "computer shows"
+        let ink = Color(hex: "#2D2B26")
+        VStack(alignment: .leading, spacing: 4) {
+            roleCaption(typeRole)
+            HStack(spacing: 6) {
+                Text("$").font(.system(size: 13, weight: .bold, design: .monospaced)).foregroundColor(spec.accent.color)
+                Text(command)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .frame(maxWidth: 260, alignment: .leading)
+            .background(Rectangle().fill(ink))
+
+            DiagramArrow(systemName: "arrow.down", color: spec.accent.color.opacity(0.6))
+                .padding(.leading, 16)
+
+            roleCaption(outRole)
+            Text(output)
+                .font(.system(size: 12, weight: .regular, design: .monospaced))
+                .foregroundColor(CodepetTheme.primaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(maxWidth: 260, alignment: .leading)
+                .pixelBox(fill: spec.accent.color.opacity(0.10), shadowOffset: 2, blockSize: 2, steps: 2, borderWidth: 2)
+        }
+    }
+}
+
+/// You hand a callback to a worker; later it calls you back (callback).
+/// Two ordered steps make the "don't wait — get notified later" idea concrete.
+private struct HandBackDiagram: View {
+    @Environment(\.uiLanguage) private var lang
+    let spec: DiagramSpec
+
+    var body: some View {
+        let you = label(spec, 0, lang, default: "you")
+        let handOver = label(spec, 1, lang, default: "hand callback")
+        let worker = label(spec, 2, lang, default: "worker")
+        let callBack = label(spec, 3, lang, default: "calls back")
+        VStack(spacing: 8) {
+            step(num: "①", from: you, action: handOver, to: worker,
+                 forward: true, tint: spec.accent.color)
+            step(num: "②", from: worker, action: callBack, to: you,
+                 forward: false, tint: CodepetTheme.accentTeal)
+        }
+    }
+
+    private func step(num: String, from: String, action: String, to: String, forward: Bool, tint: Color) -> some View {
+        HStack(spacing: 6) {
+            DiagramBox(text: from, accent: forward ? spec.accent.color : CodepetTheme.mutedText)
+            VStack(spacing: 1) {
+                roleCaption("\(num) \(action)")
+                Image(systemName: forward ? "arrow.right" : "arrow.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(tint)
+            }
+            DiagramBox(text: to, accent: forward ? CodepetTheme.mutedText : spec.accent.color)
+        }
+    }
+}
+
+/// A main input▸fn▸result path plus a branch to an outside effect (side-effect).
+private struct MainPlusEffectsDiagram: View {
+    @Environment(\.uiLanguage) private var lang
+    let spec: DiagramSpec
+
+    var body: some View {
+        let input = label(spec, 0, lang, default: "input")
+        let fn = label(spec, 1, lang, default: "f()")
+        let result = label(spec, 2, lang, default: "result")
+        let effect = label(spec, 3, lang, default: "writes a file")
+        let mainRole = lang == .vi ? "việc chính" : "the main job"
+        let sideRole = lang == .vi ? "kèm theo (hiệu ứng phụ)" : "on the side (side effect)"
+        VStack(spacing: 8) {
+            VStack(spacing: 4) {
+                roleCaption(mainRole)
+                HStack(spacing: 6) {
+                    DiagramBox(text: input, accent: CodepetTheme.mutedText)
+                    DiagramArrow()
+                    DiagramBox(text: fn, accent: spec.accent.color, mono: true, emphasized: true)
+                    DiagramArrow()
+                    DiagramBox(text: result, accent: spec.accent.color)
+                }
+            }
+            VStack(spacing: 2) {
+                Image(systemName: "arrow.turn.down.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(CodepetTheme.accentOrange)
+                HStack(spacing: 5) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(CodepetTheme.accentOrange)
+                    DiagramChip(text: effect, accent: CodepetTheme.accentOrange)
+                }
+                roleCaption(sideRole)
+            }
         }
     }
 }
