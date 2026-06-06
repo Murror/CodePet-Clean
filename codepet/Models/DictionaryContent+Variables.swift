@@ -135,13 +135,69 @@ extension DictionaryContent {
                 vi: "Tưởng tượng một dãy ô đánh số bắt đầu từ `0`: `[0] [1] [2]`. Mỗi ô giữ một món. Bạn đưa cho mảng con số `2`, nó mở ô số 2 và đưa lại món bên trong. Thứ tự là cố định, nên bạn luôn biết món nào *đầu tiên*, *thứ hai*, *thứ ba*.",
                 en: "Picture a row of numbered slots starting at `0`: `[0] [1] [2]`. Each slot holds one thing. Hand the array the number `2` and it opens slot 2 and gives you what's inside. The order is fixed, so you always know which item is *first*, *second*, *third*."
             ),
-            diagram: nil,
+            diagram: DiagramSpec(.indexedSlots,
+                [L10n(vi: "\"red\"", en: "\"red\""),
+                 L10n(vi: "\"green\"", en: "\"green\""),
+                 L10n(vi: "\"blue\"", en: "\"blue\"")],
+                accent: .purple,
+                caption: L10n(vi: "Mỗi ô đánh số từ 0 — đưa số là lấy đúng món.",
+                              en: "Each slot is numbered from 0 — give the number, get that item.")),
             codeExample: "let colors = [\"red\", \"green\", \"blue\"]\nlet first = colors[0]   // \"red\"",
             whenToUse: L10n(
                 vi: "Khi có **một bộ nhiều món giống nhau** và *thứ tự quan trọng* — danh sách việc cần làm, hàng đợi tin nhắn.",
                 en: "When you have a **collection of similar things** and *order matters* — a to-do list, a queue of messages."
             ),
-            tags: [], related: ["variable", "iteration"]
+            tags: [], related: ["variable", "iteration", "object"]
+        ),
+
+        .init(
+            id: "object", topicId: "variables",
+            title: L10n(vi: "Đối tượng (Object)", en: "Object"),
+            cardDefinition: L10n(
+                vi: "Một **bảng tra cứu**: đưa một cái tên (khóa), nhận lại giá trị gắn với nó.",
+                en: "A **labeled lookup**: give it a name (a key), get back the value tied to it."
+            ),
+            whatItReallyMeans: L10n(
+                vi: "Mảng lấy món theo *số thứ tự*; đối tượng lấy món theo *tên*. Giống một cuốn danh bạ: tra `\"Ada\"` là ra số của Ada. Mỗi cặp là một *khóa → giá trị*. Khóa phải là duy nhất, nhưng thứ tự thì không quan trọng.",
+                en: "An array fetches things by *number*; an object fetches them by *name*. Like a phone book: look up `\"Ada\"` and get Ada's number. Each pair is a *key → value*. Keys must be unique, but their order doesn't matter."
+            ),
+            diagram: DiagramSpec(.keyValue,
+                [L10n(vi: "name: \"Ada\"", en: "name: \"Ada\""),
+                 L10n(vi: "level: 7", en: "level: 7"),
+                 L10n(vi: "online: true", en: "online: true")],
+                accent: .purple,
+                caption: L10n(vi: "Tra theo khóa (tên), không theo số vị trí.",
+                              en: "Look it up by key (a name), not by position number.")),
+            codeExample: "let user = [\n    \"name\": \"Ada\",\n    \"level\": 7\n]\nlet who = user[\"name\"]   // \"Ada\"",
+            whenToUse: L10n(
+                vi: "Khi bạn cần **tra cứu theo tên** thay vì theo vị trí — hồ sơ người dùng, cài đặt, đếm số lần xuất hiện.",
+                en: "When you need to **look things up by name** instead of position — a user profile, settings, counting occurrences."
+            ),
+            tags: [], related: ["array", "json", "variable"]
+        ),
+
+        .init(
+            id: "null", topicId: "variables",
+            title: L10n(vi: "Rỗng (null / nil)", en: "Null (nil)"),
+            cardDefinition: L10n(
+                vi: "Một cái hộp **cố tình để trống** — \"chưa có giá trị nào ở đây\".",
+                en: "A box that's **empty on purpose** — \"there's no value here yet.\""
+            ),
+            whatItReallyMeans: L10n(
+                vi: "Khác với số `0` hay chuỗi rỗng `\"\"` (đó vẫn là *một* giá trị), `nil` nghĩa là *không có gì cả* — như ô \"số điện thoại\" mà người dùng bỏ trống. Lập trình viên phải **kiểm tra nil trước khi dùng**, nếu không chương trình dễ vấp ngã đúng ngay chỗ trống đó.",
+                en: "Unlike `0` or an empty string `\"\"` (those are still *a* value), `nil` means *nothing at all* — like a \"phone number\" field left blank. You must **check for nil before using it**, or the program trips over that empty spot."
+            ),
+            diagram: DiagramSpec(.labeledBox,
+                [L10n(vi: "phone", en: "phone"), L10n(vi: "nil ∅", en: "nil ∅")],
+                accent: .orange,
+                caption: L10n(vi: "Không phải số 0 — mà là *chưa có gì*.",
+                              en: "Not zero — *nothing's there yet*.")),
+            codeExample: "var phone: String? = nil\nif let p = phone {\n    print(p)   // only runs when not nil\n}",
+            whenToUse: L10n(
+                vi: "Khi một giá trị **có thể chưa tồn tại** — ô người dùng bỏ trống, dữ liệu chưa tải xong.",
+                en: "When a value **might not exist yet** — a field left blank, data that hasn't loaded."
+            ),
+            tags: [], related: ["variable", "boolean"]
         ),
     ]
 }

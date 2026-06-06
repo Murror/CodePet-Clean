@@ -75,7 +75,7 @@ extension DictionaryContent {
                 vi: "Cho **bất kỳ thay đổi không nhỏ** — tính năng, sửa lỗi, thử nghiệm. Giữ `main` luôn sạch.",
                 en: "For **any non-trivial change** — feature, bugfix, experiment. Keep `main` clean at all times."
             ),
-            tags: [], related: ["git", "commit", "pull-request"]
+            tags: [], related: ["git", "commit", "pull-request", "merge-conflict"]
         ),
 
         .init(
@@ -113,7 +113,12 @@ extension DictionaryContent {
                 vi: "Giao diện app bóng bẩy là bàn lễ tân; terminal là đi thẳng vào trong. Kém màu mè hơn, nhưng bạn ra lệnh trực tiếp, viết kịch bản để máy làm hàng loạt, và làm những việc lặp đi lặp lại nhanh hơn nhiều so với click chuột.",
                 en: "The pretty app UI is the front desk; the terminal is walking straight into the back. Less flashy, but you give orders directly, write scripts to do things in bulk, and run repetitive tasks far faster than clicking."
             ),
-            diagram: nil,
+            diagram: DiagramSpec(.commandFlow,
+                [L10n(vi: "ls", en: "ls"),
+                 L10n(vi: "file1   file2   file3", en: "file1   file2   file3")],
+                accent: .gold,
+                caption: L10n(vi: "Gõ một lệnh, máy chạy ngay và trả lại kết quả.",
+                              en: "Type a command, the computer runs it and shows the result.")),
             codeExample: "ls          # list files here\ncd projects # go into projects/\npwd         # where am I?",
             whenToUse: L10n(
                 vi: "Cho việc **lặp lại, viết được kịch bản, hoặc nằm sâu quá để click** — chạy build, di chuyển nhiều file, nói chuyện với git.",
@@ -133,13 +138,68 @@ extension DictionaryContent {
                 vi: "Cần một tính năng có sẵn? Thay vì tự viết lại, bạn *đặt* nó từ một kho online bằng một lệnh. Trình quản lý gói tải nó về, kéo theo những thứ nó cần, và ghi sổ đúng phiên bản — nên người khác mở dự án của bạn sẽ nhận lại y hệt bộ thư viện đó.",
                 en: "Need a ready-made feature? Instead of rewriting it, you *order* it from an online catalog with one command. The package manager downloads it, pulls in whatever it depends on, and records the exact versions — so anyone else who opens your project gets the very same set of libraries."
             ),
-            diagram: nil,
+            diagram: DiagramSpec(.commandFlow,
+                [L10n(vi: "npm install react", en: "npm install react"),
+                 L10n(vi: "react + các gói nó cần", en: "react + its dependencies")],
+                accent: .teal,
+                caption: L10n(vi: "Một lệnh tải về thư viện và mọi thứ nó cần.",
+                              en: "One command fetches the library and everything it needs.")),
             codeExample: "npm install react      # JavaScript\nbrew install ffmpeg    # macOS apps\nswift package add ...  # Swift",
             whenToUse: L10n(
                 vi: "Trên **bất kỳ dự án nào** lớn hơn một file. An toàn hơn nhiều so với chép thư viện bằng tay.",
                 en: "On **any project** beyond a single file. Far safer than copying library files by hand."
             ),
-            tags: [], related: ["terminal"]
+            tags: [], related: ["terminal", "env-var"]
+        ),
+
+        .init(
+            id: "merge-conflict", topicId: "tools",
+            title: L10n(vi: "Xung đột gộp (Merge conflict)", en: "Merge conflict"),
+            cardDefinition: L10n(
+                vi: "Khi hai nhánh **sửa cùng một dòng** theo hai cách khác nhau, git không tự chọn được — nó nhờ **bạn** quyết.",
+                en: "When two branches **change the same line** differently, git can't choose — it asks **you** to decide."
+            ),
+            whatItReallyMeans: L10n(
+                vi: "Thường git tự gộp được vì hai người sửa hai chỗ khác nhau. Nhưng nếu cả hai cùng sửa *đúng một dòng*, git dừng lại và đánh dấu cả hai phiên bản, chờ bạn chọn giữ cái nào (hoặc trộn lại). Không phải lỗi — chỉ là một quyết định máy không dám làm thay bạn.",
+                en: "Usually git merges fine because two people edited different spots. But if both changed *the very same line*, git stops and marks both versions, waiting for you to pick which to keep (or blend them). It's not a bug — just a decision the machine won't make for you."
+            ),
+            diagram: DiagramSpec(.fork,
+                [L10n(vi: "cùng dòng, hai bản sửa", en: "same line, two edits"),
+                 L10n(vi: "giữ bản của bạn", en: "keep yours"),
+                 L10n(vi: "giữ bản của họ", en: "keep theirs")],
+                accent: .gold,
+                caption: L10n(vi: "Git đánh dấu cả hai bản và để bạn chọn.",
+                              en: "Git marks both versions and lets you choose.")),
+            codeExample: "<<<<<<< HEAD\nlet color = \"purple\"\n=======\nlet color = \"teal\"\n>>>>>>> new-feature",
+            whenToUse: L10n(
+                vi: "Xuất hiện khi **gộp nhánh** mà hai bên đụng cùng dòng. Bình tĩnh đọc cả hai, chọn, rồi commit.",
+                en: "Shows up when **merging branches** that touched the same line. Calmly read both, choose, then commit."
+            ),
+            tags: [], related: ["branch", "git", "commit"]
+        ),
+
+        .init(
+            id: "env-var", topicId: "tools",
+            title: L10n(vi: "Biến môi trường (Env var)", en: "Environment variable"),
+            cardDefinition: L10n(
+                vi: "Một giá trị **để bên ngoài code** — như khóa API hay mật khẩu — để không bị lộ trong mã nguồn.",
+                en: "A value kept **outside your code** — like an API key or password — so it never sits in the source."
+            ),
+            whatItReallyMeans: L10n(
+                vi: "Code cần một khóa bí mật để gọi dịch vụ, nhưng *viết thẳng khóa vào code* là nguy hiểm — ai xem code cũng thấy. Thay vào đó bạn để khóa trong một file `.env` riêng (không commit lên git) và code đọc nó lúc chạy. Cùng một code chạy ở máy bạn và trên server, chỉ khác giá trị nạp vào.",
+                en: "Your code needs a secret key to call a service, but *writing the key into the code* is risky — anyone who sees the code sees it. Instead you keep the key in a separate `.env` file (never committed to git) and the code reads it at runtime. The same code runs on your machine and on the server — only the values fed in differ."
+            ),
+            diagram: DiagramSpec(.labeledBox,
+                [L10n(vi: "API_KEY 🔒", en: "API_KEY 🔒"), L10n(vi: "sk-•••••", en: "sk-•••••")],
+                accent: .gold,
+                caption: L10n(vi: "Tên nằm trong code, giá trị thật nạp từ bên ngoài.",
+                              en: "The name lives in code, the real value is loaded from outside.")),
+            codeExample: "# .env  (never commit this)\nAPI_KEY=sk-12345\n\n// in code\nlet key = ProcessInfo.processInfo\n    .environment[\"API_KEY\"]",
+            whenToUse: L10n(
+                vi: "Cho **bí mật** (khóa, mật khẩu) và **cấu hình khác nhau** giữa máy dev và server.",
+                en: "For **secrets** (keys, passwords) and **config that differs** between your dev machine and the server."
+            ),
+            tags: [], related: ["constant", "terminal", "package-manager"]
         ),
     ]
 }

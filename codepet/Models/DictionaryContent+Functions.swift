@@ -46,7 +46,7 @@ extension DictionaryContent {
                 vi: "Khi một hàm cần làm việc với **giá trị khác nhau** mỗi lần gọi.",
                 en: "When a function needs to work with **different values** on each call."
             ),
-            tags: [], related: ["function", "return-value"]
+            tags: [], related: ["function", "return-value", "argument"]
         ),
 
         .init(
@@ -105,7 +105,14 @@ extension DictionaryContent {
                 vi: "Bạn nhờ hàm tính một con số (việc chính), nhưng trên đường đi nó còn ghi vào nhật ký, gửi một email, hay đổi một biến dùng chung. Những việc \"kèm theo\" đó là hiệu ứng phụ — không sai, nhưng cần biết để **kiểm soát**.",
                 en: "You ask a function to compute a number (the main job), but along the way it also writes to a log, sends an email, or changes a shared variable. Those \"extra\" actions are side effects — not wrong, but worth being aware of so you can **keep them in check**."
             ),
-            diagram: nil,
+            diagram: DiagramSpec(.mainPlusEffects,
+                [L10n(vi: "n", en: "n"),
+                 L10n(vi: "add(n)", en: "add(n)"),
+                 L10n(vi: "✓ tính xong", en: "✓ computed"),
+                 L10n(vi: "đổi total dùng chung", en: "changes shared total")],
+                accent: .pink,
+                caption: L10n(vi: "Ngoài kết quả chính, hàm còn đổi một thứ ở bên ngoài.",
+                              en: "Besides the main result, the function also changes something outside.")),
             codeExample: "var total = 0\nfunc add(_ n: Int) {\n    total += n   // side effect: changes total\n}",
             whenToUse: L10n(
                 vi: "Hiệu ứng phụ là **không tránh khỏi** (lưu file, gọi server). Kỹ năng là **cô lập** chúng vào một lớp mỏng, phần còn lại giữ thuần.",
@@ -125,13 +132,68 @@ extension DictionaryContent {
                 vi: "Giống khi đặt đồ ăn rồi để lại số điện thoại: bạn không đứng đợi ở quầy, mà đi làm việc khác; xong món, người ta **gọi lại** cho bạn. Số điện thoại đó chính là callback — một cách để được báo khi việc (thường mất thời gian) đã hoàn tất.",
                 en: "Like ordering takeout and leaving your phone number: you don't wait at the counter, you go do other things; when the food's ready, they **call you back**. That phone number is the callback — a way to be notified when some (usually slow) job finishes."
             ),
-            diagram: nil,
+            diagram: DiagramSpec(.handBack,
+                [L10n(vi: "bạn", en: "you"),
+                 L10n(vi: "để lại số ĐT", en: "leave your number"),
+                 L10n(vi: "bếp", en: "kitchen"),
+                 L10n(vi: "gọi lại khi xong", en: "calls back when ready")],
+                accent: .pink,
+                caption: L10n(vi: "Đưa trước một hàm; xong việc, nó gọi lại cho bạn.",
+                              en: "Hand over a function up front; when the work's done, it calls you back.")),
             codeExample: "func fetchUser(then callback: (String) -> Void) {\n    // ...later...\n    callback(\"Ada\")\n}",
             whenToUse: L10n(
                 vi: "Khi việc mất thời gian (mạng, đĩa, hẹn giờ) và bạn **không muốn ngồi đợi** — đưa callback rồi làm việc khác.",
                 en: "When work takes time (network, disk, timers) and you **don't want to sit waiting** — hand over a callback and move on."
             ),
-            tags: [], related: ["function"]
+            tags: [], related: ["function", "async-await"]
+        ),
+
+        .init(
+            id: "argument", topicId: "functions",
+            title: L10n(vi: "Đối số (Argument)", en: "Argument"),
+            cardDefinition: L10n(
+                vi: "**Giá trị thật** bạn đưa vào khi *gọi* hàm — thứ rơi vào chỗ trống (tham số).",
+                en: "The **actual value** you pass in when you *call* a function — what fills the slot (the parameter)."
+            ),
+            whatItReallyMeans: L10n(
+                vi: "Tham số là *chỗ trống* lúc bạn **định nghĩa** hàm (`func greet(name)`); đối số là *thứ bạn nhét vào* lúc **gọi** hàm (`greet(\"Ada\")`). Cùng một ý, khác thời điểm: một cái là khuôn, một cái là vật thật đổ vào khuôn.",
+                en: "A parameter is the *empty slot* when you **define** the function (`func greet(name)`); an argument is the *thing you drop in* when you **call** it (`greet(\"Ada\")`). Same idea, different moment: one is the mold, the other is what you pour into it."
+            ),
+            diagram: DiagramSpec(.beforeAfter,
+                [L10n(vi: "\"Ada\"", en: "\"Ada\""), L10n(vi: "greet(name)", en: "greet(name)"), L10n(vi: "Hi, Ada", en: "Hi, Ada")],
+                accent: .pink,
+                caption: L10n(vi: "`\"Ada\"` là đối số — giá trị thật cho chỗ trống `name`.",
+                              en: "`\"Ada\"` is the argument — the real value for the `name` slot.")),
+            codeExample: "func greet(_ name: String) {\n    print(\"Hi, \\(name)\")\n}\ngreet(\"Ada\")   // \"Ada\" is the argument",
+            whenToUse: L10n(
+                vi: "Là từ để gọi đúng **giá trị bạn truyền vào** khi đọc hay mô tả một lời gọi hàm.",
+                en: "It's the word for the **value you pass in** when you read or describe a function call."
+            ),
+            tags: [], related: ["parameter", "function", "return-value"]
+        ),
+
+        .init(
+            id: "async-await", topicId: "functions",
+            title: L10n(vi: "Async / await", en: "Async / await"),
+            cardDefinition: L10n(
+                vi: "Cách chạy việc **mất thời gian** mà **không làm đứng** cả chương trình — đợi kết quả rồi đi tiếp.",
+                en: "A way to run **slow work** **without freezing** the whole program — wait for the result, then carry on."
+            ),
+            whatItReallyMeans: L10n(
+                vi: "Tải dữ liệu từ mạng có thể mất vài giây. `async` đánh dấu việc đó là *chậm*; `await` nói *\"dừng ở đây đợi nó xong, nhưng để phần còn lại của app vẫn mượt\"*. Như cắm nồi cơm rồi đi làm việc khác, quay lại khi cơm chín — chứ không đứng nhìn nồi.",
+                en: "Loading data over the network can take seconds. `async` marks that work as *slow*; `await` says *\"pause right here until it's done, but keep the rest of the app responsive\"*. Like starting the rice cooker and doing other things, coming back when it beeps — not standing there watching it."
+            ),
+            diagram: DiagramSpec(.beforeAfter,
+                [L10n(vi: "yêu cầu", en: "request"), L10n(vi: "await fetch", en: "await fetch"), L10n(vi: "dữ liệu", en: "data")],
+                accent: .blue,
+                caption: L10n(vi: "Gửi đi, `await` đợi kết quả — giao diện không bị đơ.",
+                              en: "Send it off, `await` the result — the UI never freezes.")),
+            codeExample: "func loadUser() async -> User {\n    let data = await fetch(\"/me\")\n    return decode(data)\n}",
+            whenToUse: L10n(
+                vi: "Khi việc **mất thời gian** (mạng, đĩa, hẹn giờ) và bạn không muốn giao diện bị đứng.",
+                en: "When work **takes time** (network, disk, timers) and you don't want the UI to lock up."
+            ),
+            tags: [], related: ["callback", "function", "api", "error-handling"]
         ),
     ]
 }

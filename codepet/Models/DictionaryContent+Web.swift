@@ -15,13 +15,19 @@ extension DictionaryContent {
                 vi: "HTML chỉ lo phần *cấu trúc*: cái này là tiêu đề lớn, cái kia là một đoạn văn, chỗ này là nút bấm. Chưa có màu, chưa có font đẹp, chưa có hiệu ứng — vẫn xem được, chỉ là trần trụi. Phần làm đẹp để CSS lo.",
                 en: "HTML only handles *structure*: this is a big heading, that's a paragraph, here's a button. No colors, no nice fonts, no effects yet — still readable, just bare. The styling is CSS's job."
             ),
-            diagram: nil,
+            diagram: DiagramSpec(.layers,
+                [L10n(vi: "HTML · bộ khung", en: "HTML · structure"),
+                 L10n(vi: "CSS · lớp sơn", en: "CSS · styling"),
+                 L10n(vi: "bottom", en: "bottom")],
+                accent: .orange,
+                caption: L10n(vi: "HTML là lớp khung bên dưới — phần chữ và bố cục.",
+                              en: "HTML is the structure layer underneath — content and layout.")),
             codeExample: "<h1>Hello</h1>\n<p>Welcome to my page.</p>\n<button>Click me</button>",
             whenToUse: L10n(
                 vi: "Là **lớp nền của mọi trang web**. Bất cứ giao diện web nào cũng bắt đầu từ HTML.",
                 en: "It's the **foundation of every web page**. Any web interface starts as HTML."
             ),
-            tags: [.react], related: ["css", "frontend-backend"]
+            tags: [.react], related: ["css", "frontend-backend", "component"]
         ),
 
         .init(
@@ -35,7 +41,13 @@ extension DictionaryContent {
                 vi: "Nếu HTML là bộ khung nhà thì CSS là sơn, đèn và đồ nội thất. Cùng một khung HTML, đổi CSS là ra hai trang trông khác hẳn nhau. Cấu trúc giữ nguyên, vẻ ngoài thay đổi hoàn toàn.",
                 en: "If HTML is the house's frame, CSS is the paint, lighting, and furniture. Same HTML frame, swap the CSS and you get two pages that look completely different. Structure stays, appearance flips."
             ),
-            diagram: nil,
+            diagram: DiagramSpec(.layers,
+                [L10n(vi: "HTML · bộ khung", en: "HTML · structure"),
+                 L10n(vi: "CSS · lớp sơn", en: "CSS · styling"),
+                 L10n(vi: "top", en: "top")],
+                accent: .pink,
+                caption: L10n(vi: "CSS là lớp phủ bên trên — màu sắc, font, vẻ ngoài.",
+                              en: "CSS is the layer on top — colors, fonts, the look.")),
             codeExample: "h1 {\n    color: purple;\n    font-size: 32px;\n}",
             whenToUse: L10n(
                 vi: "Mỗi khi bạn muốn một trang web **trông ra dáng** thay vì là chữ đen trên nền trắng.",
@@ -107,7 +119,13 @@ extension DictionaryContent {
                 vi: "JSON viết dữ liệu thành các cặp *tên: giá trị*, dễ đọc với cả người lẫn máy: `{ \"name\": \"Ada\", \"age\": 36 }`. Có thể lồng nhau. Gần như mọi ngôn ngữ lập trình đều đọc/ghi được JSON sẵn, nên nó là cách phổ biến nhất để gửi dữ liệu giữa app và máy chủ.",
                 en: "JSON writes data as *name: value* pairs that both people and machines read easily: `{ \"name\": \"Ada\", \"age\": 36 }`. It can nest. Nearly every programming language reads and writes JSON out of the box, so it's the most common way to send data between an app and a server."
             ),
-            diagram: nil,
+            diagram: DiagramSpec(.keyValue,
+                [L10n(vi: "name: \"Ada\"", en: "name: \"Ada\""),
+                 L10n(vi: "age: 36", en: "age: 36"),
+                 L10n(vi: "skills: [ … ]", en: "skills: [ … ]")],
+                accent: .blue,
+                caption: L10n(vi: "Dữ liệu viết thành cặp tên: giá trị — người và máy đều đọc được.",
+                              en: "Data written as name: value pairs — both people and machines read it.")),
             codeExample: "{\n  \"name\": \"Ada\",\n  \"age\": 36,\n  \"skills\": [\"math\", \"coding\"]\n}",
             whenToUse: L10n(
                 vi: "Cho **hầu hết dữ liệu** trao đổi giữa app và máy chủ. Người đọc được, máy hiểu được.",
@@ -127,13 +145,68 @@ extension DictionaryContent {
                 vi: "Frontend là mặt tiền: nút bấm, màu sắc, bố cục — thứ bạn chạm vào. Backend là hậu trường: kiểm tra mật khẩu, lưu dữ liệu, tính toán — thứ không ai thấy nhưng nếu hỏng thì cả app đứng. Bạn bấm `Đăng nhập` (frontend) → nó nhờ backend kiểm tra → backend trả lời đúng/sai.",
                 en: "Frontend is the storefront: buttons, colors, layout — what you touch. Backend is backstage: checking passwords, saving data, doing the math — unseen, but if it breaks the whole app freezes. You click `Login` (frontend) → it asks the backend to check → the backend answers yes/no."
             ),
-            diagram: nil,
+            diagram: DiagramSpec(.twoSides,
+                [L10n(vi: "Frontend", en: "Frontend"),
+                 L10n(vi: "nút, màu, bố cục", en: "buttons, colors, layout"),
+                 L10n(vi: "Backend", en: "Backend"),
+                 L10n(vi: "dữ liệu, kiểm tra", en: "data, checks")],
+                accent: .pink,
+                caption: L10n(vi: "Mặt tiền bạn chạm vào ↔ hậu trường chạy ngầm.",
+                              en: "The storefront you touch ↔ the backstage running hidden.")),
             codeExample: nil,
             whenToUse: L10n(
                 vi: "Là khung tư duy hữu ích trên **mọi dự án web**. Ranh giới rõ giúp nhiều người làm song song mà không đạp lên nhau.",
                 en: "A useful mental model on **any web project**. Clear boundaries let people work in parallel without stepping on each other."
             ),
-            tags: [.react, .nodeBackend], related: ["html", "api"]
+            tags: [.react, .nodeBackend], related: ["html", "api", "component"]
+        ),
+
+        .init(
+            id: "component", topicId: "web",
+            title: L10n(vi: "Component", en: "Component"),
+            cardDefinition: L10n(
+                vi: "Một **mảnh giao diện đóng gói sẵn** bạn dùng lại nhiều lần — và lồng vào nhau để dựng cả trang.",
+                en: "A **self-contained piece of UI** you reuse — and nest inside each other to build a whole page."
+            ),
+            whatItReallyMeans: L10n(
+                vi: "Thay vì viết cả trang thành một khối khổng lồ, bạn cắt nó thành các mảnh có tên: một `Button`, một `Card`, một `Header`. Mỗi mảnh lo phần của mình và có thể chứa mảnh nhỏ hơn. Sửa `Button` một lần, mọi nơi dùng nó đều đổi theo. Đó là cách chơi Lego của giao diện.",
+                en: "Instead of writing a page as one giant blob, you cut it into named pieces: a `Button`, a `Card`, a `Header`. Each piece minds its own part and can hold smaller pieces inside it. Fix the `Button` once and every place that uses it updates. It's the Lego approach to UI."
+            ),
+            diagram: DiagramSpec(.labeledBox,
+                [L10n(vi: "Card", en: "Card"), L10n(vi: "🧩 UI", en: "🧩 UI")],
+                accent: .pink,
+                caption: L10n(vi: "Một mảnh UI có tên — dựng một lần, dùng nhiều nơi, lồng được vào nhau.",
+                              en: "A named piece of UI — build once, use everywhere, nest them together.")),
+            codeExample: "function Card({ title }) {\n  return <div className=\"card\">{title}</div>\n}\n// reuse it: <Card title=\"Hello\" />",
+            whenToUse: L10n(
+                vi: "Trên **mọi giao diện hiện đại** (React, SwiftUI, Vue). Cắt UI thành mảnh nhỏ có tên rồi ghép lại.",
+                en: "On **any modern UI** (React, SwiftUI, Vue). Cut the UI into small named pieces and compose them."
+            ),
+            tags: [.react], related: ["html", "state", "frontend-backend"]
+        ),
+
+        .init(
+            id: "state", topicId: "web",
+            title: L10n(vi: "Trạng thái (State)", en: "State"),
+            cardDefinition: L10n(
+                vi: "Dữ liệu **mà giao diện đang theo dõi** — đổi nó, màn hình tự vẽ lại để khớp.",
+                en: "The data the **UI is watching** — change it, and the screen redraws itself to match."
+            ),
+            whatItReallyMeans: L10n(
+                vi: "State là *tình hình hiện tại*: đang ở tab nào, giỏ hàng có mấy món, đèn bật hay tắt. Điểm hay: bạn không tự đi sửa màn hình — bạn chỉ đổi state, và khung giao diện **tự cập nhật** theo. Như chỉnh số trên điều khiển điều hòa: bạn đổi con số, máy tự điều chỉnh.",
+                en: "State is the *current situation*: which tab you're on, how many items in the cart, light on or off. The magic: you don't update the screen yourself — you just change the state, and the UI framework **re-renders** to match. Like a thermostat: you change the number, the system adjusts itself."
+            ),
+            diagram: DiagramSpec(.labeledBox,
+                [L10n(vi: "count", en: "count"), L10n(vi: "3", en: "3")],
+                accent: .purple,
+                caption: L10n(vi: "Đổi giá trị → giao diện tự vẽ lại.",
+                              en: "Change the value → the UI redraws itself.")),
+            codeExample: "const [count, setCount] = useState(0)\n// setCount(count + 1) → the UI updates",
+            whenToUse: L10n(
+                vi: "Cho **bất cứ gì trên màn hình sẽ thay đổi** khi người dùng tương tác — bộ đếm, ô nhập, công tắc bật/tắt.",
+                en: "For **anything on screen that changes** as the user interacts — counters, inputs, toggles."
+            ),
+            tags: [.react], related: ["variable", "component", "boolean"]
         ),
     ]
 }

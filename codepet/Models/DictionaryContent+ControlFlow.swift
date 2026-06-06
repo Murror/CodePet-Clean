@@ -25,7 +25,7 @@ extension DictionaryContent {
                 vi: "Mỗi khi chương trình phải **chọn giữa hai hướng** dựa trên một điều kiện.",
                 en: "Any time your program must **choose between two paths** based on a condition."
             ),
-            tags: [], related: ["conditional", "boolean", "break-continue"]
+            tags: [], related: ["conditional", "boolean", "break-continue", "guard-early-return"]
         ),
 
         .init(
@@ -85,7 +85,13 @@ extension DictionaryContent {
                 vi: "Giống búp bê gỗ Nga lồng nhau: mở con ngoài, bên trong lại có con nhỏ hơn, mở tiếp… đến con cuối cùng không mở được nữa thì **dừng**. Mỗi bước xử lý một phần rồi giao phần còn lại cho chính nó. Luôn cần một điểm dừng, nếu không sẽ lặp mãi.",
                 en: "Like Russian nesting dolls: open the outer one, there's a smaller one inside, open that… until the last one won't open and you **stop**. Each step handles one piece and hands the rest to itself. You always need a stopping point, or it goes forever."
             ),
-            diagram: nil,
+            diagram: DiagramSpec(.nesting,
+                [L10n(vi: "factorial(3)", en: "factorial(3)"),
+                 L10n(vi: "factorial(2)", en: "factorial(2)"),
+                 L10n(vi: "factorial(1) = 1", en: "factorial(1) = 1")],
+                accent: .purple,
+                caption: L10n(vi: "Mỗi lớp gọi lại chính nó trên phần nhỏ hơn — tới lớp cuối thì dừng.",
+                              en: "Each layer calls itself on a smaller piece — the last one stops.")),
             codeExample: "func factorial(_ n: Int) -> Int {\n    if n <= 1 { return 1 }\n    return n * factorial(n - 1)\n}",
             whenToUse: L10n(
                 vi: "Khi bài toán tự nhiên **tách thành phiên bản nhỏ hơn** của chính nó — duyệt cây, dữ liệu lồng nhau.",
@@ -139,6 +145,58 @@ extension DictionaryContent {
                 en: "Inside loops, when a condition means *\"we're done\"* (break) or *\"this one doesn't count\"* (continue)."
             ),
             tags: [], related: ["loop", "if-else"]
+        ),
+
+        .init(
+            id: "error-handling", topicId: "control-flow",
+            title: L10n(vi: "Xử lý lỗi (try / catch)", en: "Error handling (try / catch)"),
+            cardDefinition: L10n(
+                vi: "Một kế hoạch B: **thử** một việc có thể hỏng, và **bắt** lỗi để xử lý thay vì để app sập.",
+                en: "A plan B: **try** something that might fail, and **catch** the error to handle it instead of crashing."
+            ),
+            whatItReallyMeans: L10n(
+                vi: "Vài việc có thể thất bại ngoài tầm kiểm soát — mạng rớt, file không tồn tại. Bạn bọc việc đó trong `try`; chạy ngon thì đi tiếp, hỏng thì nhảy sang `catch` để xử lý nhẹ nhàng (báo người dùng, thử lại) thay vì để cả chương trình đổ.",
+                en: "Some actions can fail outside your control — the network drops, a file isn't there. You wrap that action in `try`; if it works you continue, if it fails you jump to `catch` and handle it gracefully (warn the user, retry) instead of letting the whole program fall over."
+            ),
+            diagram: DiagramSpec(.fork,
+                [L10n(vi: "chạy có ổn không?", en: "did it work?"),
+                 L10n(vi: "dùng kết quả", en: "use the result"),
+                 L10n(vi: "catch & khắc phục", en: "catch & recover")],
+                accent: .orange,
+                caption: L10n(vi: "Chạy ngon → đi tiếp. Hỏng → nhảy vào `catch`.",
+                              en: "Works → carry on. Fails → jump into `catch`.")),
+            codeExample: "do {\n    let data = try load(file)\n    use(data)\n} catch {\n    print(\"Couldn't load: \\(error)\")\n}",
+            whenToUse: L10n(
+                vi: "Quanh **bất kỳ việc nào có thể hỏng** mà bạn không kiểm soát — đọc file, gọi mạng, phân tích dữ liệu.",
+                en: "Around **anything that can fail** outside your control — reading files, network calls, parsing data."
+            ),
+            tags: [], related: ["conditional", "if-else", "async-await"]
+        ),
+
+        .init(
+            id: "guard-early-return", topicId: "control-flow",
+            title: L10n(vi: "Guard / thoát sớm", en: "Guard / early return"),
+            cardDefinition: L10n(
+                vi: "Kiểm tra điều kiện **ngay đầu** hàm và **thoát ra sớm** nếu không thỏa — phần còn lại khỏi phải lo.",
+                en: "Check a condition **at the top** of a function and **bail out early** if it fails — so the rest doesn't have to worry."
+            ),
+            whatItReallyMeans: L10n(
+                vi: "Thay vì bọc cả thân hàm trong một `if` lồng sâu, bạn kiểm tra trước: *\"không có tên? thoát ngay.\"* Qua được cửa đó thì mọi dòng phía dưới biết chắc điều kiện đã đúng. Code phẳng hơn, dễ đọc hơn — như người gác cửa chặn trường hợp xấu ngay từ đầu.",
+                en: "Instead of wrapping the whole body in a deeply nested `if`, you check up front: *\"no name? leave now.\"* Past that gate, every line below knows the condition already holds. The code stays flat and readable — like a bouncer turning away the bad cases at the door."
+            ),
+            diagram: DiagramSpec(.fork,
+                [L10n(vi: "tên bị rỗng?", en: "name is empty?"),
+                 L10n(vi: "thoát ngay", en: "return early"),
+                 L10n(vi: "chạy tiếp yên tâm", en: "continue safely")],
+                accent: .teal,
+                caption: L10n(vi: "Trường hợp xấu → thoát ngay. Còn lại → chạy yên tâm.",
+                              en: "Bad case → leave now. Otherwise → run with confidence.")),
+            codeExample: "func greet(_ name: String?) {\n    guard let name else { return }\n    print(\"Hi, \\(name)\")   // name is safe here\n}",
+            whenToUse: L10n(
+                vi: "Ở **đầu hàm**, để loại các trường hợp xấu (rỗng, nil, sai) trước khi làm việc chính.",
+                en: "At the **top of a function**, to rule out bad cases (empty, nil, invalid) before the real work."
+            ),
+            tags: [], related: ["if-else", "conditional", "null"]
         ),
     ]
 }
