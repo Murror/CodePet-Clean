@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct SkillsView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var gameState: GameState
     @State private var selectedLesson: Lesson? = nil
     @State private var previewSkill: Skill? = nil
     @State private var showShareCard = false
@@ -182,14 +183,19 @@ struct SkillsView: View {
                 LessonModalView(lesson: lesson, onComplete: { xp in
                     withAnimation(.easeOut(duration: 0.2)) {
                         let isReview = appState.completedLessons.contains(lesson.id)
+                        let levelBefore = appState.userLevel
                         if !isReview {
                             appState.addXP(xp)
                             appState.completedLessons.append(lesson.id)
                             appState.checkTierProgression()
+                            gameState.earnCoins(GameEconomy.coinsPerLesson)
                         } else {
                             // Review mode — mark reviewed, award small XP bonus
                             appState.markReviewed(lesson.id)
                             appState.addXP(10)
+                        }
+                        if appState.userLevel > levelBefore {
+                            gameState.earnCoins(GameEconomy.coinsPerLevelUp * (appState.userLevel - levelBefore))
                         }
                         selectedLesson = nil
                     }

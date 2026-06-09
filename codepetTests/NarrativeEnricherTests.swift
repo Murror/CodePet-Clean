@@ -2,6 +2,9 @@ import XCTest
 @testable import codepet
 
 final class MockAPIClient: ReflectionAPIClientProtocol {
+    func fetchGuidance(_ request: GenerateGuidanceRequest) async throws -> GenerateGuidanceResponse {
+        throw URLError(.unsupportedURL)  // not exercised by these tests
+    }
     var calls: [SummarizeTurnRequest] = []
     var response: SummarizeTurnResponse?
     var error: Error?
@@ -59,8 +62,8 @@ final class MockAPIClient: ReflectionAPIClientProtocol {
                     return
                 }
                 continuation.yield(.started)
-                let summary = SummarizeSessionResponse.SummaryPayload(summary: "Mock session summary", lesson: "Mock lesson", briefUpdate: nil)
-                continuation.yield(.done(summary: summary, model: "claude-haiku-4-5-20251001", briefUpdate: nil))
+                let summary = SummarizeSessionResponse.SummaryPayload(summary: "Mock session summary", lesson: "Mock lesson", briefUpdate: nil, projectOverview: nil)
+                continuation.yield(.done(summary: summary, model: "claude-haiku-4-5-20251001", briefUpdate: nil, projectOverview: nil))
                 continuation.finish()
             }
         }

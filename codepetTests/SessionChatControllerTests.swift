@@ -91,6 +91,9 @@ private enum StubEvent {
 }
 
 private final class StubAPI: ReflectionAPIClientProtocol {
+    func fetchGuidance(_ request: GenerateGuidanceRequest) async throws -> GenerateGuidanceResponse {
+        throw URLError(.unsupportedURL)  // not exercised by these tests
+    }
     let events: [StubEvent]
     init(events: [StubEvent]) { self.events = events }
 

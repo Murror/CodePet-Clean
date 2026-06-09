@@ -43,7 +43,7 @@ let charPlayAnimations: [String: CharPlayAnimation] = [
     "luna": CharPlayAnimation(
         animationType: .dance,
         text: "~Dance~",
-        particles: [("#C8A0E8","✿"),("#E8C0FF","♪"),("#A080D0","✦"),("#D8B0F0","❀"),("#F0D8FF","♫")]
+        particles: [("#5B8DEF","✿"),("#8FB4F5","♪"),("#3A6FD0","✦"),("#B0CCFA","❀"),("#7AA8F2","♫")]
     ),
     "sage": CharPlayAnimation(
         animationType: .zenSpin,

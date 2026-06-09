@@ -26,13 +26,19 @@ struct WelcomeSessionView: View {
     private var heroBanner: some View {
         HStack(alignment: .center, spacing: 16) {
             if let pet = pet {
-                Image(pet.imageName)
-                    .resizable().interpolation(.none).scaledToFit()
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(pet.color.opacity(0.14))
                     .frame(width: 72, height: 72)
-                    .background(Circle().fill(pet.color.opacity(0.18)))
-                    .clipShape(Circle())
-                    .overlay(Circle().stroke(pet.color.opacity(0.55), lineWidth: 2))
-                    .shadow(color: pet.color.opacity(0.4), radius: 10, y: 4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(pet.color.opacity(0.35), lineWidth: 2)
+                    )
+                    .overlay(
+                        Image(pet.imageName)
+                            .resizable().interpolation(.none).scaledToFit()
+                            .frame(width: 50, height: 50)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             VStack(alignment: .leading, spacing: 6) {
                 Text(uiLanguage == .vi
@@ -58,17 +64,13 @@ struct WelcomeSessionView: View {
 
     private var connectionCard: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 statusIcon
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Claude Code")
-                        .font(ReflectionTheme.serif(17, weight: .medium))
-                        .foregroundColor(ReflectionTheme.primaryText)
-                    Text(statusLabel)
-                        .font(ReflectionTheme.sans(12))
-                        .foregroundColor(statusColor)
-                }
+                Text("Claude Code")
+                    .font(ReflectionTheme.serif(17, weight: .medium))
+                    .foregroundColor(ReflectionTheme.primaryText)
                 Spacer()
+                statusPill
             }
 
             switch installer.status {
@@ -152,7 +154,7 @@ struct WelcomeSessionView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(ReflectionTheme.moodCalm)
+                            .foregroundColor(ReflectionTheme.accent)
                             .font(.system(size: 14))
                         Text(uiLanguage == .vi
                              ? "Đã cài xong! Khởi động lại Claude Code để bắt đầu."
@@ -228,20 +230,60 @@ struct WelcomeSessionView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .pixelBox(fill: ReflectionTheme.cardBackground)
+        .pixelBox(fill: cardFill, borderColor: cardBorder)
     }
 
     // MARK: - Status helpers
 
+    /// State-tinted wash so the card reads its status at a glance and feels
+    /// lively instead of a flat white box. Connected = green, failed = red,
+    /// working = blue, not-yet = the active character accent.
+    private var cardFill: Color {
+        switch installer.status {
+        case .installed:    return ReflectionTheme.accent.opacity(0.14)
+        case .failed:       return ReflectionTheme.reminderText.opacity(0.12)
+        case .installing:   return ReflectionTheme.moodEngaged.opacity(0.12)
+        case .notInstalled: return ReflectionTheme.accent.opacity(0.12)
+        }
+    }
+
+    /// Full-color pixel frame (border + drop shadow) matching the status, so
+    /// the card is framed in color instead of the neutral dark ink.
+    private var cardBorder: Color {
+        switch installer.status {
+        case .installed:    return ReflectionTheme.accent
+        case .failed:       return ReflectionTheme.reminderText
+        case .installing:   return ReflectionTheme.moodEngaged
+        case .notInstalled: return ReflectionTheme.accent
+        }
+    }
+
+    /// Vivid badge — solid status disc + white glyph + soft outer ring + glow.
     private var statusIcon: some View {
         ZStack {
             Circle()
-                .fill(statusColor.opacity(0.15))
+                .fill(statusColor.opacity(0.18))
+                .frame(width: 46, height: 46)
+            Circle()
+                .fill(statusColor)
                 .frame(width: 36, height: 36)
+                .overlay(Circle().stroke(Color.white.opacity(0.65), lineWidth: 1.5))
             Image(systemName: statusSystemImage)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(statusColor)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundColor(.white)
         }
+        .shadow(color: statusColor.opacity(0.45), radius: 7, x: 0, y: 3)
+    }
+
+    /// Colored status capsule that sits at the trailing edge of the header.
+    private var statusPill: some View {
+        Text(statusLabel)
+            .font(ReflectionTheme.sans(11, weight: .semibold))
+            .foregroundColor(statusColor)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(statusColor.opacity(0.15)))
+            .overlay(Capsule().stroke(statusColor.opacity(0.30), lineWidth: 1))
     }
 
     private var statusSystemImage: String {
@@ -270,7 +312,7 @@ struct WelcomeSessionView: View {
         switch installer.status {
         case .notInstalled: return ReflectionTheme.mutedText
         case .installing:   return ReflectionTheme.moodEngaged
-        case .installed:    return ReflectionTheme.moodCalm
+        case .installed:    return ReflectionTheme.accent
         case .failed:       return ReflectionTheme.moodAlert
         }
     }
@@ -300,7 +342,7 @@ struct WelcomeSessionView: View {
             Text(uiLanguage == .vi ? "CÀI THỦ CÔNG" : "MANUAL SETUP")
                 .font(ReflectionTheme.sans(10, weight: .semibold))
                 .tracking(1.4)
-                .foregroundColor(ReflectionTheme.mutedText)
+                .foregroundColor(ReflectionTheme.accent)
 
             manualStepCard(
                 number: "1",
@@ -343,7 +385,7 @@ struct WelcomeSessionView: View {
                     .foregroundColor(.white)
                     .frame(width: 22, height: 22)
                     .pixelBox(
-                        fill: ReflectionTheme.mutedText,
+                        fill: ReflectionTheme.accent,
                         shadowOffset: 1,
                         blockSize: 1,
                         steps: 1,
@@ -361,7 +403,7 @@ struct WelcomeSessionView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .pixelBox(fill: ReflectionTheme.cardBackground)
+        .pixelBox(fill: ReflectionTheme.accent.opacity(0.06), borderColor: ReflectionTheme.accent)
     }
 
     private func codeBlock(_ code: String) -> some View {
@@ -376,7 +418,9 @@ struct WelcomeSessionView: View {
         }
         .padding(12)
         .pixelBox(
-            fill: Color(red: 0xF5 / 255.0, green: 0xF3 / 255.0, blue: 0xFA / 255.0),
+            // Faint accent-tinted code surface; dark border keeps the code
+            // crisp and well-defined inside the colored step card.
+            fill: ReflectionTheme.accent.opacity(0.05),
             shadowOffset: 3,
             blockSize: 3,
             steps: 2,

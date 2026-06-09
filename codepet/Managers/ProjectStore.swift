@@ -53,6 +53,29 @@ final class ProjectStore: ObservableObject {
         }
     }
 
+    /// Wipe all detected projects, caches, and manual overrides. Called on
+    /// account switch so a new user doesn't inherit the previous user's projects.
+    func resetAll() {
+        projects = [:]
+        cwdToRoot = [:]
+        sessionToRoot = [:]
+        manualOverrides = [:]
+        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: overridesKey)
+        logger.info("ProjectStore reset for account switch")
+    }
+
+    /// Re-hydrate in-memory state from the (account-swapped) UserDefaults keys.
+    /// Clears first so a fresh account doesn't inherit the previous projects,
+    /// then loads. Does NOT remove keys (unlike `resetAll`).
+    func reload() {
+        projects = [:]
+        cwdToRoot = [:]
+        sessionToRoot = [:]
+        manualOverrides = [:]
+        load()
+    }
+
     private func persist() {
         guard let data = try? JSONEncoder().encode(projects) else { return }
         UserDefaults.standard.set(data, forKey: userDefaultsKey)

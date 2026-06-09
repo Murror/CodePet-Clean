@@ -27,7 +27,7 @@ extension DictionaryContent {
                 vi: "Là **lớp nền của mọi trang web**. Bất cứ giao diện web nào cũng bắt đầu từ HTML.",
                 en: "It's the **foundation of every web page**. Any web interface starts as HTML."
             ),
-            tags: [.react], related: ["css", "frontend-backend", "component"]
+            tags: [.react], related: ["css", "frontend-backend", "component", "javascript"]
         ),
 
         .init(
@@ -207,6 +207,46 @@ extension DictionaryContent {
                 en: "For **anything on screen that changes** as the user interacts — counters, inputs, toggles."
             ),
             tags: [.react], related: ["variable", "component", "boolean"]
+        ),
+
+        .init(
+            id: "javascript", topicId: "web",
+            title: L10n(vi: "JavaScript", en: "JavaScript"),
+            cardDefinition: L10n(
+                vi: "Ngôn ngữ làm cho trang web **biết phản hồi** — bấm, gõ, cập nhật mà không tải lại trang.",
+                en: "The language that makes web pages **interactive** — clicking, typing, and updating without reloading."
+            ),
+            whatItReallyMeans: L10n(
+                vi: "HTML dựng khung, CSS làm đẹp, còn JavaScript (JS) lo **hành vi**: bấm nút thì có chuyện gì xảy ra, dữ liệu mới hiện lên thế nào. Ban đầu JS chỉ chạy trong trình duyệt, nay chạy cả ở máy chủ (Node). File JS có đuôi `.js` (hoặc `.jsx` khi dùng React).",
+                en: "HTML builds the structure, CSS styles it, and JavaScript (JS) handles **behavior**: what happens when you click a button, how new data appears. It started in the browser but now also runs on servers (Node). JS files end in `.js` (or `.jsx` with React)."
+            ),
+            diagram: nil,
+            codeExample: "button.onclick = () => {\n  alert(\"Hi!\")\n}",
+            whenToUse: L10n(
+                vi: "Cho **mọi phần tương tác** trên web — và ngày càng nhiều ở phía máy chủ.",
+                en: "For **any interactivity** on the web — and increasingly on the server too."
+            ),
+            tags: [.react, .nodeBackend], related: ["html", "css", "typescript"]
+        ),
+
+        .init(
+            id: "typescript", topicId: "web",
+            title: L10n(vi: "TypeScript", en: "TypeScript"),
+            cardDefinition: L10n(
+                vi: "**JavaScript có dán nhãn kiểu** — bắt lỗi trước khi chạy bằng cách kiểm tra kiểu dữ liệu.",
+                en: "**JavaScript with type labels** — it catches mistakes before you run by checking data types."
+            ),
+            whatItReallyMeans: L10n(
+                vi: "TypeScript (TS) là JavaScript cộng phần khai báo kiểu: bạn nói `name` là chuỗi, `age` là số. Trước khi chạy, TS soát xem bạn có dùng sai kiểu ở đâu không, nhờ đó bắt được nhiều lỗi ngớ ngẩn sớm. Cuối cùng TS biên dịch trở lại thành JavaScript thường để trình duyệt chạy. File TS có đuôi `.ts` (hoặc `.tsx` với React).",
+                en: "TypeScript (TS) is JavaScript plus type declarations: you say `name` is a string, `age` is a number. Before running, TS checks whether you've used a type wrong anywhere, catching many silly mistakes early. In the end TS compiles back to plain JavaScript for the browser to run. TS files end in `.ts` (or `.tsx` with React)."
+            ),
+            diagram: nil,
+            codeExample: "function greet(name: string): string {\n  return \"Hi, \" + name\n}",
+            whenToUse: L10n(
+                vi: "Trên **dự án lớn hơn** nơi việc bắt lỗi kiểu sớm tiết kiệm nhiều thời gian gỡ lỗi.",
+                en: "On **larger projects** where catching type mistakes early saves a lot of debugging time."
+            ),
+            tags: [.react], related: ["javascript", "html"]
         ),
     ]
 }

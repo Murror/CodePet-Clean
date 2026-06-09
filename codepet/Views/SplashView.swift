@@ -21,24 +21,26 @@ struct SplashView: View {
             let underlineWidth = logoWidth * 0.93
             let buttonWidth = max(240, w * 0.22)
             let shadowWidth = charHeight * 8 + charSpacing * 9
-            let bubbleFont = max(11, h * 0.015)
             let taglineFont = max(13, h * 0.017)
-            let subTaglineFont = max(11, h * 0.014)
             let buttonFont = max(15, h * 0.019)
 
             ZStack {
                 Color(hex: "#F5F3FA")
                     .ignoresSafeArea()
 
+                // Soft brand glow behind the cast — adds depth & color without clutter.
+                RadialGradient(
+                    colors: [Color(hex: "#7B6BD8").opacity(0.16), Color(hex: "#7B6BD8").opacity(0)],
+                    center: .center,
+                    startRadius: 0,
+                    endRadius: w * 0.42
+                )
+                .offset(y: -h * 0.06)
+                .ignoresSafeArea()
+                .opacity(showChars ? 1 : 0)
+
                 VStack(spacing: 0) {
                     Spacer()
-
-                    // Speech bubbles
-                    HStack(spacing: 12) {
-                        speechBubble("Let's build!", fontSize: bubbleFont)
-                        speechBubble("I'll break it first", fontSize: bubbleFont)
-                    }
-                    .padding(.bottom, h * 0.015)
 
                     // Character row with idle bounce animation
                     HStack(spacing: charSpacing) {
@@ -87,29 +89,22 @@ struct SplashView: View {
                     }
                     .padding(.bottom, h * 0.02)
 
-                    // Taglines
+                    // Tagline
                     Text(uiLanguage == .vi ? "Người bạn AI lập trình của bạn đang chờ." : "Your AI coding companions are waiting.")
                         .font(.pixelSystem(size: taglineFont))
                         .foregroundColor(.secondary)
-
-                    Text(uiLanguage == .vi ? "7 nhân vật. 16 kỹ năng. Một hành trình." : "7 characters. 16 skills. One journey.")
-                        .font(.pixelSystem(size: subTaglineFont))
-                        .foregroundColor(.secondary.opacity(0.7))
-                        .padding(.top, 2)
                         .padding(.bottom, h * 0.035)
 
                     // Meet Your Pet button
                     if let onContinue = onContinue {
                         Button(action: onContinue) {
-                            HStack(spacing: 6) {
-                                Text(uiLanguage == .vi ? "Gặp Pet Của Bạn" : "Meet Your Pet")
-                                Text("→")
-                            }
-                            .frame(maxWidth: buttonWidth)
+                            Text(uiLanguage == .vi ? "Gặp Pet Của Bạn" : "Meet Your Pet")
+                                .frame(maxWidth: buttonWidth)
                         }
                         .buttonStyle(PixelButtonStyle(
-                            fill: Color(hex: "#2D2B26"),
+                            fill: Color(hex: "#7B6BD8"),
                             foreground: .white,
+                            borderColor: Color(hex: "#2D2664"),
                             paddingH: 18,
                             paddingV: h * 0.018,
                             blockSize: 3,
@@ -180,22 +175,6 @@ struct SplashView: View {
         }
     }
 
-    private func speechBubble(_ text: String, fontSize: CGFloat = 11) -> some View {
-        Text(text)
-            .font(.pixelSystem(size: fontSize, design: .monospaced))
-            .foregroundColor(Color(hex: "#2D2B26"))
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
-            )
-    }
 }
 
 #Preview {

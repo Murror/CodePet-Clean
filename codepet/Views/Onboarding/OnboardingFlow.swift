@@ -80,7 +80,7 @@ struct SplashPhase: View {
     @State private var showButton = false
     @State private var showChars = false
 
-    let charColors = ["#E04040", "#8B7BE8", "#20B090", "#C8A0E8", "#FF8C00", "#E0508C", "#888884", "#80C830"]
+    let charColors = ["#E04040", "#8B7BE8", "#20B090", "#5B8DEF", "#FF8C00", "#E0508C", "#888884", "#80C830"]
 
     var body: some View {
         VStack(spacing: 0) {

@@ -16,6 +16,7 @@ export interface SummarizePayload {
   raw_summary: string;
   pet_persona?: PetPersonaInput;
   user_brief?: string;
+  pet_memory?: string;
 }
 
 export function validatePayload(body: any): string | null {
@@ -37,6 +38,9 @@ export function validatePayload(body: any): string | null {
   }
   if (b.user_brief !== undefined && typeof b.user_brief !== "string") {
     return "user_brief must be a string when provided";
+  }
+  if (b.pet_memory !== undefined && typeof b.pet_memory !== "string") {
+    return "pet_memory must be a string when provided";
   }
   return null;
 }
@@ -130,7 +134,8 @@ export async function handleSummarizeTurn(
     raw_summary: payload.raw_summary,
     language: payload.language as "vi" | "en",
     petPersona: payload.pet_persona,
-    user_brief: payload.user_brief
+    user_brief: payload.user_brief,
+    pet_memory: payload.pet_memory
   };
 
   if (wantsStream) {

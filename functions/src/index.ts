@@ -4,6 +4,8 @@ import * as admin from "firebase-admin";
 import { handleSummarizeTurn } from "./summarizeTurn";
 import { handleSummarizeSession } from "./summarizeSession";
 import { handleChatSession } from "./chat";
+import { handleGenerateGuidance } from "./generateGuidance";
+import { handleExtractKnowledge } from "./extractKnowledge";
 
 admin.initializeApp();
 setGlobalOptions({ region: "us-central1", maxInstances: 10 });
@@ -36,4 +38,20 @@ export const chatSession = onRequest(
     secrets: ["ANTHROPIC_API_KEY"]
   },
   handleChatSession
+);
+
+export const generateGuidance = onRequest(
+  {
+    cors: false,
+    secrets: ["ANTHROPIC_API_KEY"]
+  },
+  handleGenerateGuidance
+);
+
+export const extractKnowledge = onRequest(
+  {
+    cors: false,
+    secrets: ["ANTHROPIC_API_KEY"]
+  },
+  handleExtractKnowledge
 );

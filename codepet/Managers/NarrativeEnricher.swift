@@ -18,10 +18,21 @@ final class NarrativeEnricher: ObservableObject {
     /// replacing the ~8s blank wait.
     @Published private(set) var enrichingTurns: Set<String> = []
 
+    /// Skills detected in the most recent narrative. The UI layer observes
+    /// this and auto-progresses the corresponding skills in TipsState.
+    /// Reset to empty after each enrichment.
+    @Published private(set) var lastDetectedSkills: [DetectedSkill] = []
+
     private let api: ReflectionAPIClientProtocol
     private let store: NarrativeStore
     var language: String
     private let retryDelay: TimeInterval
+    /// Hard ceiling on a single streaming attempt. A hung SSE connection (server
+    /// accepts the request but never sends `done`/`error`, or never returns
+    /// response headers) would otherwise leave the turn pinned on the
+    /// "summarizing" skeleton forever. On timeout we throw `.network` so the
+    /// existing retry/failure path turns the hang into a retry-able failure.
+    private let streamTimeout: TimeInterval
     private var inFlight: [String: Task<TurnState, Never>] = [:]
     private let logger = Logger(subsystem: "app.murror.codepet", category: "NarrativeEnricher")
 
@@ -29,12 +40,14 @@ final class NarrativeEnricher: ObservableObject {
         api: ReflectionAPIClientProtocol,
         store: NarrativeStore,
         language: String,
-        retryDelay: TimeInterval = 10
+        retryDelay: TimeInterval = 10,
+        streamTimeout: TimeInterval = 45
     ) {
         self.api = api
         self.store = store
         self.language = language
         self.retryDelay = retryDelay
+        self.streamTimeout = streamTimeout
     }
 
     /// Enrich a single turn. Awaits completion. If a turn with the same id is
@@ -78,12 +91,20 @@ final class NarrativeEnricher: ObservableObject {
         let request = makeRequest(for: turn, petPersona: petPersona)
         for attempt in 0...1 {
             do {
-                let narrative = try await streamEnrich(turnId: turn.id, sessionId: turn.sessionId, request: request)
+                let narrative = try await streamEnrichWithTimeout(turnId: turn.id, sessionId: turn.sessionId, request: request)
                 do {
                     try store.appendNarrative(turnId: turn.id, sessionId: turn.sessionId, language: language, narrative: narrative)
                 } catch {
                     logger.error("failed to persist narrative: turn=\(turn.id) error=\(error.localizedDescription)")
                 }
+
+                // Publish detected skills for the UI to handle
+                let strongSkills = narrative.detectedSkills.filter { $0.confidence == "strong" }
+                if !strongSkills.isEmpty {
+                    lastDetectedSkills = strongSkills
+                    logger.info("detected \(strongSkills.count) skills: \(strongSkills.map(\.skillId).joined(separator: ", "))")
+                }
+
                 return .ready
             } catch let err as ReflectionAPIError {
                 switch err {
@@ -112,6 +133,38 @@ final class NarrativeEnricher: ObservableObject {
         }
         return recordFailure(turn.id, reason: .unknown, error: nil)
     }
+
+    /// Races `streamEnrich` against `streamTimeout`. If the stream wins, returns
+    /// its narrative; if the timeout wins, cancels the stream and throws
+    /// `.network` so `runEnrich` retries and ultimately records a failure (which
+    /// flips the UI off the "summarizing" skeleton) instead of hanging forever.
+    private func streamEnrichWithTimeout(
+        turnId: String,
+        sessionId: String,
+        request: SummarizeTurnRequest
+    ) async throws -> Narrative {
+        let timeout = streamTimeout
+        do {
+            return try await withThrowingTaskGroup(of: Narrative.self) { group in
+                group.addTask { [self] in
+                    try await streamEnrich(turnId: turnId, sessionId: sessionId, request: request)
+                }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                    throw StreamTimeout()
+                }
+                defer { group.cancelAll() }
+                guard let result = try await group.next() else { throw StreamTimeout() }
+                return result
+            }
+        } catch is StreamTimeout {
+            logger.warning("turn enrich timed out after \(timeout)s: turn=\(turnId)")
+            enrichingTurns.remove(turnId)
+            throw ReflectionAPIError.network(StreamTimeout())
+        }
+    }
+
+    private struct StreamTimeout: Error {}
 
     /// Stream-based enrichment. Opens SSE connection, publishes enrichingTurns
     /// immediately so the UI can show "Generating story…", then returns the
@@ -145,6 +198,11 @@ final class NarrativeEnricher: ObservableObject {
             throw ReflectionAPIError.malformedResponse
         }
 
+        // Convert detected skill DTOs to model objects
+        let skills: [DetectedSkill] = (payload.detectedSkills ?? []).map { dto in
+            DetectedSkill(skillId: dto.skillId, confidence: dto.confidence, evidence: dto.evidence)
+        }
+
         return Narrative(
             title: payload.title,
             whatYouWanted: payload.whatYouWanted,
@@ -152,6 +210,7 @@ final class NarrativeEnricher: ObservableObject {
             lesson: payload.lesson,
             nextSteps: payload.nextSteps ?? "",
             mood: payload.mood ?? "idle",
+            detectedSkills: skills,
             model: model,
             generatedAt: Date(),
             schemaVersion: 1
@@ -180,6 +239,7 @@ final class NarrativeEnricher: ObservableObject {
             )
         }
         let rawSummary = events.map { "\($0.tool) \($0.path ?? $0.text ?? "")" }.joined(separator: " · ")
+        let projectPath = turn.rawEvents.compactMap(\.cwd).first
         return SummarizeTurnRequest(
             turnId: turn.id,
             sessionId: turn.sessionId,
@@ -188,7 +248,8 @@ final class NarrativeEnricher: ObservableObject {
             events: events,
             rawSummary: rawSummary,
             petPersona: petPersona,
-            userBrief: Self.currentUserBrief(projectPath: turn.rawEvents.compactMap(\.cwd).first)
+            userBrief: Self.currentUserBrief(projectPath: projectPath),
+            petMemory: PetMemoryStore.shared.promptPayload(for: projectPath)
         )
     }
 

@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import FirebaseAuth
 import os
 
@@ -8,6 +9,14 @@ struct ContentView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var authManager: AuthManager
     @EnvironmentObject var demoController: DemoScriptController
+    // Live stores that must also be reset on account switch (otherwise the
+    // previous user's in-memory data lingers and gets re-saved under the new uid).
+    @EnvironmentObject var gameState: GameState
+    @EnvironmentObject var tipsState: TipsState
+    @EnvironmentObject var projectStore: ProjectStore
+    @EnvironmentObject var challengeProgress: ChallengeProgress
+    @EnvironmentObject var learnProgress: LearnProgress
+    @EnvironmentObject var sessionStatusStore: SessionStatusStore
     @State private var isLoadingCloudData = false
     @State private var showSplash = true
 
@@ -51,27 +60,28 @@ struct ContentView: View {
                 return
             }
 
-            // Onboarding flow has been removed; mark the legacy flag so
-            // any code that still reads `appState.onboardingComplete`
-            // (e.g. AppState mirroring, cloud sync diff logic) sees the
-            // user as fully onboarded the moment they sign in.
+            let storedUID = PersistenceManager.shared.currentUserId
+            let isDifferentUser = storedUID != nil && storedUID != user.uid
+
+            // Cancel any pending cloud save for the OUTGOING account so it can't
+            // fire after we've swapped in a different account's data.
+            cloudSync.cancelPendingSave()
+
+            // Non-destructive account-data swap: snapshot the outgoing account
+            // and restore the incoming one. Nothing is deleted — each account
+            // keeps its own data under its uid, so switching back restores it.
+            let hadLocalData = AccountDataStore.shared.activate(uid: user.uid, previousUID: storedUID)
+            if isDifferentUser {
+                logger.info("Account switch (\(storedUID ?? "none", privacy: .private) → \(user.uid, privacy: .private)) — restored this account's local data")
+                reloadAllStores()
+            }
+
+            // Legacy onboarding flag — keep code that still reads it satisfied.
             if !appState.onboardingComplete {
                 appState.onboardingComplete = true
             }
 
-            let storedUID = PersistenceManager.shared.currentUserId
-
-            // Case 1: A confirmed different account signed in
-            let isDifferentUser = storedUID != nil && storedUID != user.uid
-            // Case 2: No UID on record but there's onboarded data — unknown prior user (old install or cleared UID)
-            let isUnknownPriorUser = storedUID == nil && appState.onboardingComplete
-
-            if isDifferentUser || isUnknownPriorUser {
-                logger.info("User switch detected (\(storedUID ?? "none", privacy: .private) → \(user.uid, privacy: .private)) — clearing local data")
-                appState.resetProgress()
-            }
-
-            // Sync display name from Firebase Auth → AppState → UserDefaults
+            // Sync display name from Firebase Auth if AppState doesn't have one.
             if appState.displayName.isEmpty {
                 if let authName = authManager.latestDisplayName, !authName.isEmpty {
                     appState.displayName = authName
@@ -80,23 +90,63 @@ struct ContentView: View {
                 }
             }
 
-            // Record this account as the owner of local data
+            // Record this account as the owner of the current working data.
             PersistenceManager.shared.currentUserId = user.uid
 
-            // Load from cloud whenever we can't confirm this is the same user with fresh data
-            let needsCloudLoad = !appState.onboardingComplete || isDifferentUser || isUnknownPriorUser
-            if needsCloudLoad {
+            // Reflection isolation: established accounts (those with their own
+            // local data) see their full machine coding history; fresh/empty
+            // accounts only see sessions from their first sign-in onward.
+            if hadLocalData {
+                ReflectionAccountWatermark.record(forUID: user.uid, date: .distantPast)
+                sessionStatusStore.activeAccountStart = .distantPast
+            } else {
+                sessionStatusStore.activeAccountStart =
+                    ReflectionAccountWatermark.ensureStart(forUID: user.uid, fallback: Date())
+            }
+
+            // Cloud restore ONLY when this account has no local data (brand-new
+            // account or a fresh device). When local data exists it's the source
+            // of truth — we must NOT let older cloud data clobber it.
+            if !hadLocalData {
                 isLoadingCloudData = true
                 cloudSync.loadFromCloud(userId: user.uid, appState: appState) { hasData in
                     isLoadingCloudData = false
                     if hasData {
-                        logger.info("Restored cloud data for \(user.uid, privacy: .private)")
+                        logger.info("Restored cloud backup for \(user.uid, privacy: .private)")
+                        // Cloud had progress → established account → full history.
+                        ReflectionAccountWatermark.record(forUID: user.uid, date: .distantPast)
+                        sessionStatusStore.activeAccountStart = .distantPast
                     } else {
-                        logger.info("No cloud data for \(user.uid, privacy: .private) — using defaults")
+                        logger.info("No cloud backup for \(user.uid, privacy: .private) — fresh account")
                     }
                 }
             }
         }
+        // Continuous cloud backup: debounce-save AppState progress to Firestore
+        // so an account's data survives a wiped/replaced Mac. Snapshots the uid
+        // at schedule time; the swap above cancels stale saves.
+        .onReceive(appState.objectWillChange) { _ in
+            guard let u = authManager.currentUser, !u.isAnonymous, !isLoadingCloudData else { return }
+            cloudSync.scheduleSave(userId: u.uid, appState: appState)
+        }
+    }
+
+    /// Re-hydrate every live store from the (account-swapped) UserDefaults keys
+    /// so the in-memory `@Published` objects reflect the account that just
+    /// signed in. Each store resets to fresh-account defaults first, then loads
+    /// any persisted keys — without deleting them. Called after the vault swap.
+    /// Reflection JSONL (machine-local coding activity in ~/.codepet) is filtered
+    /// per-account by the watermark, not reloaded here.
+    private func reloadAllStores() {
+        appState.reloadFromPersistence()
+        gameState.reloadFromPersistence()
+        tipsState.reset()
+        TipsPersistence.shared.load(into: tipsState)
+        projectStore.reload()
+        challengeProgress.load()
+        learnProgress.reload()
+        sessionStatusStore.reload()
+        PetMemoryStore.shared.reload()
     }
 }
 
@@ -104,4 +154,11 @@ struct ContentView: View {
     ContentView()
         .environmentObject(AppState())
         .environmentObject(AuthManager())
+        .environmentObject(DemoScriptController())
+        .environmentObject(GameState())
+        .environmentObject(TipsState())
+        .environmentObject(ProjectStore())
+        .environmentObject(ChallengeProgress())
+        .environmentObject(LearnProgress())
+        .environmentObject(SessionStatusStore())
 }

@@ -19,6 +19,7 @@ export interface SummarizeSessionPayload {
   turns: TurnInput[];
   pet_persona?: PetPersonaInput;
   user_brief?: string;
+  pet_memory?: string;
 }
 
 export function validateSessionPayload(body: any): string | null {
@@ -45,6 +46,9 @@ export function validateSessionPayload(body: any): string | null {
   }
   if (b.user_brief !== undefined && typeof b.user_brief !== "string") {
     return "user_brief must be a string when provided";
+  }
+  if (b.pet_memory !== undefined && typeof b.pet_memory !== "string") {
+    return "pet_memory must be a string when provided";
   }
   return null;
 }
@@ -97,7 +101,8 @@ export async function handleSummarizeSession(req: Request, res: Response): Promi
     turns: payload.turns,
     language: payload.language as "vi" | "en",
     petPersona: payload.pet_persona,
-    userBrief: payload.user_brief
+    userBrief: payload.user_brief,
+    petMemory: payload.pet_memory
   };
 
   if (wantsStream) {

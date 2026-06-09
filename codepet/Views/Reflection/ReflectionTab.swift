@@ -12,6 +12,7 @@ struct ReflectionTab: View {
     @EnvironmentObject var chatController: SessionChatController
     @EnvironmentObject var demo: DemoScriptController
     @EnvironmentObject var projectStore: ProjectStore
+    @EnvironmentObject var statusStore: SessionStatusStore
     @EnvironmentObject var healthNudge: HealthNudgeController
     @Environment(\.uiLanguage) private var uiLanguage
 
@@ -35,6 +36,17 @@ struct ReflectionTab: View {
     @State private var cachedSessions: [Session] = []
     /// Cached project groups — rebuilt alongside cachedSessions.
     @State private var cachedGroups: [ProjectGroup] = []
+    /// Cached pinned sessions — shown in the "Pinned" section at the top.
+    @State private var cachedPinnedSessions: [Session] = []
+    /// Cached archived sessions — shown in the collapsible "Archived" section.
+    @State private var cachedArchivedSessions: [Session] = []
+    /// Whether the "Archived" section is expanded (collapsed by default).
+    @State private var showArchivedExpanded = false
+    /// Session awaiting delete confirmation (drives the alert).
+    @State private var pendingDeleteSession: Session? = nil
+    /// Session being renamed (drives the rename alert) + its editable text.
+    @State private var renameSession: Session? = nil
+    @State private var renameText: String = ""
     /// Input fingerprint: incremented when any upstream dependency publishes new data.
     /// onChange(of: dataVersion) triggers a single recompute of sessions + groups.
     @State private var dataVersion: Int = 0
@@ -76,8 +88,36 @@ struct ReflectionTab: View {
             )
             sessions = [Session.makeWelcome()] + real
         }
-        cachedSessions = sessions
-        cachedGroups = buildProjectGroups(from: sessions)
+        // Deleted sessions disappear everywhere; pinned ones rise to a "Pinned"
+        // section at the top; archived ones move to the recoverable "Archived"
+        // section. The remaining sessions stay in their project groups.
+        let recent: (Session, Session) -> Bool = {
+            ($0.turns.last?.startedAt ?? .distantPast) > ($1.turns.last?.startedAt ?? .distantPast)
+        }
+        // Reflection isolation: hide sessions that predate the active account's
+        // first sign-in on this Mac (the ~/.codepet logs are machine-global, so
+        // without this a new account would see the previous user's history).
+        // Demo mode and the welcome row are always exempt.
+        let watermark = appState.demoModeEnabled
+            ? Date.distantPast
+            : (statusStore.activeAccountStart ?? .distantPast)
+        let visible = sessions.filter { session in
+            if session.isWelcome { return true }
+            if statusStore.isDeleted(session.id) { return false }
+            let activity = session.turns.last?.startedAt ?? session.startedAt
+            return activity >= watermark
+        }
+        cachedSessions = visible
+        let active = visible.filter {
+            $0.isWelcome || (!statusStore.isArchived($0.id) && !statusStore.isPinned($0.id))
+        }
+        cachedGroups = buildProjectGroups(from: active)
+        cachedPinnedSessions = visible
+            .filter { !$0.isWelcome && statusStore.isPinned($0.id) }
+            .sorted(by: recent)
+        cachedArchivedSessions = visible
+            .filter { !$0.isWelcome && statusStore.isArchived($0.id) }
+            .sorted(by: recent)
     }
 
     private var selectedSession: Session? {
@@ -171,6 +211,50 @@ struct ReflectionTab: View {
             }
         }
         .background(ReflectionTheme.background)
+        .alert(
+            uiLanguage == .vi ? "Xóa phiên này?" : "Delete this session?",
+            isPresented: Binding(
+                get: { pendingDeleteSession != nil },
+                set: { if !$0 { pendingDeleteSession = nil } }
+            )
+        ) {
+            Button(uiLanguage == .vi ? "Hủy" : "Cancel", role: .cancel) {
+                pendingDeleteSession = nil
+            }
+            Button(uiLanguage == .vi ? "Xóa" : "Delete", role: .destructive) {
+                if let session = pendingDeleteSession {
+                    if selectedSessionId == session.id { selectedSessionId = nil }
+                    statusStore.delete(session.id)
+                }
+                pendingDeleteSession = nil
+            }
+        } message: {
+            Text(uiLanguage == .vi
+                 ? "Phiên này sẽ bị ẩn khỏi danh sách của bạn. Nếu có thể bạn vẫn cần đến nó sau này, hãy lưu trữ thay vì xóa."
+                 : "This session will be hidden from your list. If you might want it later, archive it instead.")
+        }
+        .alert(
+            uiLanguage == .vi ? "Đổi tên phiên" : "Rename session",
+            isPresented: Binding(
+                get: { renameSession != nil },
+                set: { if !$0 { renameSession = nil } }
+            )
+        ) {
+            TextField(uiLanguage == .vi ? "Tên phiên" : "Session name", text: $renameText)
+            Button(uiLanguage == .vi ? "Hủy" : "Cancel", role: .cancel) {
+                renameSession = nil
+            }
+            Button(uiLanguage == .vi ? "Lưu" : "Save") {
+                if let session = renameSession {
+                    statusStore.rename(session.id, to: renameText)
+                }
+                renameSession = nil
+            }
+        } message: {
+            Text(uiLanguage == .vi
+                 ? "Để trống để khôi phục tên tự động."
+                 : "Leave blank to restore the auto-generated name.")
+        }
         .overlay(alignment: .bottomTrailing) {
             // Floating launcher bubble — only visible when chat is collapsed.
             if let session = selectedSession, !session.isWelcome, !chatExpanded {
@@ -230,6 +314,10 @@ struct ReflectionTab: View {
         .onChange(of: summaryStore.summaries.count) { _ in dataVersion += 1 }
         .onChange(of: enricher.failedTurns.count) { _ in dataVersion += 1 }
         .onChange(of: appState.demoModeEnabled) { _ in dataVersion += 1 }
+        .onChange(of: statusStore.activeAccountStart) { _ in dataVersion += 1 }
+        .onChange(of: statusStore.pinnedSessionIds) { _ in dataVersion += 1 }
+        .onChange(of: statusStore.archivedSessionIds) { _ in dataVersion += 1 }
+        .onChange(of: statusStore.deletedSessionIds) { _ in dataVersion += 1 }
         // --- Single recompute when any upstream data changes
         .onChange(of: dataVersion) { _ in
             recomputeSessionData()
@@ -410,6 +498,8 @@ struct ReflectionTab: View {
     }
 
     private func sessionRowTitle(for session: Session) -> String {
+        // 0. User-supplied custom name (from Rename) wins over everything.
+        if let custom = statusStore.customTitle(for: session.id) { return custom }
         // 1. First sentence of summary (≤60 chars)
         if let summaryText = session.summary?.summary {
             let firstSentence = summaryText.components(separatedBy: ".").first?.trimmingCharacters(in: .whitespaces) ?? summaryText
@@ -478,9 +568,11 @@ struct ReflectionTab: View {
             .padding(.top, 20)
             .padding(.bottom, 16)
 
-            // Session dots — clickable mini indicators
+            // Project tiles — one compact icon per project (not one dot per
+            // session), so the collapsed rail reads as a short list of projects
+            // instead of a long monotone column of identical dots.
             ScrollView {
-                VStack(spacing: 12) {
+                VStack(spacing: 8) {
                     // Welcome icon
                     Button {
                         selectedSessionId = Session.makeWelcome().id
@@ -494,7 +586,7 @@ struct ReflectionTab: View {
                             )
                             .frame(width: 28, height: 28)
                             .background(
-                                RoundedRectangle(cornerRadius: 6)
+                                RoundedRectangle(cornerRadius: 7)
                                     .fill(selectedSessionId == Session.makeWelcome().id
                                           ? ReflectionTheme.accent.opacity(0.12)
                                           : Color.clear)
@@ -503,32 +595,37 @@ struct ReflectionTab: View {
                     .buttonStyle(.plain)
                     .help(uiLanguage == .vi ? "Bắt đầu" : "Get started")
 
-                    // Session dots — uses cached groups
+                    // One tile per project, labelled with its initial.
                     ForEach(cachedGroups) { group in
-                        ForEach(group.sessions) { session in
-                            Button {
-                                selectedSessionId = session.id
-                            } label: {
-                                Circle()
-                                    .fill(session.id == selectedSessionId
-                                          ? ReflectionTheme.accent
-                                          : sessionStateColor(session))
-                                    .frame(width: session.id == selectedSessionId ? 8 : 6,
-                                           height: session.id == selectedSessionId ? 8 : 6)
-                                    .frame(width: 28, height: 20)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .fill(session.id == selectedSessionId
-                                                  ? ReflectionTheme.accent.opacity(0.08)
-                                                  : Color.clear)
-                                    )
+                        let isActiveProject = group.sessions.contains { $0.id == selectedSessionId }
+                        Button {
+                            // Expand the full sidebar and reveal this project.
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                sidebarCollapsed = false
                             }
-                            .buttonStyle(.plain)
-                            .help(sessionRowTitle(for: session))
+                            collapsedProjects.remove(group.id)
+                        } label: {
+                            Text(projectInitial(group.displayName))
+                                .font(CodepetTheme.pixel(13))
+                                .foregroundColor(isActiveProject ? .white : ReflectionTheme.accent.opacity(0.8))
+                                .frame(width: 28, height: 28)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 7)
+                                        .fill(isActiveProject
+                                              ? ReflectionTheme.accent
+                                              : ReflectionTheme.accent.opacity(0.10))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 7)
+                                        .stroke(ReflectionTheme.accent.opacity(isActiveProject ? 0 : 0.18), lineWidth: 1)
+                                )
                         }
+                        .buttonStyle(.plain)
+                        .help("\(group.displayName) · \(group.sessions.count)")
                     }
                 }
                 .padding(.horizontal, 6)
+                .padding(.top, 2)
             }
             Spacer()
         }
@@ -584,9 +681,19 @@ struct ReflectionTab: View {
                         welcomeSidebarRow(Session.makeWelcome())
                     }
 
+                    // Pinned sessions — surfaced at the top when non-empty
+                    if !cachedPinnedSessions.isEmpty {
+                        pinnedSection
+                    }
+
                     // Project-grouped sessions (collapsible) — uses cached groups
                     ForEach(cachedGroups) { group in
                         projectGroupSection(group)
+                    }
+
+                    // Archived sessions (collapsible) — only shown when non-empty
+                    if !cachedArchivedSessions.isEmpty {
+                        archivedSection
                     }
                 }
                 .padding(.bottom, 20)
@@ -668,6 +775,90 @@ struct ReflectionTab: View {
         .animation(.easeOut(duration: 0.12), value: isCollapsed)
     }
 
+    /// "Pinned" section at the top of the sidebar — accent-styled, always shown
+    /// when non-empty.
+    @ViewBuilder
+    private var pinnedSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 6) {
+                Image(systemName: "pin.fill")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundColor(ReflectionTheme.accent)
+                    .rotationEffect(.degrees(45))
+                Text(uiLanguage == .vi ? "ĐÃ GHIM" : "PINNED")
+                    .font(CodepetTheme.pixel(12))
+                    .tracking(1.2)
+                    .foregroundColor(ReflectionTheme.accent)
+                Spacer()
+                Text("\(cachedPinnedSessions.count)")
+                    .font(ReflectionTheme.sans(9, weight: .semibold))
+                    .foregroundColor(ReflectionTheme.accent)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(ReflectionTheme.accent.opacity(0.12)))
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 5)
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(cachedPinnedSessions) { session in
+                    sidebarSessionRow(session)
+                }
+            }
+            .padding(.top, 10)
+        }
+    }
+
+    /// Collapsible "Archived" section at the bottom of the sidebar. Mirrors the
+    /// project-group collapse behavior but in a muted, de-emphasized style.
+    @ViewBuilder
+    private var archivedSection: some View {
+        let collapsed = !showArchivedExpanded
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(.easeOut(duration: 0.12)) { showArchivedExpanded.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(ReflectionTheme.mutedText)
+                        .frame(width: 10)
+                        .rotationEffect(.degrees(collapsed ? 0 : 90))
+                    Image(systemName: "archivebox.fill")
+                        .font(.system(size: 9))
+                        .foregroundColor(ReflectionTheme.mutedText)
+                    Text(uiLanguage == .vi ? "ĐÃ LƯU TRỮ" : "ARCHIVED")
+                        .font(CodepetTheme.pixel(12))
+                        .tracking(1.2)
+                        .foregroundColor(ReflectionTheme.mutedText)
+                    Spacer()
+                    Text("\(cachedArchivedSessions.count)")
+                        .font(ReflectionTheme.sans(9, weight: .semibold))
+                        .foregroundColor(ReflectionTheme.mutedText)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(ReflectionTheme.mutedText.opacity(0.12)))
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 5)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(cachedArchivedSessions) { session in
+                    sidebarSessionRow(session, archived: true)
+                }
+            }
+            .padding(.top, collapsed ? 0 : 10)
+            .frame(maxHeight: collapsed ? 0 : .infinity)
+            .clipped()
+            .opacity(collapsed ? 0 : 1)
+            .allowsHitTesting(!collapsed)
+        }
+        .animation(.easeOut(duration: 0.12), value: showArchivedExpanded)
+    }
+
     private func welcomeSidebarRow(_ session: Session) -> some View {
         let isSelected = session.id == selectedSessionId
         return Button {
@@ -707,7 +898,7 @@ struct ReflectionTab: View {
         .buttonStyle(.plain)
     }
 
-    private func sidebarSessionRow(_ session: Session) -> some View {
+    private func sidebarSessionRow(_ session: Session, archived: Bool = false) -> some View {
         let isSelected = session.id == selectedSessionId
         let isHovered = session.id == hoveredSessionId
         let isLive = sessionStateColor(session) == ReflectionTheme.accent
@@ -722,12 +913,20 @@ struct ReflectionTab: View {
                     .shadow(color: isLive ? ReflectionTheme.accent.opacity(0.5) : .clear, radius: isLive ? 4 : 0)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(sessionRowTitle(for: session))
-                        .font(ReflectionTheme.sans(12.5, weight: isSelected ? .semibold : .regular))
-                        .foregroundColor(isSelected ? ReflectionTheme.primaryText : ReflectionTheme.secondaryText)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        if statusStore.isPinned(session.id) {
+                            Image(systemName: "pin.fill")
+                                .font(.system(size: 9, weight: .semibold))
+                                .foregroundColor(ReflectionTheme.accent)
+                                .rotationEffect(.degrees(45))
+                        }
+                        Text(sessionRowTitle(for: session))
+                            .font(ReflectionTheme.sans(12.5, weight: isSelected ? .semibold : .regular))
+                            .foregroundColor(isSelected ? ReflectionTheme.primaryText : ReflectionTheme.secondaryText)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
                     Text(sessionMetaLabel(for: session))
                         .font(ReflectionTheme.sans(10.5))
@@ -760,9 +959,87 @@ struct ReflectionTab: View {
             .padding(.horizontal, 8)
         }
         .buttonStyle(.plain)
+        .overlay(alignment: .topTrailing) {
+            // Discoverable "⋯" affordance — reveals the same menu as right-click.
+            // The Menu stays in the tree always (so an open popover isn't
+            // dismissed when hover flips); only its label fades in/out.
+            Menu {
+                sessionContextMenu(session: session)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(ReflectionTheme.secondaryText)
+                    .frame(width: 24, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(ReflectionTheme.background)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .stroke(ReflectionTheme.borderLight, lineWidth: 0.5)
+                            )
+                    )
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .padding(.trailing, 14)
+            .padding(.top, 9)
+            .opacity((session.id == hoveredSessionId || session.id == selectedSessionId) ? 1 : 0)
+            .allowsHitTesting(session.id == hoveredSessionId || session.id == selectedSessionId)
+        }
         .onHover { hoveredSessionId = $0 ? session.id : nil }
+        .opacity(archived ? 0.7 : 1)
         .contextMenu {
-            moveToProjectMenu(session: session)
+            sessionContextMenu(session: session)
+        }
+    }
+
+    /// Right-click actions for a session row — mirrors Claude Code's menu:
+    /// Move to project · Pin · Rename · Archive · Delete.
+    @ViewBuilder
+    private func sessionContextMenu(session: Session) -> some View {
+        let pinned = statusStore.isPinned(session.id)
+        let archived = statusStore.isArchived(session.id)
+
+        moveToProjectMenu(session: session)
+
+        Divider()
+
+        Button {
+            statusStore.togglePin(session.id)
+        } label: {
+            Label(pinned ? (uiLanguage == .vi ? "Bỏ ghim" : "Unpin")
+                         : (uiLanguage == .vi ? "Ghim" : "Pin"),
+                  systemImage: pinned ? "pin.slash" : "pin")
+        }
+
+        Button {
+            renameText = statusStore.customTitle(for: session.id) ?? sessionRowTitle(for: session)
+            renameSession = session
+        } label: {
+            Label(uiLanguage == .vi ? "Đổi tên" : "Rename", systemImage: "pencil")
+        }
+
+        Divider()
+
+        Button {
+            if archived {
+                statusStore.unarchive(session.id)
+            } else {
+                if selectedSessionId == session.id { selectedSessionId = nil }
+                statusStore.archive(session.id)
+            }
+        } label: {
+            Label(archived ? (uiLanguage == .vi ? "Bỏ lưu trữ" : "Unarchive")
+                           : (uiLanguage == .vi ? "Lưu trữ" : "Archive"),
+                  systemImage: archived ? "tray.and.arrow.up" : "archivebox")
+        }
+
+        Button(role: .destructive) {
+            pendingDeleteSession = session
+        } label: {
+            Label(uiLanguage == .vi ? "Xóa" : "Delete", systemImage: "trash")
         }
     }
 
@@ -781,6 +1058,15 @@ struct ReflectionTab: View {
                 }
             }
         }
+    }
+
+    /// First letter/digit of a project name, for the collapsed-rail tile.
+    private func projectInitial(_ name: String) -> String {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let ch = trimmed.first(where: { $0.isLetter || $0.isNumber }) {
+            return String(ch).uppercased()
+        }
+        return "•"
     }
 
     /// Color represents the "worst" state among the session's turns.

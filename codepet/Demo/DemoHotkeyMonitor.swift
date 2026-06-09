@@ -10,6 +10,9 @@ final class DemoHotkeyMonitor: ObservableObject {
     private weak var controller: DemoScriptController?
     private var monitor: Any?
 
+    /// Called when ⌥9 is pressed. Set by CodePetApp to wire tipsState/petId.
+    var onTipsDemo: (() -> Void)?
+
     func bind(controller: DemoScriptController) {
         self.controller = controller
     }
@@ -53,7 +56,8 @@ final class DemoHotkeyMonitor: ObservableObject {
         case 22: controller?.fireHealthStage(index: 1); return nil
         case 26: controller?.fireHealthStage(index: 2); return nil
         case 28: controller?.fireHealthStage(index: 3); return nil
-        case 29: controller?.panicSkip(); return nil
+        case 25: onTipsDemo?(); return nil                    // ⌥9 = Tips demo
+        case 29: controller?.panicSkip(); return nil           // ⌥0 = panic skip
         default: return event
         }
     }

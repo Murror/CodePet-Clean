@@ -108,5 +108,12 @@ class CloudSyncService: ObservableObject {
             self?.saveToCloud(userId: userId, appState: appState)
         }
     }
+
+    /// Cancel a pending debounced save (e.g. on account switch) so it can't fire
+    /// after the active account's data has been swapped out.
+    func cancelPendingSave() {
+        syncTimer?.invalidate()
+        syncTimer = nil
+    }
 }
 

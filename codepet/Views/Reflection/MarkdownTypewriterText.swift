@@ -19,6 +19,10 @@ struct MarkdownTypewriterText: View {
     var cursorColor: Color = Color(hex: "#7C3AED")
     /// Gate from the parent. When this flips to true, typing starts.
     var isActive: Bool
+    /// Highlight + link dictionary terms in the revealed text (see
+    /// `Text(markdown:linkTerms:)`). Taps only open a term AFTER typing finishes
+    /// — while typing, a tap skips to the end instead.
+    var linkTerms: Bool = false
 
     @State private var fullAttr: AttributedString = AttributedString()
     @State private var revealedCount: Int = 0
@@ -45,7 +49,7 @@ struct MarkdownTypewriterText: View {
             return c
         }()
 
-        return Text(visibleAttr + (cursorFaded ? AttributedString("") : cursorAttr))
+        let textView = Text(visibleAttr + (cursorFaded ? AttributedString("") : cursorAttr))
             .font(font)
             .foregroundColor(foregroundColor)
             .multilineTextAlignment(.leading)
@@ -53,7 +57,7 @@ struct MarkdownTypewriterText: View {
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
             .onAppear {
-                fullAttr = CodepetMarkdown.attributedString(from: markdown)
+                fullAttr = CodepetMarkdown.attributedString(from: markdown, linkTerms: linkTerms)
                 if isActive { beginTyping() }
             }
             .onChange(of: isActive) { _, nowActive in
@@ -63,8 +67,19 @@ struct MarkdownTypewriterText: View {
                 typingTask?.cancel()
                 cursorBlinkTask?.cancel()
             }
-            .onTapGesture { skipToEnd() }
-            .contentShape(Rectangle())
+
+        // While typing, the whole bubble is a tap target that skips to the end.
+        // Once typing finishes we drop that gesture so taps fall through to the
+        // term links instead.
+        return Group {
+            if typingDone {
+                textView
+            } else {
+                textView
+                    .contentShape(Rectangle())
+                    .onTapGesture { skipToEnd() }
+            }
+        }
     }
 
     private func beginTyping() {

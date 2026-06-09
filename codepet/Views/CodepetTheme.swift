@@ -263,18 +263,31 @@ extension Text {
     init(markdown raw: String) {
         self.init(CodepetMarkdown.attributedString(from: raw))
     }
+
+    /// Markdown render that also highlights + links dictionary terms. Used by
+    /// the Reflection narrative; pair with an `OpenURLAction` that handles the
+    /// `codepetterm://<id>` scheme.
+    init(markdown raw: String, linkTerms: Bool) {
+        self.init(CodepetMarkdown.attributedString(from: raw, linkTerms: linkTerms))
+    }
 }
 
 /// Shared markdown → AttributedString tinting used by both `Text(markdown:)`
 /// and `MarkdownTypewriterText`. Lifted out so the typewriter can reveal a
 /// fully-tinted attributed prefix character-by-character without re-parsing.
 enum CodepetMarkdown {
-    static func attributedString(from raw: String) -> AttributedString {
+    /// - Parameter linkTerms: when true, words that have a Dictionary entry are
+    ///   dot-underlined in their topic color and carry a `codepetterm://<id>`
+    ///   link (handled by an `OpenURLAction` in the narrative view). Off by
+    ///   default so the rest of the app's markdown is untouched.
+    static func attributedString(from raw: String, linkTerms: Bool = false) -> AttributedString {
         let opts = AttributedString.MarkdownParsingOptions(
             interpretedSyntax: .inlineOnlyPreservingWhitespace
         )
         guard var attr = try? AttributedString(markdown: raw, options: opts) else {
-            return AttributedString(raw)
+            var fallback = AttributedString(raw)
+            if linkTerms { applyGlossary(&fallback) }
+            return fallback
         }
 
         // Collect ranges first to avoid mutating the AttributedString while
@@ -320,6 +333,28 @@ enum CodepetMarkdown {
             attr[r].underlineStyle = nil
         }
 
+        if linkTerms { applyGlossary(&attr) }
         return attr
+    }
+
+    /// Dot-underline + topic-color + link every dictionary term found in the
+    /// already-tinted string. Operates on the rendered characters (markdown
+    /// markers already removed), mapping String offsets to AttributedString
+    /// indices so the spans line up exactly.
+    static func applyGlossary(_ attr: inout AttributedString) {
+        let plain = String(attr.characters)
+        let hits = DictionaryGlossary.scan(plain)
+        guard !hits.isEmpty else { return }
+        for hit in hits {
+            let startOffset = plain.distance(from: plain.startIndex, to: hit.range.lowerBound)
+            let length = plain.distance(from: hit.range.lowerBound, to: hit.range.upperBound)
+            let lo = attr.index(attr.startIndex, offsetByCharacters: startOffset)
+            let hi = attr.index(lo, offsetByCharacters: length)
+            let topicId = DictionaryContent.terms.first { $0.id == hit.termId }?.topicId ?? ""
+            let color = DictionaryContent.accent(forTopicId: topicId).color
+            attr[lo..<hi].foregroundColor = color
+            attr[lo..<hi].underlineStyle = Text.LineStyle(pattern: .dot, color: color)
+            attr[lo..<hi].link = URL(string: "codepetterm://\(hit.termId)")
+        }
     }
 }

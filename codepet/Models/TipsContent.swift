@@ -57,6 +57,20 @@ enum ProjectTag: String, Codable, CaseIterable {
     case mobile        // iOS/Android project markers
 }
 
+/// What a project is ABOUT (its domain), independent of its tech stack. Lets
+/// same-tech projects (e.g. two SwiftUI apps) get different reading based on
+/// what they actually build. Inferred from the project path + brief.
+enum ProjectDomain: String, Codable, CaseIterable {
+    case finance        // money, budget, expense, banking, payments, crypto
+    case health         // fitness, workout, yoga, wellness, habits, meditation
+    case ecommerce      // shop, store, cart, checkout, retail
+    case productivity   // todo, tasks, notes, calendar, planner, journal
+    case games          // game, arcade, puzzle, player, levels, score
+    case social         // chat, messaging, feed, community, posts
+    case education      // courses, quizzes, lessons, students, tutoring
+    case content        // blog, cms, news, media, portfolio
+}
+
 /// A pet-specialized "Recommended reading" entry.
 struct TipReadingItem {
     let title: L10n
@@ -67,14 +81,19 @@ struct TipReadingItem {
     let url: String?
     /// Tech-stack tags for project-aware matching. Empty = universal.
     let tags: [ProjectTag]
+    /// Domain tags (what the project is about). Empty = domain-agnostic — most
+    /// general engineering/design books are. A domain match is weighted higher
+    /// than a tech match so same-tech projects surface different top picks.
+    let domains: [ProjectDomain]
 
-    init(title: L10n, author: String, kind: L10n, why: L10n, url: String? = nil, tags: [ProjectTag] = []) {
+    init(title: L10n, author: String, kind: L10n, why: L10n, url: String? = nil, tags: [ProjectTag] = [], domains: [ProjectDomain] = []) {
         self.title = title
         self.author = author
         self.kind = kind
         self.why = why
         self.url = url
         self.tags = tags
+        self.domains = domains
     }
 }
 
@@ -1095,6 +1114,68 @@ struct TipsContent {
                 ),
                 url: "https://refactoring.guru/design-patterns/swift",
                 tags: [.swiftUI, .uiKit]
+            ),
+
+            // ── Domain-specific picks (surface only for matching domains) ──
+            TipReadingItem(
+                title: L10n(vi: "The Psychology of Money", en: "The Psychology of Money"),
+                author: "Morgan Housel",
+                kind: L10n(vi: "Sách · 256 trang", en: "Book · 256 pages"),
+                why: L10n(
+                    vi: "App tài chính là thiết kế cho cảm xúc, không chỉ con số. Hiểu người dùng nghĩ gì về tiền.",
+                    en: "A money app designs for emotion, not just numbers — understand how people actually feel about money."
+                ),
+                url: nil,
+                tags: [.swiftUI, .mobile],
+                domains: [.finance]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Atomic Habits", en: "Atomic Habits"),
+                author: "James Clear",
+                kind: L10n(vi: "Sách · 320 trang", en: "Book · 320 pages"),
+                why: L10n(
+                    vi: "App sức khỏe/thói quen sống nhờ vòng lặp thói quen — cue, streak, phần thưởng. Đây là sách gốc.",
+                    en: "Health/habit apps live on the habit loop — cue, streak, reward. This is the source playbook."
+                ),
+                url: "https://jamesclear.com/atomic-habits",
+                tags: [.swiftUI, .mobile],
+                domains: [.health]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "E-Commerce UX Research", en: "E-Commerce UX Research"),
+                author: "Baymard Institute",
+                kind: L10n(vi: "Nghiên cứu · tham khảo", en: "Research · reference"),
+                why: L10n(
+                    vi: "Hàng nghìn bài test usability về giỏ hàng & checkout. Đừng phát minh lại cách thanh toán.",
+                    en: "Thousands of usability tests on cart & checkout. Don't reinvent how people pay."
+                ),
+                url: "https://baymard.com",
+                tags: [.swiftUI, .mobile],
+                domains: [.ecommerce]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "The Art of Game Design", en: "The Art of Game Design"),
+                author: "Jesse Schell",
+                kind: L10n(vi: "Sách · 600 trang", en: "Book · 600 pages"),
+                why: L10n(
+                    vi: "Bộ 'lenses' để nghĩ về vui, nhịp độ, và phần thưởng. Nền tảng cho mọi app có yếu tố game.",
+                    en: "The 'lenses' framework for fun, pacing, and reward — the base for anything game-like."
+                ),
+                url: nil,
+                tags: [.swiftUI, .mobile],
+                domains: [.games]
+            ),
+            TipReadingItem(
+                title: L10n(vi: "Getting Things Done", en: "Getting Things Done"),
+                author: "David Allen",
+                kind: L10n(vi: "Sách · 352 trang", en: "Book · 352 pages"),
+                why: L10n(
+                    vi: "Mô hình capture → organize → review mà mọi app todo/planner đang hiện thực hóa.",
+                    en: "The capture → organize → review model that every todo/planner app is really implementing."
+                ),
+                url: nil,
+                tags: [.swiftUI, .mobile],
+                domains: [.productivity]
             ),
         ],
     ]

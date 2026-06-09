@@ -450,9 +450,11 @@ private struct RequestResponseDiagram: View {
     }
 }
 
-/// Ordered snapshots on a line (git, commit, branch, pull-request).
-/// Numbered dots + a "time →" axis make the sequence and direction explicit, so
-/// it reads as "saves over time" rather than three disconnected dots.
+/// Ordered captioned snapshots — a chain of little "photos" (git, commit,
+/// pull-request). The body text calls git "a photo of the whole project with a
+/// note" and history "a chain of photos", so each node is drawn AS a snapshot:
+/// a framed photo glyph with its note underneath and an order number tucked in
+/// the corner. A "jump back" return cue + "time →" axis pay off the caption.
 private struct TimelineDiagram: View {
     @Environment(\.uiLanguage) private var lang
     let spec: DiagramSpec
@@ -461,41 +463,56 @@ private struct TimelineDiagram: View {
         let snapshots: [String] = spec.labels.isEmpty
             ? ["•", "•", "•"]
             : spec.labels.map { $0(lang) }
-        let axis = lang == .vi ? "thời gian →" : "time →"
+        let axis = lang == .vi ? "quay lại bản bất kỳ · thời gian →"
+                               : "jump back to any · time →"
         VStack(spacing: 8) {
-            HStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 6) {
                 ForEach(Array(snapshots.enumerated()), id: \.offset) { idx, snap in
-                    node(snap, index: idx + 1)
+                    snapshotCard(snap, index: idx + 1)
                     if idx < snapshots.count - 1 {
-                        Rectangle()
-                            .fill(spec.accent.color.opacity(0.5))
-                            .frame(height: 3)
-                            .frame(maxWidth: .infinity)
+                        DiagramArrow(color: spec.accent.color.opacity(0.7))
+                            .padding(.top, 12)   // line up with the photo centre
                     }
                 }
-                Image(systemName: "arrowtriangle.right.fill")
+            }
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.uturn.left")
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(spec.accent.color.opacity(0.7))
+                roleCaption(axis)
             }
-            roleCaption(axis)
         }
     }
 
-    private func node(_ text: String, index: Int) -> some View {
-        VStack(spacing: 6) {
-            ZStack {
-                Circle()
-                    .fill(spec.accent.color)
-                    .frame(width: 18, height: 18)
-                    .overlay(Circle().stroke(Color(hex: "#2D2B26"), lineWidth: 2))
-                Text("\(index)")
-                    .font(.system(size: 9, weight: .bold))
-                    .foregroundColor(.white)
+    /// One snapshot: a framed "photo" with the commit order in the corner and
+    /// the note (commit message) as a caption below.
+    private func snapshotCard(_ note: String, index: Int) -> some View {
+        VStack(spacing: 5) {
+            ZStack(alignment: .topLeading) {
+                Image(systemName: "photo.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(spec.accent.color)
+                    .frame(width: 58, height: 40)
+                    .pixelBox(
+                        fill: spec.accent.color.opacity(0.14),
+                        shadowOffset: 2, blockSize: 2, steps: 2, borderWidth: 2
+                    )
+                ZStack {
+                    Circle()
+                        .fill(spec.accent.color)
+                        .overlay(Circle().stroke(Color(hex: "#2D2B26"), lineWidth: 1.5))
+                    Text("\(index)")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                .frame(width: 16, height: 16)
+                .offset(x: -5, y: -5)
             }
-            Text(text)
-                .font(.pixelSystem(size: 10, weight: .semibold))
+            Text(note)
+                .font(.pixelSystem(size: 11, weight: .semibold))
                 .foregroundColor(CodepetTheme.bodyText)
                 .lineLimit(1)
+                .minimumScaleFactor(0.7)
                 .fixedSize()
         }
     }

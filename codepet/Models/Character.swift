@@ -76,7 +76,7 @@ struct PetCharacter: Identifiable {
         ),
         "luna": PetCharacter(
             id: "luna", name: "Luna", badge: "The Creative Builder",
-            color: Color(hex: "#C8A0E8"), hexColor: "#C8A0E8",
+            color: Color(hex: "#5B8DEF"), hexColor: "#5B8DEF",
             personality: "warm, encouraging, creative",
             domain: "Designer (UX/UI)",
             greeting: ["Hey you~ ready to create something?", "I had an idea while you were gone..."],

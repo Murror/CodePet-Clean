@@ -101,3 +101,116 @@ enum DictionaryContent {
         }
     }
 }
+
+// MARK: - Glossary scanning (narrative term highlighting)
+
+/// Finds dictionary terms inside free narrative text so the Reflection feature
+/// can highlight + link them. Matching is deliberately CONSERVATIVE: whole-word
+/// (optional trailing plural "s"), English keywords only (code terms read the
+/// same in vi and en text), the most ambiguous common-word titles are skipped,
+/// and only the FIRST occurrence of each term per passage is returned.
+enum DictionaryGlossary {
+
+    /// One matched span: a character range in the source string + the term id.
+    struct Hit { let range: Range<String.Index>; let termId: String }
+
+    /// Single-word titles that are too common to highlight safely (they appear
+    /// constantly as ordinary English). Multi-word phrases are always kept —
+    /// they're unambiguous ("pure function", "merge conflict").
+    private static let ambiguous: Set<String> = [
+        "if", "else", "state", "string", "number", "object",
+    ]
+
+    /// Synonyms/abbreviations that aren't in a term's title but show up in
+    /// narratives. Keys are term ids that must exist.
+    private static let aliases: [String: [String]] = [
+        "terminal":        ["shell", "cli", "command line"],
+        "package-manager": ["npm", "yarn", "pip"],
+        "directory":       ["folder", "dir"],
+        "dependency":      ["dependencies", "library", "libraries"],
+        "javascript":      [".js", ".jsx", "js", "jsx"],
+        "typescript":      [".tsx", ".ts", "tsx"],
+        "git":             ["github"],
+    ]
+
+    /// (keyword, termId) pairs, longest keyword first so phrases win over the
+    /// single words they contain (e.g. "pure function" before "function").
+    private static let entries: [(keyword: String, termId: String)] = {
+        var out: [(keyword: String, termId: String)] = []
+        for term in DictionaryContent.terms {
+            for kw in keywords(for: term) where !(isSingleWord(kw) && ambiguous.contains(kw)) {
+                out.append((kw, term.id))
+            }
+        }
+        for (termId, words) in aliases {
+            for kw in words where !(isSingleWord(kw) && ambiguous.contains(kw)) {
+                out.append((kw, termId))
+            }
+        }
+        return out.sorted { $0.keyword.count > $1.keyword.count }
+    }()
+
+    private static func isSingleWord(_ s: String) -> Bool { !s.contains(" ") }
+
+    /// Derive match keywords from a term's English title: split off any
+    /// parenthetical, then break on "/" and " vs " into alternatives.
+    /// e.g. "Null (nil)" → ["null", "nil"]; "Async / await" → ["async", "await"];
+    /// "Frontend vs Backend" → ["frontend", "backend"]; "Pure function" → ["pure function"].
+    private static func keywords(for term: DictionaryTerm) -> [String] {
+        let raw = term.title.en.lowercased()
+        var outside = "", paren = "", depth = 0
+        for ch in raw {
+            if ch == "(" { depth += 1; continue }
+            if ch == ")" { depth = max(0, depth - 1); continue }
+            if depth > 0 { paren.append(ch) } else { outside.append(ch) }
+        }
+        var pieces: [String] = []
+        for chunk in [outside, paren] {
+            let normalized = chunk.replacingOccurrences(of: " vs ", with: "/")
+            for part in normalized.split(separator: "/") {
+                let p = part.trimmingCharacters(in: .whitespaces)
+                if p.count >= 2 { pieces.append(p) }
+            }
+        }
+        return Array(Set(pieces))
+    }
+
+    /// First-occurrence, non-overlapping matches in `text`, longest phrases
+    /// preferred. Each term contributes at most one hit.
+    static func scan(_ text: String) -> [Hit] {
+        guard !text.isEmpty else { return [] }
+        var used = Set<String>()
+        var hits: [Hit] = []
+        for (kw, termId) in entries {
+            guard !used.contains(termId) else { continue }
+            guard let r = firstWordRange(of: kw, in: text) else { continue }
+            guard !hits.contains(where: { $0.range.overlaps(r) }) else { continue }
+            hits.append(Hit(range: r, termId: termId))
+            used.insert(termId)
+        }
+        return hits
+    }
+
+    /// First case-insensitive, whole-word occurrence of `keyword` in `text`,
+    /// allowing an optional trailing plural "s" on single-word keywords.
+    private static func firstWordRange(of keyword: String, in text: String) -> Range<String.Index>? {
+        var searchStart = text.startIndex
+        while let r = text.range(of: keyword, options: .caseInsensitive, range: searchStart..<text.endIndex) {
+            var end = r.upperBound
+            if isSingleWord(keyword), end < text.endIndex,
+               text[end] == "s" || text[end] == "S" {
+                end = text.index(after: end)
+            }
+            let beforeOK = r.lowerBound == text.startIndex
+                || !isWordChar(text[text.index(before: r.lowerBound)])
+            let afterOK = end == text.endIndex || !isWordChar(text[end])
+            if beforeOK && afterOK { return r.lowerBound..<end }
+            searchStart = r.upperBound
+        }
+        return nil
+    }
+
+    private static func isWordChar(_ c: Character) -> Bool {
+        c.isLetter || c.isNumber || c == "_"
+    }
+}

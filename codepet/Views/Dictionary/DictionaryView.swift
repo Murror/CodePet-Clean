@@ -4,11 +4,15 @@ struct DictionaryView: View {
 
     @Environment(\.uiLanguage) private var uiLanguage
     @EnvironmentObject private var projectStore: ProjectStore
+    @EnvironmentObject private var appState: AppState
 
     @State private var selectedTopicId: String = DictionaryContent.topics.first!.id
     @State private var searchQuery: String = ""
     @State private var expandedTermIds: Set<String> = []
     @State private var showProjectPanel: Bool = true
+    /// Term id to scroll to once the list rebuilds — set by a deep link from a
+    /// tapped glossary term in the Reflection narrative.
+    @State private var scrollTarget: String?
 
     /// When true the dictionary is shown as a plain, universal reference: the
     /// project panel (Surface B) and the per-card "Used in …" badges (Surface
@@ -54,6 +58,24 @@ struct DictionaryView: View {
                 .frame(maxWidth: .infinity)
         }
         .background(CodepetTheme.pageBackground)
+        .onAppear { consumePendingTerm() }
+        .onChange(of: appState.pendingDictionaryTerm) { _, _ in consumePendingTerm() }
+    }
+
+    /// Consume a deep link set by tapping a glossary term in a narrative.
+    private func consumePendingTerm() {
+        guard let id = appState.pendingDictionaryTerm else { return }
+        openTerm(id)
+        appState.pendingDictionaryTerm = nil
+    }
+
+    /// Open a term: switch to its topic, expand its card, and queue a scroll.
+    private func openTerm(_ id: String) {
+        guard let term = DictionaryContent.terms.first(where: { $0.id == id }) else { return }
+        searchQuery = ""
+        selectedTopicId = term.topicId
+        expandedTermIds.insert(id)
+        scrollTarget = id
     }
 
     // MARK: - Sidebar
@@ -286,6 +308,19 @@ struct DictionaryView: View {
             ?? (uiLanguage == .vi ? "Từ điển" : "Dictionary")
     }
 
+    /// One card view (kept as a helper so the grid and the full-width expanded
+    /// row build the same card with the same identity).
+    private func cardView(_ term: DictionaryTerm) -> some View {
+        DictionaryCard(
+            term: term,
+            isExpanded: expandedTermIds.contains(term.id),
+            onToggleExpand: { toggleExpand(term.id) },
+            projectTags: effectiveGroup?.tags ?? [],
+            projectName: effectiveGroup?.projectName
+        )
+        .id(term.id)
+    }
+
     @ViewBuilder
     private var cardList: some View {
         if visibleTerms.isEmpty {
@@ -297,19 +332,23 @@ struct DictionaryView: View {
                         if !isSearching, let group = effectiveGroup {
                             projectPanel(group, proxy: proxy)
                         }
+                        // Single-column list: one term per row, full width.
                         ForEach(visibleTerms) { term in
-                            DictionaryCard(
-                                term: term,
-                                isExpanded: expandedTermIds.contains(term.id),
-                                onToggleExpand: { toggleExpand(term.id) },
-                                projectTags: effectiveGroup?.tags ?? [],
-                                projectName: effectiveGroup?.projectName
-                            )
-                            .id(term.id)
+                            cardView(term)
                         }
                     }
                     .padding(.horizontal, 32)
                     .padding(.vertical, 24)
+                }
+                .onChange(of: scrollTarget) { _, target in
+                    guard let target else { return }
+                    // Defer one runloop so the topic's cards exist before scrolling.
+                    DispatchQueue.main.async {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            proxy.scrollTo(target, anchor: .top)
+                        }
+                        scrollTarget = nil
+                    }
                 }
             }
         }

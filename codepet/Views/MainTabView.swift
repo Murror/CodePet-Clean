@@ -4,6 +4,8 @@ struct MainTabView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var gameState: GameState
     @State private var showChat = false
+    @State private var didSetLaunchTab = false
+    @AppStorage("cp_lastStreakRewardDay") private var lastStreakRewardDay = ""
 
     private var character: PetCharacter {
         PetCharacter.all[appState.activeChar] ?? PetCharacter.all["byte"]!
@@ -112,6 +114,27 @@ struct MainTabView: View {
                     )
                     .transition(.opacity)
                 }
+
+                // Practice workspace — large centered modal (exercises need room)
+                if let exercise = appState.activeExercise {
+                    Color.black.opacity(0.45)
+                        .ignoresSafeArea()
+                        .onTapGesture { }
+                    GeometryReader { geo in
+                        ExerciseWorkspaceView(
+                            challenge: exercise,
+                            character: PetCharacter.all[appState.activeChar] ?? PetCharacter.all["byte"]!,
+                            onClose: { withAnimation(.easeOut(duration: 0.2)) { appState.activeExercise = nil } }
+                        )
+                        .frame(width: max(520, geo.size.width * 0.5), height: geo.size.height * 0.86)
+                        .background(Color(hex: "#F7F5FC"))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: .black.opacity(0.25), radius: 30, y: 10)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    }
+                    .zIndex(200)
+                    .transition(.opacity.combined(with: .scale(scale: 0.97)))
+                }
             }
 
             // Chat companion panel (right sidebar, non-Skills tabs)
@@ -139,6 +162,33 @@ struct MainTabView: View {
                 SoundManager.shared.setPhase("home")
             }
         }
+        .onAppear {
+            // Always land on Reflection at launch, regardless of any leftover
+            // in-session tab state. Runs once per app session.
+            if !didSetLaunchTab {
+                appState.selectedTab = .reflection
+                didSetLaunchTab = true
+            }
+            // Theme the Reflection tab to the active character's color.
+            ReflectionTheme.accent = character.color
+            awardDailyStreakCoinsIfNeeded()
+        }
+        .onChange(of: appState.activeChar) { _ in
+            // Keep the Reflection accent in sync when the pet is switched.
+            ReflectionTheme.accent = character.color
+        }
+    }
+
+    /// Awards the daily streak coin bonus once per calendar day the app is
+    /// opened with an active streak. Date-keyed so it can't double-pay, and
+    /// immune to cloud-sync repopulating progress (unlike watching counters).
+    private func awardDailyStreakCoinsIfNeeded() {
+        guard appState.streak >= 1 else { return }
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        let key = "\(c.year ?? 0)-\(c.month ?? 0)-\(c.day ?? 0)"
+        guard lastStreakRewardDay != key else { return }
+        lastStreakRewardDay = key
+        gameState.earnCoins(GameEconomy.coinsPerStreakDay)
     }
 }
 
@@ -171,8 +221,6 @@ struct SidebarNav: View {
                         )
 
                     CharacterImage(character.id, size: 46)
-                        .charIdle(character.id)
-                        .petBreathing()
                 }
             }
             .buttonStyle(.plain)
@@ -225,7 +273,7 @@ struct NavButton: View {
                     if let customIcon = customIcon {
                         customIcon()
                     } else {
-                        NavIconView(tab: tab, isActive: isSelected)
+                        NavIconView(tab: tab, isActive: isSelected, charColor: charColor)
                     }
 
                     Text(tab.displayName(uiLanguage))
@@ -237,7 +285,7 @@ struct NavButton: View {
             .frame(width: 56, height: 52)
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? Color(hex: "#F0FAF4") : isHovered ? Color(hex: "#FAFAF6") : Color.clear)
+                    .fill(isSelected ? charColor.opacity(0.12) : isHovered ? Color(hex: "#FAFAF6") : Color.clear)
             )
         }
         .buttonStyle(.plain)
@@ -252,6 +300,7 @@ struct NavButton: View {
 struct NavIconView: View {
     let tab: AppState.Tab
     let isActive: Bool
+    var charColor: Color = Color(hex: "#7F77DD")
 
     var body: some View {
         Group {
@@ -268,20 +317,20 @@ struct NavIconView: View {
                 // TODO: replace with pixel-art Canvas icon matching other 4 after feature validation
                 Image(systemName: "quote.opening")
                     .font(.pixelSystem(size: 15, weight: .medium))
-                    .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
+                    .foregroundColor(isActive ? charColor : Color(hex: "#B0A898"))
             case .tips:
                 // TODO: replace with pixel-art Canvas icon — mockup only
                 Image(systemName: "lightbulb.fill")
                     .font(.pixelSystem(size: 14, weight: .medium))
-                    .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
+                    .foregroundColor(isActive ? charColor : Color(hex: "#B0A898"))
             case .learn:
                 Image(systemName: "graduationcap.fill")
                     .font(.pixelSystem(size: 14, weight: .medium))
-                    .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
+                    .foregroundColor(isActive ? charColor : Color(hex: "#B0A898"))
             case .dictionary:
                 Image(systemName: "book.fill")
                     .font(.pixelSystem(size: 14, weight: .medium))
-                    .foregroundColor(isActive ? Color(hex: "#7F77DD") : Color(hex: "#B0A898"))
+                    .foregroundColor(isActive ? charColor : Color(hex: "#B0A898"))
             case .profile:
                 Image(systemName: "person.fill")
                     .font(.pixelSystem(size: 14))

@@ -29,7 +29,14 @@ struct SessionChatPanel: View {
         .frame(width: 320)
         .frame(maxHeight: .infinity)
         .background(petColor.opacity(0.05))
-        .onAppear { inputFocused = true }
+        .onAppear {
+            inputFocused = true
+            // Consume pending chat prompt from Tips tab deep-link
+            if let prompt = appState.pendingChatPrompt {
+                draft = prompt
+                appState.pendingChatPrompt = nil
+            }
+        }
     }
 
     // MARK: - Header
@@ -38,11 +45,21 @@ struct SessionChatPanel: View {
         VStack(spacing: 12) {
             HStack(spacing: 10) {
                 if let pet = pet {
-                    Image(pet.imageName)
-                        .resizable()
-                        .interpolation(.none)
-                        .scaledToFit()
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(pet.color.opacity(0.14))
                         .frame(width: 44, height: 44)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(pet.color.opacity(0.35), lineWidth: 1.5)
+                        )
+                        .overlay(
+                            Image(pet.imageName)
+                                .resizable()
+                                .interpolation(.none)
+                                .scaledToFit()
+                                .frame(width: 30, height: 30)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(petName)

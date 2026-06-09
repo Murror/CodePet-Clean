@@ -36,7 +36,8 @@ struct NarrativeChatTurnView: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: showAvatar ? 8 : 0) {
+        HStack(alignment: .top, spacing: 0) {
+            // Thread line (or avatar for the last turn)
             if showAvatar {
                 PetMoodSprite(
                     characterId: appState.activeChar,
@@ -44,12 +45,38 @@ struct NarrativeChatTurnView: View {
                     size: 40
                 )
                 .frame(width: 56, height: 56)
+                .padding(.trailing, 8)
+            } else {
+                // Thread line connecting turns — tinted to mood color
+                RoundedRectangle(cornerRadius: 1.5)
+                    .fill(
+                        LinearGradient(
+                            colors: [moodAccent.opacity(0.30), moodAccent.opacity(0.06)],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
+                    .frame(width: 3)
+                    .frame(maxHeight: .infinity)
+                    .padding(.leading, 26)
+                    .padding(.trailing, 35)
             }
             petBubble
                 .scaleEffect(didAppear ? 1.0 : 0.6, anchor: .topLeading)
                 .opacity(didAppear ? 1.0 : 0.0)
         }
         .onAppear { startAnimations() }
+        // Intercept taps on highlighted glossary terms (codepetterm://<id>) and
+        // deep-link into the Dictionary tab instead of opening a URL.
+        .environment(\.openURL, OpenURLAction(handler: handleTermURL))
+    }
+
+    private func handleTermURL(_ url: URL) -> OpenURLAction.Result {
+        guard url.scheme == "codepetterm" else { return .systemAction }
+        let id = url.host ?? url.lastPathComponent
+        guard !id.isEmpty else { return .systemAction }
+        appState.pendingDictionaryTerm = id
+        appState.selectedTab = .dictionary
+        return .handled
     }
 
     private func startAnimations() {
@@ -80,20 +107,95 @@ struct NarrativeChatTurnView: View {
 
     // MARK: - Pet bubble (single voice)
 
+    /// Each mood maps to a distinct brand-color wash so turns are visually varied.
+    private var bubbleFill: Color {
+        ReflectionTheme.bubbleFill(for: moodEnum)
+    }
+
+    private var moodAccent: Color {
+        ReflectionTheme.moodAccentColor(for: moodEnum)
+    }
+
+    /// Whether the mood accent is too light for white text (e.g. yellow).
+    private var badgeNeedsDarkText: Bool {
+        moodEnum == .cheering
+    }
+
     private var petBubble: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Floating title badge — sits above the card, overlapping its top edge
+            if pet != nil && !narrative.title.isEmpty {
+                titleBadge
+                    .padding(.leading, 12)
+                    .padding(.bottom, -8)
+                    .zIndex(1)
+                    .opacity(headerVisible ? 1 : 0)
+                    .scaleEffect(headerVisible ? 1.0 : 0.7, anchor: .bottomLeading)
+                    .offset(y: headerVisible ? 0 : 6)
+            }
+
+            PixelCard(
+                fill: bubbleFill,
+                borderColor: moodAccent.opacity(0.25),
+                shadowOffset: 3,
+                borderWidth: 2
+            ) {
+                bubbleContent
+            }
+            .overlay(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(moodAccent.opacity(0.55))
+                    .frame(width: 4)
+                    .padding(.vertical, 6)
+            }
+        }
+    }
+
+    private var titleBadge: some View {
         PixelCard(
-            fill: Color(hex: "#FFF1DB"),
-            borderColor: Color(hex: "#2D2B26").opacity(0.35),
-            shadowOffset: 3,
+            fill: moodAccent,
+            borderColor: Color(hex: "#2D2B26").opacity(0.22),
+            shadowOffset: 2,
+            blockSize: 2,
+            steps: 2,
             borderWidth: 2
         ) {
-            bubbleContent
+            HStack(spacing: 8) {
+                Text(narrative.title)
+                    .font(CodepetTheme.body(20, weight: .bold))
+                    .foregroundColor(badgeNeedsDarkText ? Color(hex: "#412402") : .white)
+
+                if moodEnum != .idle {
+                    HStack(spacing: 4) {
+                        Image(systemName: moodEnum.badgeIcon)
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(narrative.mood)
+                            .font(.pixelSystem(size: 11, weight: .semibold))
+                    }
+                    .foregroundColor(
+                        badgeNeedsDarkText
+                            ? Color(hex: "#412402").opacity(0.7)
+                            : .white.opacity(0.85)
+                    )
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Rectangle()
+                            .fill(
+                                badgeNeedsDarkText
+                                    ? Color(hex: "#412402").opacity(0.12)
+                                    : Color.white.opacity(0.2)
+                            )
+                    )
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
         }
     }
 
     private var bubbleContent: some View {
         VStack(alignment: .leading, spacing: 10) {
-            headerView
             whatYouWantedView
             dividerView
             whatHappenedView
@@ -105,38 +207,8 @@ struct NarrativeChatTurnView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    @ViewBuilder
-    private var headerView: some View {
-        if let pet = pet {
-            HStack(spacing: 8) {
-                Text(pet.name.uppercased())
-                    .font(.pixelSystem(size: 10))
-                    .tracking(1.0)
-                    .foregroundColor(petColor.opacity(0.85))
-
-                // Mood indicator tag
-                if moodEnum != .idle {
-                    HStack(spacing: 3) {
-                        Image(systemName: moodEnum.badgeIcon)
-                            .font(.system(size: 8, weight: .semibold))
-                        Text(narrative.mood)
-                            .font(.pixelSystem(size: 8))
-                    }
-                    .foregroundColor(moodEnum.badgeColor)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(
-                        Capsule().fill(moodEnum.badgeColor.opacity(0.12))
-                    )
-                }
-            }
-            .opacity(headerVisible ? 1 : 0)
-            .offset(x: headerVisible ? 0 : -8, y: headerVisible ? 0 : 4)
-        }
-    }
-
     private var whatYouWantedView: some View {
-        Text(markdown: narrative.whatYouWanted)
+        Text(markdown: narrative.whatYouWanted, linkTerms: true)
             .font(CodepetTheme.body(18))
             .foregroundColor(Color(hex: "#2D2B26"))
             .multilineTextAlignment(.leading)
@@ -160,7 +232,8 @@ struct NarrativeChatTurnView: View {
             markdown: narrative.whatHappened,
             charactersPerSecond: 150,
             font: CodepetTheme.body(18),
-            isActive: whatHappenedVisible
+            isActive: whatHappenedVisible,
+            linkTerms: true
         )
         .opacity(whatHappenedVisible ? 1 : 0)
         .offset(x: whatHappenedVisible ? 0 : -12, y: whatHappenedVisible ? 0 : 8)
@@ -180,27 +253,21 @@ struct NarrativeChatTurnView: View {
 
     private func lessonRow(_ text: String) -> some View {
         PixelCard(
-            fill: Color(hex: "#FCEBA8"),
-            borderColor: Color(hex: "#2D2B26").opacity(0.3),
+            fill: ReflectionTheme.lessonFill,
+            borderColor: ReflectionTheme.lessonIconColor.opacity(0.30),
             shadowOffset: 2,
             blockSize: 3,
             steps: 2,
             borderWidth: 2
         ) {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "lightbulb.fill")
-                    .font(.pixelSystem(size: 12, weight: .medium))
-                    .foregroundColor(Color(hex: "#B6850A"))
-                    .padding(.top, 2)
-                Text(markdown: text)
-                    .font(CodepetTheme.body(16, weight: .medium))
-                    .foregroundColor(Color(hex: "#2D2B26"))
-                    .multilineTextAlignment(.leading)
-                    .lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(markdown: text, linkTerms: true)
+                .font(CodepetTheme.body(16, weight: .medium))
+                .foregroundColor(ReflectionTheme.lessonTextColor)
+                .multilineTextAlignment(.leading)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
@@ -218,27 +285,21 @@ struct NarrativeChatTurnView: View {
 
     private func nextStepsRow(_ text: String) -> some View {
         PixelCard(
-            fill: Color(hex: "#D6EAF8"),
-            borderColor: Color(hex: "#2D2B26").opacity(0.3),
+            fill: ReflectionTheme.nextStepsFill,
+            borderColor: ReflectionTheme.nextStepsIconColor.opacity(0.30),
             shadowOffset: 2,
             blockSize: 3,
             steps: 2,
             borderWidth: 2
         ) {
-            HStack(alignment: .top, spacing: 8) {
-                Image(systemName: "compass.drawing")
-                    .font(.pixelSystem(size: 12, weight: .medium))
-                    .foregroundColor(Color(hex: "#2874A6"))
-                    .padding(.top, 2)
-                Text(markdown: text)
-                    .font(CodepetTheme.body(16, weight: .medium))
-                    .foregroundColor(Color(hex: "#2D2B26"))
-                    .multilineTextAlignment(.leading)
-                    .lineSpacing(3)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(10)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            Text(markdown: text, linkTerms: true)
+                .font(CodepetTheme.body(16, weight: .medium))
+                .foregroundColor(ReflectionTheme.nextStepsTextColor)
+                .multilineTextAlignment(.leading)
+                .lineSpacing(3)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 

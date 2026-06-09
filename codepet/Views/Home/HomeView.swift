@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HomeView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var gameState: GameState
     @EnvironmentObject var mcpBridge: MCPBridgeService
     @Environment(\.theme) var theme: ThemeManager.ThemeColors
 
@@ -35,41 +36,36 @@ struct HomeView: View {
         ZStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Header
-                    HStack {
-                        VStack(alignment: .leading, spacing: 4) {
+                    // Header — avatar + greeting (streak/XP now live in the
+                    // stat-tile band below, so this stays clean).
+                    HStack(spacing: 14) {
+                        CharacterImage(character.id, size: 44)
+                            .padding(8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .fill(character.color.opacity(0.14))
+                            )
+
+                        VStack(alignment: .leading, spacing: 3) {
                             Text("\(greeting)\(appState.displayName.isEmpty ? "" : ", \(appState.displayName)")!")
                                 .font(.pixelSystem(size: 22, weight: .bold))
                                 .foregroundColor(theme.textPrimary)
 
-                            Text("Level \(appState.userLevel) • Tier \(appState.currentTier)")
+                            Text("Level \(appState.userLevel) · \(character.name)")
                                 .font(.pixelSystem(size: 13))
                                 .foregroundColor(theme.textSecondary)
                         }
 
                         Spacer()
-
-                        VStack(alignment: .trailing, spacing: 6) {
-                            StreakFireView(streak: appState.streak)
-
-                            HStack(spacing: 4) {
-                                Image(systemName: "star.fill")
-                                    .foregroundColor(theme.accentGold)
-                                    .font(.pixelSystem(size: 12))
-                                Text("\(appState.totalXP) XP")
-                                    .font(.pixelSystem(size: 14, weight: .semibold, design: .monospaced))
-                                    .foregroundColor(theme.textPrimary)
-                            }
-                        }
                     }
                     .padding(.horizontal, 20)
 
+                    // ═══ Valuable info at a glance: brand-colored stat tiles ═══
+                    DashboardStatTiles()
+                        .fadeUp()
+
                     // Pet Area with breathing + glow
                     PetAreaView5(character: character, theme: theme)
-
-                    // XP Progress (Level)
-                    XPProgressView5(theme: theme)
-                        .fadeUp()
 
                     // ═══ MCP: Today's Coding Summary ═══
                     MCPCodingSummarySection()
@@ -89,9 +85,6 @@ struct HomeView: View {
                     // Achievements
                     AchievementsSection()
                         .fadeUp()
-
-                    // Quick Settings Row
-                    QuickSettingsRow(theme: theme)
 
                     Spacer(minLength: 20)
                 }
@@ -155,7 +148,10 @@ struct HomeView: View {
                 LessonModalView(lesson: lesson, onComplete: { xp in
                     // Auto-progression logic (from prototype: completeLesson)
                     withAnimation(.easeOut(duration: 0.2)) {
-                        // 1. Add XP + coins
+                        let wasNew = !appState.completedLessons.contains(lesson.id)
+                        let levelBefore = appState.userLevel
+
+                        // 1. Add XP
                         appState.addXP(xp)
 
                         // 2. Mark lesson completed (unlocks next automatically)
@@ -166,7 +162,13 @@ struct HomeView: View {
                         // 3. Check tier progression
                         appState.checkTierProgression()
 
-                        // 4. Show victory
+                        // 4. Award coins — lesson reward (new only) + level-up bonus
+                        if wasNew { gameState.earnCoins(GameEconomy.coinsPerLesson) }
+                        if appState.userLevel > levelBefore {
+                            gameState.earnCoins(GameEconomy.coinsPerLevelUp * (appState.userLevel - levelBefore))
+                        }
+
+                        // 5. Show victory
                         victoryXP = xp
                         victorySkillName = lesson.skillName
                         selectedLesson = nil
@@ -210,6 +212,141 @@ struct HomeView: View {
                 gameScreen = .kingdom
             }
         }
+    }
+}
+
+// MARK: - Dashboard Stat Tiles
+//
+// The "valuable info at a glance" band — four brand-colored tiles surfacing the
+// numbers a learner actually cares about (streak, level progress, lessons,
+// coins). Replaces the old redundant header XP/streak text + standalone XP card.
+// Saturated brand fills with contrast-safe ink (white on the dark accents, dark
+// ink on the light ones) keep it lively but readable.
+
+private struct DashboardStatTiles: View {
+    @EnvironmentObject var appState: AppState
+    @EnvironmentObject var gameState: GameState
+
+    // XP-within-current-level math (mirrors XPProgressView5).
+    private var xpPrev: Int { (appState.userLevel - 1) * 100 }
+    private var xpInLevel: Int { appState.totalXP - xpPrev }
+    private var xpNeeded: Int { (appState.userLevel * 100) - xpPrev }
+    private var xpPct: Double { min(1.0, Double(xpInLevel) / Double(max(1, xpNeeded))) }
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12),
+    ]
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 12) {
+            StatTile(
+                accent: CodepetTheme.accentOrange,
+                icon: "flame.fill",
+                value: "\(appState.streak)",
+                unit: appState.streak == 1 ? "day" : "days",
+                label: "Day streak",
+                footnote: appState.longestStreak > 0 ? "best \(appState.longestStreak)" : nil
+            )
+            StatTile(
+                accent: CodepetTheme.accentPurple,
+                icon: "star.fill",
+                value: "Lv \(appState.userLevel)",
+                label: "\(xpInLevel) / \(xpNeeded) XP",
+                progress: xpPct
+            )
+            StatTile(
+                accent: CodepetTheme.accentTeal,
+                icon: "book.fill",
+                value: "\(appState.completedLessons.count)",
+                label: "Lessons done",
+                darkText: true
+            )
+            StatTile(
+                accent: CodepetTheme.accentGold,
+                icon: "bitcoinsign.circle.fill",
+                value: "\(gameState.coins)",
+                label: "Coins",
+                darkText: true
+            )
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+/// One brand-colored stat tile: icon chip, big value (+ optional unit), label,
+/// and an optional progress bar. `darkText` flips ink to dark for light accents.
+private struct StatTile: View {
+    let accent: Color
+    let icon: String
+    let value: String
+    var unit: String? = nil
+    let label: String
+    var footnote: String? = nil
+    var progress: Double? = nil
+    var darkText: Bool = false
+
+    private var ink: Color { darkText ? Color(hex: "#2D2B26") : .white }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 0) {
+                Image(systemName: icon)
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundColor(ink)
+                    .frame(width: 30, height: 30)
+                    .background(Circle().fill(ink.opacity(0.18)))
+                Spacer()
+                if let footnote {
+                    Text(footnote)
+                        .font(.pixelSystem(size: 9, weight: .semibold, design: .monospaced))
+                        .foregroundColor(ink.opacity(0.85))
+                }
+            }
+
+            Spacer(minLength: 2)
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(value)
+                    .font(.pixelSystem(size: 26, weight: .heavy))
+                    .foregroundColor(ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                if let unit {
+                    Text(unit)
+                        .font(.pixelSystem(size: 12, weight: .bold))
+                        .foregroundColor(ink.opacity(0.85))
+                }
+            }
+
+            Text(label)
+                .font(.pixelSystem(size: 11, weight: .semibold))
+                .foregroundColor(ink.opacity(0.85))
+
+            if let progress {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(ink.opacity(0.22))
+                        Capsule().fill(ink)
+                            .frame(width: max(6, geo.size.width * progress))
+                    }
+                }
+                .frame(height: 6)
+                .padding(.top, 1)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 116, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(
+                    LinearGradient(
+                        colors: [accent, accent.opacity(0.82)],
+                        startPoint: .topLeading, endPoint: .bottomTrailing
+                    )
+                )
+                .shadow(color: accent.opacity(0.30), radius: 8, y: 4)
+        )
     }
 }
 
@@ -877,6 +1014,7 @@ struct XPProgressView5: View {
 
 struct DailyChallengeCard5: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var gameState: GameState
     let theme: ThemeManager.ThemeColors
 
     private var todaysChallenge: DailyChallenge {
@@ -921,10 +1059,18 @@ struct DailyChallengeCard5: View {
                 Button(action: {
                     SoundManager.shared.playLevelUp()
                     withAnimation {
+                        let wasCompleted = appState.dailyChallengeCompleted
+                        let levelBefore = appState.userLevel
                         appState.completeDailyChallenge(
                             xpReward: todaysChallenge.xpReward,
                             challengeId: todaysChallenge.id
                         )
+                        if !wasCompleted {
+                            gameState.earnCoins(GameEconomy.coinsPerChallenge)
+                            if appState.userLevel > levelBefore {
+                                gameState.earnCoins(GameEconomy.coinsPerLevelUp * (appState.userLevel - levelBefore))
+                            }
+                        }
                     }
                 }) {
                     Text("Start Challenge")

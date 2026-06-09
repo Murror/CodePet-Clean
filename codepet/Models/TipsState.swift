@@ -25,15 +25,19 @@ struct SkillProgress: Codable, Equatable {
 /// Cached locally so we only call once per day.
 struct GuidanceResult: Codable, Equatable {
     let headline: String
-    let body: String
-    let actionLabel: String?
+    /// Project this focus is anchored to (highlighted in the card). nil if the
+    /// insight isn't tied to a specific project.
+    let project: String?
+    /// Section 1 — what the developer is doing well right now.
+    let strength: String
+    /// Section 1 — what's missing / to watch next (optional).
+    let gap: String?
+    /// Section 2 — the one improvement to make next.
+    let move: String
+    /// Focus-rotation status: "new", "continued", or "completed". Drives the
+    /// small completion beat in the UI and the persisted repeat tracking.
+    let status: String
     let mood: String               // NarrativeMood raw value
-    /// Brief list of patterns the AI noticed (e.g. "skipped tests twice").
-    let sourcePatterns: [String]
-    /// First-person quote from the expert whose knowledge informed this guidance.
-    let expertQuote: String?
-    /// The expert's name (e.g. "Astro Tran").
-    let expertName: String?
     let generatedAt: Date
 
     /// Whether this guidance is still fresh (generated today).
@@ -92,6 +96,11 @@ final class TipsState: ObservableObject {
     /// The current daily guidance from the Cloud Function.
     /// nil means not yet fetched or not available.
     @Published var currentGuidance: GuidanceResult?
+
+    /// How many times the current focus has been kept on the same project
+    /// without the user acting on it. Used as a fallback so the coach rotates
+    /// to another project instead of nagging forever. Persisted.
+    @Published var focusRepeatCount: Int = 0
 
     /// Whether guidance is currently being fetched.
     @Published var isLoadingGuidance: Bool = false

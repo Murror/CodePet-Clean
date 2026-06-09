@@ -16,6 +16,9 @@ final class SessionSummaryEnricher: ObservableObject {
     var projectStore: ProjectStore?
     var language: String
     private let idleThreshold: TimeInterval
+    /// Hard ceiling on a single session-summary stream so a hung SSE connection
+    /// can't pin the session in an un-summarized state forever.
+    private let streamTimeout: TimeInterval
     private var inFlight: Set<String> = []
     private let logger = Logger(subsystem: "app.murror.codepet", category: "SessionSummaryEnricher")
 
@@ -24,14 +27,18 @@ final class SessionSummaryEnricher: ObservableObject {
         store: SessionSummaryStore,
         projectStore: ProjectStore? = nil,
         language: String,
-        idleThreshold: TimeInterval = 30 * 60
+        idleThreshold: TimeInterval = 30 * 60,
+        streamTimeout: TimeInterval = 60
     ) {
         self.api = api
         self.store = store
         self.projectStore = projectStore
         self.language = language
         self.idleThreshold = idleThreshold
+        self.streamTimeout = streamTimeout
     }
+
+    private struct StreamTimeout: Error {}
 
     /// Returns true if a session should be auto-summarized:
     ///   - it has at least 1 turn with a closed (ended) state
@@ -68,22 +75,41 @@ final class SessionSummaryEnricher: ObservableObject {
 
         let request = makeRequest(for: session, persona: petPersona)
         do {
-            var summaryPayload: SummarizeSessionResponse.SummaryPayload?
-            var model = ""
-            var briefUpdate: String?
-
-            for try await event in api.summarizeSessionStream(request) {
-                switch event {
-                case .started, .jsonDelta:
-                    break
-                case .done(let payload, let m, let bu):
-                    summaryPayload = payload
-                    model = m
-                    briefUpdate = bu
+            // Race the stream against a timeout so a hung connection fails fast
+            // instead of leaving the session permanently un-summarized.
+            let timeout = streamTimeout
+            let collected: (SummarizeSessionResponse.SummaryPayload, String, String?, String?)?
+            collected = try await withThrowingTaskGroup(
+                of: (SummarizeSessionResponse.SummaryPayload, String, String?, String?)?.self
+            ) { group in
+                group.addTask { [self] in
+                    var summaryPayload: SummarizeSessionResponse.SummaryPayload?
+                    var model = ""
+                    var briefUpdate: String?
+                    var projectOverview: String?
+                    for try await event in api.summarizeSessionStream(request) {
+                        switch event {
+                        case .started, .jsonDelta:
+                            break
+                        case .done(let payload, let m, let bu, let po):
+                            summaryPayload = payload
+                            model = m
+                            briefUpdate = bu
+                            projectOverview = po
+                        }
+                    }
+                    guard let payload = summaryPayload else { return nil }
+                    return (payload, model, briefUpdate, projectOverview)
                 }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
+                    throw StreamTimeout()
+                }
+                defer { group.cancelAll() }
+                return try await group.next() ?? nil
             }
 
-            guard let payload = summaryPayload else {
+            guard let (payload, model, briefUpdate, projectOverview) = collected else {
                 logger.warning("session stream completed without summary for \(session.id)")
                 return false
             }
@@ -102,10 +128,39 @@ final class SessionSummaryEnricher: ObservableObject {
                 logger.error("failed to persist session summary: \(error.localizedDescription)")
             }
 
-            // Auto-update project brief with changelog entry (only on session end)
-            if isAutoTriggered, let projectPath = session.projectPath, let ps = projectStore {
-                appendBriefUpdate(briefUpdate, projectPath: projectPath, projectStore: ps)
+            // Auto-update project brief: overview (description) + changelog entry.
+            // Resolve the raw cwd to the canonical project root (ProjectStore keys
+            // by resolved root, not raw cwd).
+            logger.info("Brief update pipeline: briefUpdate=\(briefUpdate ?? "<nil>"), overview=\(projectOverview ?? "<nil>"), rawPath=\(session.projectPath ?? "<nil>")")
+            if let ps = projectStore {
+                let resolvedPath = ps.resolvedProjectPath(for: session.projectPath, sessionId: session.id)
+                logger.info("Brief update resolved path: \(resolvedPath ?? "<nil>"), projectExists=\(ps.project(for: resolvedPath) != nil)")
+                if let projectPath = resolvedPath {
+                    updateProjectBrief(
+                        overview: projectOverview,
+                        changelog: briefUpdate,
+                        projectPath: projectPath,
+                        projectStore: ps
+                    )
+                }
+            } else {
+                logger.warning("Brief update skipped: projectStore is nil")
             }
+
+            // Record in pet memory for cross-session personalization
+            let resolvedForMemory = projectStore?.resolvedProjectPath(for: session.projectPath, sessionId: session.id) ?? session.projectPath
+            let durationMin: Int = {
+                guard let ended = session.endedAt else { return 0 }
+                return max(1, Int(ended.timeIntervalSince(session.startedAt) / 60))
+            }()
+            PetMemoryStore.shared.recordSessionEnd(
+                projectPath: resolvedForMemory,
+                sessionDate: session.endedAt ?? Date(),
+                durationMinutes: durationMin,
+                summary: payload.summary,
+                lesson: payload.lesson,
+                filesWorkedOn: session.filePaths
+            )
 
             return true
         } catch {
@@ -114,18 +169,49 @@ final class SessionSummaryEnricher: ObservableObject {
         }
     }
 
-    /// Appends a dated changelog entry to the project brief.
-    private func appendBriefUpdate(_ update: String?, projectPath: String, projectStore ps: ProjectStore) {
-        let trimmed = (update ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
-        let dateStr = Self.briefDateFormatter.string(from: Date())
-        let entry = "\n\n---\n**\(dateStr)**: \(trimmed)"
-
+    /// Updates the project brief: appends a dated changelog entry. The user's
+    /// description is preserved as-is (never overwritten by the LLM `overview`).
+    private func updateProjectBrief(
+        overview: String?,
+        changelog: String?,
+        projectPath: String,
+        projectStore ps: ProjectStore
+    ) {
         let currentBrief = ps.brief(for: projectPath)
-        let updatedBrief = currentBrief + entry
+        let separator = "\n\n---\n"
+
+        // Split current brief into description + existing changelog
+        let parts: (desc: String, log: String)
+        if let sepRange = currentBrief.range(of: separator) {
+            parts = (
+                String(currentBrief[currentBrief.startIndex..<sepRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines),
+                String(currentBrief[sepRange.lowerBound...])
+            )
+        } else {
+            parts = (currentBrief.trimmingCharacters(in: .whitespacesAndNewlines), "")
+        }
+
+        // Description is user-owned — never overwrite it with the LLM overview.
+        // The auto-overview (de279c0) clobbered every project's description with a
+        // generic "CodePet is an iOS learning app…" blurb because the summarizer
+        // returns an ungrounded overview. Only the changelog auto-updates now.
+        let newDesc = parts.desc
+
+        // Append new changelog entry (if provided and non-empty)
+        let changelogTrimmed = (changelog ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        var newLog = parts.log
+        if !changelogTrimmed.isEmpty {
+            let dateStr = Self.briefDateFormatter.string(from: Date())
+            newLog += "\n\n---\n**\(dateStr)**: \(changelogTrimmed)"
+        }
+
+        let updatedBrief = newDesc + newLog
+        guard updatedBrief != currentBrief else {
+            logger.info("Brief unchanged, skipping update")
+            return
+        }
         ps.updateBrief(projectId: projectPath, brief: updatedBrief)
-        logger.info("Auto-updated project brief for \(projectPath)")
+        logger.info("Updated project brief for \(projectPath): desc=user-owned, log=\(changelogTrimmed.isEmpty ? "unchanged" : "+entry")")
     }
 
     private static let briefDateFormatter: DateFormatter = {
@@ -155,7 +241,8 @@ final class SessionSummaryEnricher: ObservableObject {
             language: language,
             turns: turns,
             petPersona: persona,
-            userBrief: NarrativeEnricher.currentUserBrief(projectPath: session.projectPath)
+            userBrief: NarrativeEnricher.currentUserBrief(projectPath: session.projectPath),
+            petMemory: PetMemoryStore.shared.promptPayload(for: session.projectPath)
         )
     }
 }

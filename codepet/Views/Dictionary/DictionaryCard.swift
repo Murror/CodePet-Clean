@@ -13,82 +13,104 @@ struct DictionaryCard: View {
     var projectTags: Set<ProjectTag> = []
     var projectName: String? = nil
 
+    @State private var hovering = false
+
     private var usedInProject: String? {
         guard let projectName else { return nil }
         return DictionaryMatcher.projectUsing(term, projectTags: projectTags, projectName: projectName)
     }
 
     /// The card's color — its topic's brand color, so every card in a topic
-    /// shares one consistent, category-coded hue (Functions = pink, Control
-    /// Flow = blue, …). Drives the icon chip, section labels, and the button.
-    /// The multicolor diagram still lives inside the expanded card.
+    /// shares one consistent, category-coded hue.
     private var accentColor: Color {
         DictionaryContent.accent(forTopicId: term.topicId).color
     }
 
-    /// The card's icon — its topic's icon, matching the sidebar and hero badge
-    /// so a card reads unmistakably as part of its category.
-    private var glyph: String {
-        DictionaryContent.topic(forId: term.topicId)?.icon ?? "book.fill"
+    /// First letter of the term — a per-term monogram so cards in a category
+    /// aren't visually identical (replaces the repeated topic icon).
+    private var monogram: String {
+        let t = term.title(uiLanguage).trimmingCharacters(in: .whitespacesAndNewlines)
+        return String(t.prefix(1)).uppercased()
     }
 
     var body: some View {
         PixelCard(fill: accentColor.opacity(0.07)) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 header
 
                 Text(markdown: term.cardDefinition(uiLanguage))
-                    .font(CodepetTheme.body(15))
+                    .font(CodepetTheme.body(14))
                     .foregroundColor(CodepetTheme.bodyText)
+                    .lineLimit(isExpanded ? nil : 3)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 if isExpanded {
                     deepDive
                         .transition(.opacity)
                 }
 
-                HStack {
-                    Spacer()
-                    Button(action: onToggleExpand) {
-                        HStack(spacing: 6) {
-                            Text(isExpanded
-                                 ? (uiLanguage == .vi ? "Thu gọn" : "Show less")
-                                 : (uiLanguage == .vi ? "Tìm hiểu thêm" : "Learn more"))
-                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 12, weight: .semibold))
-                        }
-                    }
-                    .buttonStyle(PixelButtonStyle(
-                        fill: accentColor,
-                        paddingH: 18,
-                        paddingV: 10,
-                        font: .pixelSystem(size: 13, weight: .semibold)
-                    ))
-                }
+                Spacer(minLength: 10)
+                footer
             }
-            .padding(18)
+            .padding(16)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        // Subtle hover lift for interactivity.
+        .offset(y: hovering ? -3 : 0)
+        .shadow(color: hovering ? accentColor.opacity(0.28) : .clear, radius: 8, x: 0, y: 5)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            // Tap anywhere to expand; once open, only the footer collapses so
+            // the code block inside stays selectable.
+            if !isExpanded { onToggleExpand() }
+        }
+        .onHover { hovering = $0 }
+        .animation(.easeInOut(duration: 0.18), value: hovering)
         .animation(.easeInOut(duration: 0.22), value: isExpanded)
     }
 
-    // MARK: - Header (title + optional "used in project" badge)
+    // MARK: - Header (monogram + title)
 
     private var header: some View {
         HStack(alignment: .center, spacing: 10) {
-            Image(systemName: glyph)
-                .font(.system(size: 15, weight: .bold))
+            Text(monogram)
+                .font(.pixelSystem(size: 15, weight: .bold))
                 .foregroundColor(.white)
-                .frame(width: 34, height: 34)
+                .frame(width: 32, height: 32)
                 .pixelBox(fill: accentColor, shadowOffset: 2, blockSize: 2, steps: 2, borderWidth: 2)
 
             Text(term.title(uiLanguage))
-                .font(CodepetTheme.display(18, weight: .bold))
+                .font(CodepetTheme.display(16, weight: .bold))
                 .foregroundColor(CodepetTheme.primaryText)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
                 .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 8)
+            Spacer(minLength: 4)
+        }
+    }
+
+    // MARK: - Footer (used-in badge + lightweight expand control)
+
+    private var footer: some View {
+        HStack(spacing: 6) {
             if let project = usedInProject {
                 usedInBadge(project)
             }
+            Spacer(minLength: 0)
+            Button(action: onToggleExpand) {
+                HStack(spacing: 4) {
+                    Text(isExpanded
+                         ? (uiLanguage == .vi ? "Thu gọn" : "Less")
+                         : (uiLanguage == .vi ? "Tìm hiểu" : "Learn more"))
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                }
+                .font(.pixelSystem(size: 11, weight: .semibold))
+                .foregroundColor(accentColor)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
         }
     }
 

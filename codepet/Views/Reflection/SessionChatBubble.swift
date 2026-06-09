@@ -13,23 +13,34 @@ struct SessionChatBubble: View {
     var body: some View {
         Button(action: onTap) {
             ZStack {
+                // Tinted to the active character so the chat button matches
+                // whoever you're coding with. Solid character color + a soft
+                // top-left sheen for a glossy, on-brand look.
                 Circle()
-                    .fill(petColor.opacity(0.18))
+                    .fill(petColor)
+                    .overlay(
+                        Circle().fill(
+                            LinearGradient(
+                                colors: [Color.white.opacity(0.28), Color.clear],
+                                startPoint: .topLeading, endPoint: .bottomTrailing
+                            )
+                        )
+                    )
 
                 if let pet = pet {
                     Image(pet.imageName)
                         .resizable()
                         .interpolation(.none)
                         .scaledToFit()
-                        .padding(8)
+                        .padding(10)
                 }
             }
-            .frame(width: 60, height: 60)
+            .frame(width: 56, height: 56)
             .codepetShadow(CodepetTheme.Shadow(
-                color: petColor.opacity(0.35),
-                radius: 14, x: 0, y: 6
+                color: petColor.opacity(0.45),
+                radius: 16, x: 0, y: 6
             ))
-            .offset(y: float ? -3 : 0)
+            .offset(y: float ? -4 : 0)
         }
         .buttonStyle(.plain)
         .onAppear { startAnimations() }

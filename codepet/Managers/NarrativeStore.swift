@@ -9,6 +9,10 @@ final class NarrativeStore: ObservableObject {
 
     @Published private(set) var narratives: [String: Narrative] = [:]
 
+    /// Maps each narrative key (same keys as `narratives`) → the sessionId that
+    /// produced it, so callers can attribute a narrative back to its project.
+    @Published private(set) var sessionIds: [String: String] = [:]
+
     private let fileURL: URL
     private let pollInterval: TimeInterval
     private var pollTimer: Timer?
@@ -52,7 +56,9 @@ final class NarrativeStore: ObservableObject {
         try handle.seekToEnd()
         try handle.write(contentsOf: data)
         // Key includes language so switching vi↔en triggers re-enrichment.
-        narratives[Self.narrativeKey(turnId: turnId, language: language)] = narrative
+        let key = Self.narrativeKey(turnId: turnId, language: language)
+        narratives[key] = narrative
+        sessionIds[key] = sessionId
     }
 
     /// Look up a narrative for a specific turn and language.
@@ -130,6 +136,7 @@ final class NarrativeStore: ObservableObject {
 
         // Batch-decode into a local dict, then merge once to minimize @Published churn
         var newEntries: [String: Narrative] = [:]
+        var newSessionIds: [String: String] = [:]
         for line in lines where !line.isEmpty {
             guard let data = line.data(using: .utf8) else { continue }
             do {
@@ -138,14 +145,17 @@ final class NarrativeStore: ObservableObject {
                 let key = Self.narrativeKey(turnId: row.turn_id, language: lang)
                 let narrative = row.toNarrative()
                 newEntries[key] = narrative
+                newSessionIds[key] = row.session_id
                 // Also store under plain turn_id for backward compat.
                 newEntries[row.turn_id] = narrative
+                newSessionIds[row.turn_id] = row.session_id
             } catch {
                 logger.warning("skipping malformed narrative line: \(error.localizedDescription)")
             }
         }
         if !newEntries.isEmpty {
             narratives.merge(newEntries) { _, new in new }
+            sessionIds.merge(newSessionIds) { _, new in new }
         }
     }
 }

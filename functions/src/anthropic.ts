@@ -95,9 +95,32 @@ export const NARRATIVE_TOOL = {
         type: "string",
         enum: ["idle", "excited", "thinking", "proud", "concerned", "cheering"],
         description: "Your emotional reaction to this turn. Pick ONE: 'excited' when something cool shipped or a creative solution appeared; 'thinking' when the work was complex/exploratory; 'proud' when the user did something impressive or completed a big task; 'concerned' when there are potential issues (no error handling, tech debt); 'cheering' when a session milestone was hit or a long task finished; 'idle' as fallback."
+      },
+      detected_skills: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            skill_id: {
+              type: "string",
+              description: "Which skill was practiced. Use EXACTLY one of: 'component_composition', 'loading_error_states', 'form_validation_ux', 'accessibility_basics'."
+            },
+            confidence: {
+              type: "string",
+              enum: ["strong", "weak"],
+              description: "'strong' = the user clearly practiced this skill (created components, added error handling, etc). 'weak' = the activity is loosely related but not a clear practice."
+            },
+            evidence: {
+              type: "string",
+              description: "One sentence explaining WHY you detected this skill. Reference specific files or actions. E.g. 'Split index.html into 3 component files' or 'Added try-catch around the API call in fetchData.js'."
+            }
+          },
+          required: ["skill_id", "confidence", "evidence"]
+        },
+        description: "Skills the user practiced during this turn. Only include skills with real evidence — do NOT guess. Empty array if no skills were clearly practiced. Detection guide: 'component_composition' = created new files, split code, reused modules, refactored into smaller pieces. 'loading_error_states' = added try/catch, error handling, loading indicators, fallback UI, spinners. 'form_validation_ux' = added input validation, form error messages, required fields, input formatting. 'accessibility_basics' = added alt text, aria labels, keyboard navigation, color contrast fixes."
       }
     },
-    required: ["title", "what_you_wanted", "what_happened", "lesson", "next_steps", "mood"]
+    required: ["title", "what_you_wanted", "what_happened", "lesson", "next_steps", "mood", "detected_skills"]
   }
 } as const;
 
@@ -113,9 +136,11 @@ export interface BuildArgs {
   events: EventForPrompt[];
   raw_summary: string;
   user_brief?: string;
+  pet_memory?: string;
 }
 
 const MAX_BRIEF_CHARS = 1200;
+const MAX_MEMORY_CHARS = 600;
 
 export function renderBriefBlock(brief: string | undefined): string {
   const trimmed = (brief ?? "").trim();
@@ -123,6 +148,17 @@ export function renderBriefBlock(brief: string | undefined): string {
   return `Project context the user shared with you (their welcome brief):
 """
 ${trimmed.slice(0, MAX_BRIEF_CHARS)}
+"""
+
+`;
+}
+
+export function renderMemoryBlock(memory: string | undefined): string {
+  const trimmed = (memory ?? "").trim();
+  if (!trimmed) return "";
+  return `Your memory of past sessions with this user (use this to personalize your tone, reference their patterns, and build emotional connection):
+"""
+${trimmed.slice(0, MAX_MEMORY_CHARS)}
 """
 
 `;
@@ -138,7 +174,7 @@ export function buildUserMessage(args: BuildArgs): string {
         .map((e) => `${e.time} — ${e.tool}: ${e.path ?? e.text ?? ""}`)
         .join("\n");
 
-  return `${renderBriefBlock(args.user_brief)}Here is one Claude Code working turn:
+  return `${renderBriefBlock(args.user_brief)}${renderMemoryBlock(args.pet_memory)}Here is one Claude Code working turn:
 
 The user typed: "${promptText}"
 
@@ -150,6 +186,12 @@ Short technical summary (for your reference): ${args.raw_summary}
 Now call the record_narrative tool.`;
 }
 
+export interface DetectedSkill {
+  skill_id: string;
+  confidence: "strong" | "weak";
+  evidence: string;
+}
+
 export interface NarrativeOutput {
   title: string;
   what_you_wanted: string;
@@ -157,6 +199,7 @@ export interface NarrativeOutput {
   lesson: string;
   next_steps: string;
   mood: string;
+  detected_skills: DetectedSkill[];
 }
 
 export interface PetPersonaInput {
@@ -189,6 +232,7 @@ export interface SessionSummaryOutput {
   summary: string;
   lesson: string;
   brief_update?: string;
+  project_overview?: string;
 }
 
 export const SESSION_SYSTEM_PROMPT = `You are the user's coding companion — a pet character who watched a whole working session and now helps them understand what they accomplished and what they learned.
@@ -212,6 +256,7 @@ Rules:
 5. Tone: warm, encouraging, educational — like a smart older friend helping you learn. Use emojis freely.
 6. summary ≤800 chars. lesson ≤500 chars.
 7. brief_update: Write a short, factual changelog entry (1-2 sentences, ≤200 chars) documenting what was built or changed in this session. This is for the PROJECT LOG, not for the user — write it as a concise technical note. Example: "Added responsive layout to homepage; fixed CSS grid alignment on mobile." No emojis, no pet voice — just facts. If a current_brief is provided, do NOT repeat what's already documented there. If no meaningful work happened, return empty string "".
+8. project_overview: Write a casual, conversational summary (1-2 sentences, ≤200 chars) of what this project IS right now. Talk like you're telling a friend about it — start with a subject like "You're building…", "This is…", or "It's a…". Keep it warm and natural, no emojis. Example: "You're building a daily habit tracker site with cute pet characters, feeding animations, and a badge reward when you take care of all of them." If a current_brief is provided, update it to reflect the latest work. If no current_brief exists, infer from the session what the project is.
 <persona_block>
 Output language: <language>`;
 
@@ -232,9 +277,13 @@ export const SESSION_SUMMARY_TOOL = {
       brief_update: {
         type: "string",
         description: "A short factual changelog entry (≤200 chars) for the project log. No emojis, no pet voice — just what was built/changed. Example: 'Added responsive layout to homepage; fixed CSS grid on mobile.' Empty string if no meaningful work."
+      },
+      project_overview: {
+        type: "string",
+        description: "Casual, conversational 1-2 sentence summary (≤200 chars) of what this project IS right now. Start with a subject ('You're building…', 'This is…'). Warm and natural, no emojis. Must be self-contained (replaces previous overview). Example: 'You're building a daily habit tracker with cute pet characters, feeding animations, and a badge reward system.'"
       }
     },
-    required: ["summary", "lesson", "brief_update"]
+    required: ["summary", "lesson", "brief_update", "project_overview"]
   }
 } as const;
 
@@ -243,20 +292,21 @@ export interface SessionCallArgs {
   language: "vi" | "en";
   petPersona?: PetPersonaInput;
   userBrief?: string;
+  petMemory?: string;
 }
 
-export function buildSessionUserMessage(turns: TurnInput[], userBrief?: string): string {
+export function buildSessionUserMessage(turns: TurnInput[], userBrief?: string, petMemory?: string): string {
   const lines = turns.slice(0, 30).map((t, i) => {
     const dur = t.duration_minutes ? ` (~${t.duration_minutes}m)` : "";
     const what = t.what_happened ? `\n   Happened: ${t.what_happened.slice(0, 300)}` : "";
     return `${i + 1}. User asked: "${t.prompt.slice(0, 200)}"${dur}${what}`;
   }).join("\n\n");
 
-  return `${renderBriefBlock(userBrief)}Here is one AI working session with ${turns.length} turns:
+  return `${renderBriefBlock(userBrief)}${renderMemoryBlock(petMemory)}Here is one AI working session with ${turns.length} turns:
 
 ${lines}
 
-Now call the record_session_summary tool to summarize the arc + overarching lesson of the session. Include a brief_update changelog entry documenting what was built — do NOT repeat anything already in the project brief above.`;
+Now call the record_session_summary tool to summarize the arc + overarching lesson of the session. Include a brief_update changelog entry documenting what was built — do NOT repeat anything already in the project brief above. Also write a project_overview that describes what this project IS right now (incorporating this session's work into the existing description).`;
 }
 
 export async function callAnthropicSession(
@@ -266,7 +316,7 @@ export async function callAnthropicSession(
   const system = SESSION_SYSTEM_PROMPT
     .replace("<language>", args.language === "vi" ? "Tiếng Việt" : "English")
     .replace("<persona_block>", renderPersonaBlock(args.petPersona));
-  const user = buildSessionUserMessage(args.turns, args.userBrief);
+  const user = buildSessionUserMessage(args.turns, args.userBrief, args.petMemory);
 
   const response = await client.messages.create({
     model: MODEL,
@@ -284,7 +334,8 @@ export async function callAnthropicSession(
         return {
           summary: input.summary,
           lesson: input.lesson,
-          brief_update: typeof input.brief_update === "string" ? input.brief_update : undefined
+          brief_update: typeof input.brief_update === "string" ? input.brief_update : undefined,
+          project_overview: typeof input.project_overview === "string" ? input.project_overview : undefined
         };
       }
     }
@@ -308,7 +359,7 @@ export async function* streamAnthropicSession(
   const system = SESSION_SYSTEM_PROMPT
     .replace("<language>", args.language === "vi" ? "Tiếng Việt" : "English")
     .replace("<persona_block>", renderPersonaBlock(args.petPersona));
-  const user = buildSessionUserMessage(args.turns, args.userBrief);
+  const user = buildSessionUserMessage(args.turns, args.userBrief, args.petMemory);
 
   const stream = client.messages.stream({
     model: MODEL,
@@ -343,7 +394,8 @@ export async function* streamAnthropicSession(
         summary = {
           summary: input.summary,
           lesson: input.lesson,
-          brief_update: typeof input.brief_update === "string" ? input.brief_update : undefined
+          brief_update: typeof input.brief_update === "string" ? input.brief_update : undefined,
+          project_overview: typeof input.project_overview === "string" ? input.project_overview : undefined
         };
       }
     }
@@ -405,7 +457,8 @@ export async function* streamAnthropic(
     prompt: args.prompt,
     events: args.events,
     raw_summary: args.raw_summary,
-    user_brief: args.user_brief
+    user_brief: args.user_brief,
+    pet_memory: args.pet_memory
   });
 
   const stream = client.messages.stream({
@@ -445,7 +498,8 @@ export async function* streamAnthropic(
         typeof input.what_happened === "string" &&
         typeof input.lesson === "string" &&
         typeof input.next_steps === "string" &&
-        typeof input.mood === "string"
+        typeof input.mood === "string" &&
+        Array.isArray(input.detected_skills)
       ) {
         narrative = input;
       }
@@ -480,7 +534,8 @@ export async function callAnthropic(
     prompt: args.prompt,
     events: args.events,
     raw_summary: args.raw_summary,
-    user_brief: args.user_brief
+    user_brief: args.user_brief,
+    pet_memory: args.pet_memory
   });
 
   const response = await client.messages.create({

@@ -306,6 +306,29 @@ public class GameState: ObservableObject {
         GamePersistence.shared.save(self)
     }
 
+    /// Reset in-memory game state to fresh-account defaults WITHOUT touching
+    /// UserDefaults, then re-load from the (account-swapped) keys. Used on
+    /// account switch so a new account doesn't inherit the previous coins/hearts.
+    public func reloadFromPersistence() {
+        petHunger = 80
+        petMoodState = .content
+        lastFeedTime = nil
+        showWelcomeBack = false
+        idleXPEarned = 0
+        idleTip = ""
+        hearts = 5
+        lastHeartLoss = nil
+        coins = 0
+        equippedHat = "hat_none"
+        equippedAccessory = nil
+        equippedBackground = "bg_default"
+        equippedEffect = nil
+        ownedCosmetics = ["hat_none", "bg_default"]
+        unlockedCompendiumEntries = []
+        streakFreezes = 0
+        GamePersistence.shared.load(into: self)
+    }
+
     /// Reset all game state
     public func resetAll() {
         GamePersistence.shared.resetAll()

@@ -49,6 +49,18 @@ class AppState: ObservableObject {
     @Published var showWeeklyRecap: Bool = false
     /// Set by Skills tab to deep-link into a kingdom on the Home tab
     @Published var pendingKingdomId: Int? = nil
+    /// Set by Tips tab to pre-fill a chat prompt on the Reflection tab.
+    /// The Reflection chat view consumes and nils this after use.
+    @Published var pendingChatPrompt: String? = nil
+    /// Challenge context for exercise-aware chat. Set when user starts an exercise.
+    @Published var pendingChallengeContext: SkillChallenge? = nil
+    /// When set, MainTabView presents the large practice-workspace modal.
+    /// Exercises use this (a roomy modal) instead of the narrow companion panel.
+    @Published var activeExercise: SkillChallenge? = nil
+    /// Term id to deep-link into the Dictionary tab. Set when the user taps a
+    /// highlighted glossary term in a narrative; DictionaryView opens + scrolls
+    /// to it and nils this after use.
+    @Published var pendingDictionaryTerm: String? = nil
     @Published var petEnergy: Int = 60
     @Published var petMood: String = "Idle"
     /// When true, Reflection tab shows the hardcoded "Sprout × Byte" demo
@@ -92,6 +104,7 @@ class AppState: ObservableObject {
         case insights = "Insights"
         case reflection = "Reflection"
         case tips = "Tips"
+        case learn = "Learn"
         case dictionary = "Dictionary"
         case profile = "Profile"
 
@@ -110,6 +123,8 @@ class AppState: ObservableObject {
             case (.reflection, .en): return "Reflection"
             case (.tips,       .vi): return "Mẹo"
             case (.tips,       .en): return "Tips"
+            case (.learn,      .vi): return "Học"
+            case (.learn,      .en): return "Learn"
             case (.dictionary, .vi): return "Từ điển"
             case (.dictionary, .en): return "Dictionary"
             case (.profile,    .vi): return "Hồ sơ"
@@ -125,6 +140,7 @@ class AppState: ObservableObject {
             case .insights: return "chart.bar.fill"
             case .reflection: return "quote.opening"
             case .tips: return "lightbulb.fill"
+            case .learn: return "graduationcap.fill"
             case .dictionary: return "book.fill"
             case .profile: return "person.fill"
             }
@@ -383,6 +399,51 @@ class AppState: ObservableObject {
         weeklyStats = WeeklyStats()
         performanceHistory = []
         dailySnapshots = []
+    }
+
+    /// Reset every persisted field back to its launch default — IN MEMORY ONLY
+    /// (does not touch UserDefaults). Used by `reloadFromPersistence()` so a
+    /// fresh account doesn't inherit the previous account's in-memory values.
+    /// UI/transient state and device prefs (dark mode, sound, language) are left
+    /// alone.
+    func resetInMemory() {
+        onboardingComplete = false
+        userAge = ""
+        obWho = ""
+        obDesire = ""
+        obGoal = ""
+        skillLevel = ""
+        dailyGoalMinutes = 0
+        preferredLanguage = "javascript"
+        displayName = ""
+        activeChar = "byte"
+        userInterests = []
+        totalXP = 0
+        userLevel = 1
+        currentTier = 1
+        charOutfit = 1
+        completedLessons = []
+        completedChallenges = []
+        streak = 0
+        longestStreak = 0
+        lastVisit = nil
+        weeklyStats = WeeklyStats()
+        difficultyLevel = "medium"
+        performanceHistory = []
+        lessonReviewDates = [:]
+        lessonReviewCounts = [:]
+        dailySnapshots = []
+        dailyChallengeCompleted = false
+        petEnergy = 60
+        petMood = "Idle"
+    }
+
+    /// Re-hydrate from the (account-swapped) UserDefaults. Resets to defaults
+    /// first so a fresh account starts clean, then loads any persisted keys.
+    /// Called on account switch by ContentView after the vault swap.
+    func reloadFromPersistence() {
+        resetInMemory()
+        PersistenceManager.shared.load(into: self)
     }
 
     /// Reset onboarding only (for testing)

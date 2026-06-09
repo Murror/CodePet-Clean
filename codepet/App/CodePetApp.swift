@@ -13,8 +13,13 @@ struct CodePetApp: App {
     @StateObject private var chatController: SessionChatController
     @StateObject private var hookInstaller = HookInstaller()
     @StateObject private var projectStore = ProjectStore()
+    @StateObject private var sessionStatusStore = SessionStatusStore()
     @StateObject private var demoController = DemoScriptController()
     @StateObject private var demoHotkeyMonitor = DemoHotkeyMonitor()
+    @StateObject private var healthNudge = HealthNudgeController()
+    @StateObject private var tipsState = TipsState()
+    @StateObject private var learnProgress = LearnProgress()
+    @StateObject private var challengeProgress = ChallengeProgress()
     private var notificationManager = NotificationManager()
 
     init() {
@@ -49,11 +54,54 @@ struct CodePetApp: App {
                 .environmentObject(chatController)
                 .environmentObject(hookInstaller)
                 .environmentObject(projectStore)
+                .environmentObject(sessionStatusStore)
                 .environmentObject(demoController)
+                .environmentObject(healthNudge)
+                .environmentObject(tipsState)
+                .environmentObject(learnProgress)
+                .environmentObject(challengeProgress)
                 .frame(minWidth: 400, minHeight: 700)
                 .themed(isDark: appState.isDarkMode)
                 .task {
                     projectStore.load()
+                    TipsPersistence.shared.load(into: tipsState)
+                    TipsPersistence.shared.startAutoSave(tipsState)
+
+                    // Seed practice exercises. Prefer the user's most active real
+                    // project; for a brand-new user with no projects yet, fall back
+                    // to the shared practice sandbox so the exercise section is
+                    // populated on day one (every exercise runs on the sandbox
+                    // regardless — see PracticeSandbox / ExerciseWorkspaceView).
+                    //
+                    // We also additively merge in any exercises a returning user is
+                    // missing (new skills / new difficulty tiers shipped after their
+                    // first launch). We dedupe by the stable (skillId, difficulty)
+                    // pair — NOT by challenge id, because ids embed
+                    // `projectPath.hashValue` and Swift randomizes String.hashValue
+                    // per process, so ids aren't comparable across launches. Matching
+                    // on (skillId, difficulty) makes this idempotent: once every combo
+                    // is present, nothing is appended on later launches.
+                    let topProject = projectStore.projects.values
+                        .sorted(by: { $0.lastSeenAt > $1.lastSeenAt }).first
+                    let generated = ChallengeGenerator.generateAll(
+                        projectName: topProject?.displayName ?? "the practice project",
+                        projectPath: topProject?.id ?? PracticeSandbox.path
+                    )
+                    if challengeProgress.activeChallenges.isEmpty {
+                        challengeProgress.activeChallenges = generated
+                        challengeProgress.save()
+                    } else {
+                        let have = Set(challengeProgress.activeChallenges.map {
+                            "\($0.skillId)|\($0.difficulty.rawValue)"
+                        })
+                        let missing = generated.filter {
+                            !have.contains("\($0.skillId)|\($0.difficulty.rawValue)")
+                        }
+                        if !missing.isEmpty {
+                            challengeProgress.activeChallenges.append(contentsOf: missing)
+                            challengeProgress.save()
+                        }
+                    }
                     reflectionComposition.sessionEnricher.projectStore = projectStore
                     reflectionComposition.updateLanguage(appState.uiLanguage)
                     reflectionComposition.start()
@@ -72,6 +120,11 @@ struct CodePetApp: App {
                     appState.syncFromMCP(mcpBridge)
 
                     demoHotkeyMonitor.bind(controller: demoController)
+                    demoHotkeyMonitor.onTipsDemo = { [weak demoController, weak tipsState, weak appState] in
+                        guard let dc = demoController, let ts = tipsState, let app = appState else { return }
+                        dc.populateTipsDemo(tipsState: ts, petId: app.activeChar)
+                        app.selectedTab = .tips
+                    }
                     // Sync display language into the demo controller so the
                     // synthesized Session/Turn/Narrative render in the right
                     // language.
@@ -100,10 +153,31 @@ struct CodePetApp: App {
                         demoController.reset()
                     }
                 }
+                // Auto-progress skills when the AI detects them in coding sessions
+                .onReceive(reflectionComposition.enricher.$lastDetectedSkills) { skills in
+                    guard !skills.isEmpty else { return }
+                    let petId = appState.activeChar
+                    let skillMap = skillIndexMap(for: petId)
+                    for skill in skills {
+                        if let index = skillMap[skill.skillId] {
+                            tipsState.recordPractice(for: petId, index: index)
+                        }
+                        // Auto-verify challenges
+                        let active = challengeProgress.activeChallenges(for: skill.skillId)
+                        let completed = ChallengeMatcher.findCompletedChallenges(
+                            detectedSkill: skill,
+                            activeChallenges: active
+                        )
+                        for challenge in completed {
+                            challengeProgress.markCompleted(challenge.id)
+                        }
+                    }
+                }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in
                     // Save game state when app goes to background
                     gameState.forceSave()
                     appState.lastVisit = Date()
+                    TipsPersistence.shared.save(tipsState)
                 }
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                     // Process return from idle when app comes back
@@ -164,5 +238,44 @@ struct CodePetApp: App {
             MenuBarView()
                 .environmentObject(appState)
         }
+    }
+
+    /// Maps AI-detected skill IDs to the pet's skill tile index.
+    /// The AI outputs IDs like "component_composition"; the TipsState
+    /// tracks progress by pet + index (e.g. "nova_0").
+    private func skillIndexMap(for petId: String) -> [String: Int] {
+        guard let tiles = TipsContent.tipSkillsByPet[petId] else { return [:] }
+        // Build a lookup from normalized skill name → index
+        var map: [String: Int] = [:]
+        let knownIds = [
+            "component_composition",
+            "loading_error_states",
+            "form_validation_ux",
+            "accessibility_basics",
+            "responsive_layout",
+            "performance"
+        ]
+        // Map each known skill ID to the tile index whose title best matches
+        for (i, tile) in tiles.enumerated() {
+            let title = tile.title.en.lowercased()
+            for knownId in knownIds {
+                let readable = knownId.replacingOccurrences(of: "_", with: " ")
+                if title.contains(readable) || readable.contains(title.prefix(10).lowercased()) {
+                    map[knownId] = i
+                }
+            }
+        }
+        // Fallback: direct index mapping for Nova's known layout
+        if map.isEmpty && petId == "nova" {
+            map = [
+                "component_composition": 0,
+                "loading_error_states": 1,
+                "form_validation_ux": 2,
+                "accessibility_basics": 3,
+                "responsive_layout": 4,
+                "performance": 5
+            ]
+        }
+        return map
     }
 }
