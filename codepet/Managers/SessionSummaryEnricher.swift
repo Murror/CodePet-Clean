@@ -145,8 +145,8 @@ final class SessionSummaryEnricher: ObservableObject {
         }
     }
 
-    /// Updates the project brief: replaces the description with a fresh overview
-    /// and appends a dated changelog entry.
+    /// Updates the project brief: appends a dated changelog entry. The user's
+    /// description is preserved as-is (never overwritten by the LLM `overview`).
     private func updateProjectBrief(
         overview: String?,
         changelog: String?,
@@ -167,9 +167,11 @@ final class SessionSummaryEnricher: ObservableObject {
             parts = (currentBrief.trimmingCharacters(in: .whitespacesAndNewlines), "")
         }
 
-        // Update description with new overview (if provided and non-empty)
-        let overviewTrimmed = (overview ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let newDesc = overviewTrimmed.isEmpty ? parts.desc : overviewTrimmed
+        // Description is user-owned — never overwrite it with the LLM overview.
+        // The auto-overview (de279c0) clobbered every project's description with a
+        // generic "CodePet is an iOS learning app…" blurb because the summarizer
+        // returns an ungrounded overview. Only the changelog auto-updates now.
+        let newDesc = parts.desc
 
         // Append new changelog entry (if provided and non-empty)
         let changelogTrimmed = (changelog ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -185,7 +187,7 @@ final class SessionSummaryEnricher: ObservableObject {
             return
         }
         ps.updateBrief(projectId: projectPath, brief: updatedBrief)
-        logger.info("Updated project brief for \(projectPath): desc=\(overviewTrimmed.isEmpty ? "unchanged" : "updated"), log=\(changelogTrimmed.isEmpty ? "unchanged" : "+entry")")
+        logger.info("Updated project brief for \(projectPath): desc=user-owned, log=\(changelogTrimmed.isEmpty ? "unchanged" : "+entry")")
     }
 
     private static let briefDateFormatter: DateFormatter = {
