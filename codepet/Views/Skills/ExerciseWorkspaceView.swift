@@ -16,6 +16,7 @@ struct ExerciseWorkspaceView: View {
 
     @EnvironmentObject private var hookInstaller: HookInstaller
     @EnvironmentObject private var challengeProgress: ChallengeProgress
+    @EnvironmentObject private var appState: AppState
 
     @StateObject private var runner = ClaudeCodeRunner()
     @State private var promptText = ""
@@ -47,9 +48,6 @@ struct ExerciseWorkspaceView: View {
                     if !runner.events.isEmpty {
                         CodeExecutionView(events: runner.events, accent: character.color)
                     }
-                    if let coach = coachLine {
-                        coachBubble(coach)
-                    }
                     if let err = sandboxError {
                         banner(err, bg: Color(hex: "#F7E3DE"), fg: Color(hex: "#8A3324"))
                     }
@@ -76,12 +74,13 @@ struct ExerciseWorkspaceView: View {
     // MARK: - Top bar (close)
 
     private var topBar: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 10) {
             CharacterImage(character.id, size: 28)
-            Text("Practice")
-                .font(.pixelSystem(size: 17, weight: .bold))
+            Text(coachLine ?? "Run complete — judge the result below.")
+                .font(.pixelSystem(size: 13))
                 .foregroundColor(Color(hex: "#2D2B26"))
-            Spacer()
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
             Button(action: onClose) {
                 Image(systemName: "xmark")
                     .font(.system(size: 12, weight: .semibold))
@@ -418,26 +417,21 @@ struct ExerciseWorkspaceView: View {
         }
     }
 
-    private func coachBubble(_ text: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            CharacterImage(character.id, size: 26)
-            Text(text)
-                .font(.pixelSystem(size: 13))
-                .foregroundColor(Color(hex: "#2D2B26"))
-                .padding(10)
-                .background(RoundedRectangle(cornerRadius: 10).fill(character.color.opacity(0.15)))
-        }
-    }
-
     // MARK: - Review (the second half of the practice)
 
-    private var isChallengeCompleted: Bool { challengeProgress.isCompleted(challenge.id) }
-
     private var reviewStep: some View {
+        judgePrompt
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: "#3FA66A").opacity(0.12)))
+    }
+
+    /// Before completion: judge the result, then mark it complete.
+    private var judgePrompt: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 8) {
                 CharacterImage(character.id, size: 24)
-                Text(isChallengeCompleted ? "Marked complete ✓" : "Your turn to judge it")
+                Text("Your turn to judge it")
                     .font(.pixelSystem(size: 15, weight: .bold))
                     .foregroundColor(Color(hex: "#2D2B26"))
             }
@@ -445,27 +439,15 @@ struct ExerciseWorkspaceView: View {
                 .font(.pixelSystem(size: 13))
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
                 .fixedSize(horizontal: false, vertical: true)
-            progressInfo
             HStack(spacing: 10) {
-                if isChallengeCompleted {
-                    HStack(spacing: 5) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(hex: "#3FA66A"))
-                        Text("Exercise complete — nice work.")
-                            .font(.pixelSystem(size: 13, weight: .semibold))
-                            .foregroundColor(Color(hex: "#2D2B26"))
-                    }
-                } else {
-                    Button(action: markComplete) {
-                        Text("✓  Mark complete")
-                            .font(.pixelSystem(size: 14, weight: .bold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 14).padding(.vertical, 6)
-                            .background(Color(hex: "#3FA66A")).cornerRadius(8)
-                    }
-                    .buttonStyle(.plain)
+                Button(action: markComplete) {
+                    Text("✓  Mark complete")
+                        .font(.pixelSystem(size: 14, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 14).padding(.vertical, 6)
+                        .background(Color(hex: "#3FA66A")).cornerRadius(8)
                 }
+                .buttonStyle(.plain)
                 Button("Reset & try again") { resetSandbox(); runner.cancel() }
                     .font(.pixelSystem(size: 14, weight: .semibold))
                     .foregroundColor(Color(hex: "#2D2B26"))
@@ -474,52 +456,20 @@ struct ExerciseWorkspaceView: View {
                     .buttonStyle(.plain)
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: "#3FA66A").opacity(0.12)))
     }
 
     private func markComplete() {
+        // Award the exercise's bonus XP (once), mark it complete, then fire the
+        // full-screen completion celebration (presented at the app root).
+        let xp = challenge.difficulty.xpReward
+        if !challengeProgress.isCompleted(challenge.id) {
+            appState.addXP(xp)
+        }
         challengeProgress.markCompleted(challenge.id)
         SoundManager.shared.playTap()
-    }
-
-    // MARK: - Progress explainer ("does this count?")
-
-    /// Explains the two ways an exercise gets marked complete: manually, via the
-    /// button below once the user is happy it met the goal, or automatically,
-    /// when \(character.name) detects the skill in a real coding session. That
-    /// auto-detection needs the CodePet hooks — when they're not installed it
-    /// silently can't fire, so we surface that here instead of leaving the user
-    /// wondering why real work never advances anything.
-    private var progressInfo: some View {
-        let installed = hookInstaller.status == .installed
-        return VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                Image(systemName: installed ? "checkmark.seal.fill" : "info.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(installed ? Color(hex: "#3FA66A") : Color(hex: "#D4960A"))
-                Text("How progress works")
-                    .font(.pixelSystem(size: 13, weight: .bold))
-                    .foregroundColor(Color(hex: "#2D2B26"))
-            }
-            Text("Hit **Mark complete** below once you're happy this met the goal. \(character.name) also marks it complete automatically when it notices you doing the skill for real in your own project.")
-                .font(.pixelSystem(size: 13))
-                .foregroundColor(Color(hex: "#2D2B26").opacity(0.7))
-                .fixedSize(horizontal: false, vertical: true)
-            if !installed {
-                Text("⚠ Automatic detection is off — the CodePet hooks aren't connected. Marking complete here still works; connect Claude Code in the **Reflection** tab to also earn credit from real sessions.")
-                    .font(.pixelSystem(size: 13))
-                    .foregroundColor(Color(hex: "#8A6D1A"))
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(Color(hex: "#F4E5C0").opacity(0.7)))
-            }
-        }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: "#2D2B26").opacity(0.04)))
+        let next = challengeProgress.nextChallenge(after: challenge)
+        appState.exerciseCelebration = ExerciseCelebration(
+            earnedXP: xp, nextChallengeId: next?.id)
     }
 
     private func banner(_ text: String, bg: Color, fg: Color) -> some View {

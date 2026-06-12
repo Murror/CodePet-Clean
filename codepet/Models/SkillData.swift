@@ -375,7 +375,7 @@ struct GameData {
                 ChallengeCheckpoint(id: "patterns", label: "Lists patterns/conventions", keywords: ["pattern", "convention", "style", "rule", "approach", "how to"]),
             ],
             promptBlocks: [
-                PromptBlock(emoji: "📖", title: "Project Overview", hint: "What does your project do? Who is it for?", example: "# MyApp\nA gamified coding skills tracker for vibe coders."),
+                PromptBlock(emoji: "📖", title: "Project Overview", hint: "What does your project do? Who is it for?", example: "# MyApp\nA gamified coding skills tracker for people learning to build with AI agents."),
                 PromptBlock(emoji: "🗂️", title: "File Structure", hint: "Show your folder tree.", example: "src/\n  components/\n  models/\n  views/"),
                 PromptBlock(emoji: "📐", title: "Patterns", hint: "How does your code work?", example: "State management: @EnvironmentObject pattern"),
             ],

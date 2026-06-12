@@ -40,7 +40,7 @@ struct TipsMockupView: View {
                     .font(ReflectionTheme.serif(28, weight: .medium))
                     .foregroundColor(ReflectionTheme.primaryText)
 
-                Text(uiLanguage == .vi ? "Mẹo vibe-coding của bạn" : "Your vibe-coding tips")
+                Text(uiLanguage == .vi ? "Mẹo agentic coding của bạn" : "Your agentic coding tips")
                     .font(ReflectionTheme.sans(13))
                     .foregroundColor(ReflectionTheme.mutedText)
             }
@@ -263,7 +263,7 @@ struct TipsMockupView: View {
     private var skillsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
-                Eyebrow(text: uiLanguage == .vi ? "Kỹ năng vibe-coding" : "Vibe-coding skills")
+                Eyebrow(text: uiLanguage == .vi ? "Kỹ năng agentic coding" : "Agentic coding skills")
                 Spacer()
                 Text(uiLanguage == .vi ? "Hiển thị 4 / 15" : "4 of 15 shown")
                     .font(ReflectionTheme.sans(10))
@@ -329,8 +329,8 @@ struct TipsMockupView: View {
             author: "Hunt & Thomas",
             kind: L10n(vi: "Sách · 384 trang", en: "Book · 384 pages"),
             why: L10n(
-                vi: "Chương 8 về sự đa nghi thực dụng giúp bạn từ chối những câu trả lời quá tự tin của AI. Tư duy nền tảng của vibe-coding.",
-                en: "Ch. 8 on pragmatic paranoia helps you reject AI's over-confident answers. Foundational vibe-coding mindset."
+                vi: "Chương 8 về sự đa nghi thực dụng giúp bạn từ chối những câu trả lời quá tự tin của AI. Tư duy nền tảng của agentic coding.",
+                en: "Ch. 8 on pragmatic paranoia helps you reject AI's over-confident answers. Foundational agentic-coding mindset."
             )
         ),
         TipReadingItem(

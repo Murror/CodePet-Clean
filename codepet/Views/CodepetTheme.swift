@@ -280,7 +280,41 @@ enum CodepetMarkdown {
     ///   dot-underlined in their topic color and carry a `codepetterm://<id>`
     ///   link (handled by an `OpenURLAction` in the narrative view). Off by
     ///   default so the rest of the app's markdown is untouched.
+    // Parsing markdown + scanning the glossary is expensive and runs on every
+    // body refresh (scroll, typewriter ticks, state changes), yet the raw text
+    // for a given narrative field almost never changes. Cache the finished
+    // AttributedString keyed on (linkTerms, raw). Bounded + lock-guarded so a
+    // long session's many turns can't grow it without limit or race.
+    private static var cache: [String: AttributedString] = [:]
+    private static var cacheOrder: [String] = []
+    private static let cacheLimit = 256
+    private static let cacheLock = NSLock()
+
     static func attributedString(from raw: String, linkTerms: Bool = false) -> AttributedString {
+        let key = (linkTerms ? "1\u{01}" : "0\u{01}") + raw
+        cacheLock.lock()
+        if let hit = cache[key] {
+            cacheLock.unlock()
+            return hit
+        }
+        cacheLock.unlock()
+
+        let value = buildAttributedString(from: raw, linkTerms: linkTerms)
+
+        cacheLock.lock()
+        if cache[key] == nil {
+            cache[key] = value
+            cacheOrder.append(key)
+            if cacheOrder.count > cacheLimit {
+                let evict = cacheOrder.removeFirst()
+                cache.removeValue(forKey: evict)
+            }
+        }
+        cacheLock.unlock()
+        return value
+    }
+
+    private static func buildAttributedString(from raw: String, linkTerms: Bool) -> AttributedString {
         let opts = AttributedString.MarkdownParsingOptions(
             interpretedSyntax: .inlineOnlyPreservingWhitespace
         )

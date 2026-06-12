@@ -21,11 +21,13 @@ struct TechnicalDetailsView: View {
             .buttonStyle(.plain)
 
             if expanded {
-                VStack(alignment: .leading, spacing: 10) {
+                // LazyVStack so a turn with many events only builds the rows
+                // currently scrolled into view rather than all at once.
+                LazyVStack(alignment: .leading, spacing: 10) {
                     promptRow
                     Divider().background(ReflectionTheme.borderLight)
                     ForEach(events) { event in
-                        eventRow(event)
+                        EventRow(event: event)
                     }
                 }
                 .padding(14)
@@ -56,15 +58,42 @@ struct TechnicalDetailsView: View {
         }
     }
 
-    private func eventRow(_ event: CapturedEvent) -> some View {
+}
+
+/// A single event line. Long bodies are previewed and expanded on demand so an
+/// expanded turn doesn't lay out full text for every event up front.
+private struct EventRow: View {
+    let event: CapturedEvent
+    @State private var showFull = false
+    private let previewLimit = 280
+
+    var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Text(event.time)
                 .font(ReflectionTheme.mono(10))
                 .foregroundColor(ReflectionTheme.mutedText)
                 .frame(width: 44, alignment: .leading)
-            Text(event.text)
-                .font(ReflectionTheme.mono(11))
-                .foregroundColor(ReflectionTheme.secondaryText)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayText)
+                    .font(ReflectionTheme.mono(11))
+                    .foregroundColor(ReflectionTheme.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                if isTruncatable {
+                    Button(showFull ? "Show less" : "Show more") {
+                        withAnimation(.easeInOut(duration: 0.15)) { showFull.toggle() }
+                    }
+                    .buttonStyle(.plain)
+                    .font(ReflectionTheme.sans(10, weight: .medium))
+                    .foregroundColor(ReflectionTheme.mutedText)
+                }
+            }
         }
+    }
+
+    private var isTruncatable: Bool { event.text.count > previewLimit }
+
+    private var displayText: String {
+        guard isTruncatable, !showFull else { return event.text }
+        return String(event.text.prefix(previewLimit)) + "…"
     }
 }

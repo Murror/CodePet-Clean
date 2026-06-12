@@ -94,6 +94,13 @@ class AppState: ObservableObject {
     @Published var showTierUnlock: Bool = false
     @Published var newTierNum: Int = 0
 
+    // Skill "Leveled Up" celebration (set when a skill's exercises hit 100%).
+    // Transient UI state — not persisted.
+    @Published var skillCelebration: SkillCelebration? = nil
+
+    // Per-exercise "Exercise complete!" celebration (full-screen, at root).
+    @Published var exerciseCelebration: ExerciseCelebration? = nil
+
     // Auto-save cancellable
     private var saveCancellable: AnyCancellable?
 

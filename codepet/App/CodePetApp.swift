@@ -73,14 +73,16 @@ struct CodePetApp: App {
                     // populated on day one (every exercise runs on the sandbox
                     // regardless — see PracticeSandbox / ExerciseWorkspaceView).
                     //
-                    // We also additively merge in any exercises a returning user is
-                    // missing (new skills / new difficulty tiers shipped after their
-                    // first launch). We dedupe by the stable (skillId, difficulty)
-                    // pair — NOT by challenge id, because ids embed
-                    // `projectPath.hashValue` and Swift randomizes String.hashValue
-                    // per process, so ids aren't comparable across launches. Matching
-                    // on (skillId, difficulty) makes this idempotent: once every combo
-                    // is present, nothing is appended on later launches.
+                    // For a returning user we (a) refresh the copy of every existing
+                    // exercise from the latest catalog and (b) additively merge in any
+                    // exercises they're missing (new skills / difficulty tiers). Both
+                    // key off the stable (skillId, difficulty) pair — NOT the challenge
+                    // id, because ids embed `projectPath.hashValue` and Swift randomizes
+                    // String.hashValue per process, so ids aren't comparable across
+                    // launches. The refresh rebuilds each challenge with the latest
+                    // title/description/criteria but KEEPS its existing id, so completion
+                    // state and in-progress work survive content edits. Idempotent: once
+                    // every combo is present, nothing is appended.
                     let topProject = projectStore.projects.values
                         .sorted(by: { $0.lastSeenAt > $1.lastSeenAt }).first
                     let generated = ChallengeGenerator.generateAll(
@@ -91,16 +93,34 @@ struct CodePetApp: App {
                         challengeProgress.activeChallenges = generated
                         challengeProgress.save()
                     } else {
+                        let freshByKey = Dictionary(
+                            generated.map { ("\($0.skillId)|\($0.difficulty.rawValue)", $0) },
+                            uniquingKeysWith: { first, _ in first }
+                        )
+                        // Refresh copy on existing challenges, preserving their ids.
+                        challengeProgress.activeChallenges = challengeProgress.activeChallenges.map { existing in
+                            guard let fresh = freshByKey["\(existing.skillId)|\(existing.difficulty.rawValue)"] else {
+                                return existing
+                            }
+                            return SkillChallenge(
+                                id: existing.id,
+                                skillId: existing.skillId,
+                                title: fresh.title,
+                                description: fresh.description,
+                                acceptanceCriteria: fresh.acceptanceCriteria,
+                                difficulty: existing.difficulty,
+                                projectPath: existing.projectPath
+                            )
+                        }
+                        // Append any combos the returning user doesn't have yet.
                         let have = Set(challengeProgress.activeChallenges.map {
                             "\($0.skillId)|\($0.difficulty.rawValue)"
                         })
                         let missing = generated.filter {
                             !have.contains("\($0.skillId)|\($0.difficulty.rawValue)")
                         }
-                        if !missing.isEmpty {
-                            challengeProgress.activeChallenges.append(contentsOf: missing)
-                            challengeProgress.save()
-                        }
+                        challengeProgress.activeChallenges.append(contentsOf: missing)
+                        challengeProgress.save()
                     }
                     reflectionComposition.sessionEnricher.projectStore = projectStore
                     reflectionComposition.updateLanguage(appState.uiLanguage)

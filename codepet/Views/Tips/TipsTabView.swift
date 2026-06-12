@@ -110,7 +110,7 @@ struct TipsTabView: View {
                     .font(ReflectionTheme.serif(28, weight: .medium))
                     .foregroundColor(ReflectionTheme.primaryText)
 
-                Text(uiLanguage == .vi ? "Mẹo vibe-coding của bạn" : "Your vibe-coding tips")
+                Text(uiLanguage == .vi ? "Mẹo agentic coding của bạn" : "Your agentic coding tips")
                     .font(ReflectionTheme.sans(13))
                     .foregroundColor(ReflectionTheme.mutedText)
             }
@@ -331,7 +331,7 @@ struct TipsTabView: View {
     private var skillsSection: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
-                Eyebrow(text: uiLanguage == .vi ? "Kỹ năng vibe-coding" : "Vibe-coding skills")
+                Eyebrow(text: uiLanguage == .vi ? "Kỹ năng agentic coding" : "Agentic coding skills")
                 Spacer()
                 let mastered = tipsState.masteredCount(for: appState.activeChar)
                 Text(uiLanguage == .vi

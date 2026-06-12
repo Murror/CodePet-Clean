@@ -114,7 +114,7 @@ final class ReflectionEventStore: ObservableObject {
                 type: raw.type,
                 isoTime: raw.time,
                 sessionId: raw.session_id ?? "",
-                text: raw.text,
+                text: JSONLEvent.truncated(raw.text),
                 cwd: raw.cwd ?? "",
                 path: raw.path ?? ""
             ))
@@ -127,6 +127,11 @@ final class ReflectionEventStore: ObservableObject {
         if events.count > maxRetainedEvents {
             events.removeFirst(events.count - maxRetainedEvents)
         }
+        // NOTE: rawJSONLEvents is intentionally NOT capped — it is the source
+        // TurnAssembler uses to build the full session list (ReflectionTab:68),
+        // so trimming it would make older sessions disappear and chop large
+        // sessions to a fragment. Measured event text is tiny (~0.16 MB for all
+        // 3k+ events), so the unbounded array is not the memory concern.
     }
 
 }
@@ -147,7 +152,7 @@ private struct JSONLEvent: Decodable {
             time: Self.formatHHmm(time),
             isoTime: time,
             source: .claudeCode,
-            text: text,
+            text: Self.truncated(text),
             aiSummary: nil,
             trigger: nil,
             context: nil,
@@ -155,6 +160,17 @@ private struct JSONLEvent: Decodable {
             cwd: cwd,
             path: path
         )
+    }
+
+    /// The Reflection tab is a narrative surface, not a full transcript viewer.
+    /// Event bodies can be file diffs, whole file contents, or full command
+    /// output — capping them keeps a long session from holding megabytes of raw
+    /// text in memory. The marker makes truncation visible if anyone inspects it.
+    static let maxEventTextLength = 4_000
+
+    static func truncated(_ text: String) -> String {
+        guard text.count > maxEventTextLength else { return text }
+        return String(text.prefix(maxEventTextLength)) + "\n…(truncated)"
     }
 
     private static let isoFormatter: ISO8601DateFormatter = {

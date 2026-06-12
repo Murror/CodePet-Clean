@@ -661,6 +661,253 @@ struct LevelUpOverlay: View {
     }
 }
 
+// MARK: - Skill "Leveled Up" Celebration (Duolingo-style)
+
+/// Payload describing which skill just reached 100% completion.
+struct SkillCelebration: Identifiable, Equatable {
+    let id = UUID()
+    let skillTitle: String
+    let colorHex: String
+    let exerciseCount: Int
+}
+
+/// Full-screen celebration shown when every exercise in a skill is complete.
+/// Mirrors Duolingo's "Perfect lesson!" screen: character + confetti, a bold
+/// headline, stat cards that pop in one-by-one, then a claim button.
+struct SkillLeveledUpOverlay: View {
+    let celebration: SkillCelebration
+    let characterId: String
+    var onDismiss: () -> Void = {}
+
+    @Environment(\.uiLanguage) private var uiLanguage
+
+    @State private var appeared = false
+    @State private var showHeadline = false
+    @State private var visibleCards = 0
+    @State private var showButton = false
+    @State private var bounce = false
+
+    private let ink = Color(hex: "#2D2B26")
+    private var color: Color { Color(hex: celebration.colorHex) }
+
+    private struct Stat { let icon: String; let value: String; let label: String; let tint: Color }
+
+    private var stats: [Stat] {
+        [
+            Stat(icon: "checkmark.seal.fill",
+                 value: "\(celebration.exerciseCount)",
+                 label: uiLanguage == .vi ? "BÀI TẬP" : "EXERCISES",
+                 tint: color),
+            Stat(icon: "target",
+                 value: "100%",
+                 label: uiLanguage == .vi ? "HOÀN TẤT" : "COMPLETE",
+                 tint: Color(hex: "#029902")),
+            Stat(icon: "trophy.fill",
+                 value: "+1",
+                 label: uiLanguage == .vi ? "CẤP" : "LEVEL",
+                 tint: Color(hex: "#D49700")),
+        ]
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(appeared ? 0.45 : 0)
+                .ignoresSafeArea()
+                .onTapGesture { dismiss() }
+
+            VStack(spacing: 18) {
+                // Character + confetti burst
+                ZStack {
+                    if showHeadline {
+                        ConfettiBurstView(count: 38,
+                                          colors: [color, .yellow, .orange,
+                                                   Color(hex: "#7CE0A3"), .pink])
+                    }
+                    CharacterImage(characterId, size: 116)
+                        .scaleEffect(bounce ? 1.04 : 1.0)
+                }
+                .frame(height: 124)
+
+                // Headline + subtitle
+                VStack(spacing: 6) {
+                    Text(uiLanguage == .vi ? "Lên cấp!" : "Leveled Up!")
+                        .font(CodepetTheme.pixel(30))
+                        .foregroundColor(Color(hex: "#FFCC33"))
+                    Text(uiLanguage == .vi
+                         ? "Hoàn thành \(celebration.skillTitle)!"
+                         : "\(celebration.skillTitle) complete!")
+                        .font(.pixelSystem(size: 13))
+                        .foregroundColor(ink.opacity(0.55))
+                        .multilineTextAlignment(.center)
+                }
+                .opacity(showHeadline ? 1 : 0)
+                .offset(y: showHeadline ? 0 : 8)
+
+                // Stat cards (pop in one-by-one)
+                HStack(spacing: 10) {
+                    ForEach(Array(stats.enumerated()), id: \.offset) { idx, stat in
+                        statCard(stat)
+                            .scaleEffect(idx < visibleCards ? 1 : 0.6)
+                            .opacity(idx < visibleCards ? 1 : 0)
+                    }
+                }
+
+                // Claim button
+                Button(action: { dismiss() }) {
+                    Text(uiLanguage == .vi ? "Tuyệt vời!" : "Awesome!")
+                }
+                .buttonStyle(PixelButtonStyle(
+                    fill: color, foreground: .white,
+                    paddingH: 28, paddingV: 12,
+                    font: .pixelSystem(size: 15, weight: .bold)))
+                .opacity(showButton ? 1 : 0)
+                .padding(.top, 2)
+            }
+            .padding(28)
+            .frame(width: 380)
+            .background(PixelStaircaseRectangle(blockSize: 4, steps: 2).fill(Color(hex: "#FDFCFF")))
+            .overlay(PixelStaircaseRectangle(blockSize: 4, steps: 2).stroke(ink, lineWidth: 3))
+            .background(PixelStaircaseRectangle(blockSize: 4, steps: 2).fill(ink).offset(x: 4, y: 4))
+            .scaleEffect(appeared ? 1 : 0.8)
+            .opacity(appeared ? 1 : 0)
+        }
+        .onAppear(perform: runSequence)
+    }
+
+    private func statCard(_ stat: Stat) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: stat.icon)
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(stat.tint)
+            Text(stat.value)
+                .font(.pixelSystem(size: 16, weight: .bold))
+                .foregroundColor(ink)
+            Text(stat.label)
+                .font(.pixelSystem(size: 8, weight: .bold))
+                .tracking(0.5)
+                .foregroundColor(ink.opacity(0.4))
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .background(PixelStaircaseRectangle(blockSize: 2, steps: 2).fill(stat.tint.opacity(0.10)))
+        .overlay(PixelStaircaseRectangle(blockSize: 2, steps: 2).stroke(stat.tint.opacity(0.35), lineWidth: 1.5))
+    }
+
+    private func runSequence() {
+        SoundManager.shared.playLevelUp()
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) { appeared = true }
+        withAnimation(.spring(response: 0.6).delay(0.25)) { showHeadline = true }
+        // Pop the stat cards in one-by-one.
+        for i in 1...stats.count {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.6)
+                .delay(0.35 + Double(i) * 0.12)) {
+                visibleCards = i
+            }
+        }
+        withAnimation(.easeOut(duration: 0.3)
+            .delay(0.35 + Double(stats.count) * 0.12 + 0.1)) {
+            showButton = true
+        }
+        // Gentle idle bounce on the character.
+        withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true).delay(0.5)) {
+            bounce = true
+        }
+    }
+
+    private func dismiss() {
+        withAnimation(.easeOut(duration: 0.25)) { appeared = false }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) { onDismiss() }
+    }
+}
+
+// MARK: - Per-Exercise "Exercise complete!" Celebration
+
+/// Payload for the full-screen reward shown after completing one exercise.
+struct ExerciseCelebration: Identifiable, Equatable {
+    let id = UUID()
+    let earnedXP: Int
+    let nextChallengeId: String?   // nil = this was the last exercise
+}
+
+/// Full-screen reward shown after each exercise: dimmed backdrop + a centered
+/// pixel card (pet + confetti + "Exercise complete!" + XP), with the Next /
+/// Finish button fading in a beat later. `onAdvance` moves to the next exercise
+/// (or finishes the skill).
+struct ExerciseCompleteOverlay: View {
+    let characterId: String
+    let earnedXP: Int
+    let isLast: Bool
+    var onAdvance: () -> Void = {}
+
+    @State private var appeared = false
+    @State private var showNext = false
+    @State private var bounce = false
+
+    private let ink = Color(hex: "#2D2B26")
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(appeared ? 0.5 : 0)
+                .ignoresSafeArea()
+
+            ZStack {
+                if appeared {
+                    ConfettiBurstView(count: 28, colors: [
+                        Color(hex: "#3FA66A"), Color(hex: "#FFCC33"),
+                        Color(hex: "#7C3AED"), Color(hex: "#E0508C")
+                    ])
+                }
+
+                VStack(spacing: 14) {
+                    CharacterImage(characterId, size: 96)
+                        .scaleEffect(bounce ? 1.05 : 1.0)
+
+                    Text("Exercise complete!")
+                        .font(CodepetTheme.pixel(24))
+                        .foregroundColor(ink)
+
+                    HStack(spacing: 6) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(Color(hex: "#E0A800"))
+                        Text("+\(earnedXP) XP")
+                            .font(.pixelSystem(size: 15, weight: .bold))
+                            .foregroundColor(ink)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .background(PixelStaircaseRectangle(blockSize: 2, steps: 1).fill(Color(hex: "#FFF6D9")))
+                    .overlay(PixelStaircaseRectangle(blockSize: 2, steps: 1).stroke(Color(hex: "#E0A800"), lineWidth: 1.5))
+
+                    if showNext {
+                        Button(isLast ? "Finish" : "Next") { onAdvance() }
+                            .buttonStyle(PixelButtonStyle(
+                                fill: Color(hex: "#3FA66A"), foreground: .white,
+                                paddingH: 26, paddingV: 12,
+                                font: .pixelSystem(size: 16, weight: .bold)))
+                            .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    }
+                }
+                .padding(32)
+            }
+            .frame(width: 360)
+            .background(PixelStaircaseRectangle(blockSize: 4, steps: 2).fill(Color(hex: "#FDFCFF")))
+            .overlay(PixelStaircaseRectangle(blockSize: 4, steps: 2).stroke(ink, lineWidth: 3))
+            .background(PixelStaircaseRectangle(blockSize: 4, steps: 2).fill(ink).offset(x: 4, y: 4))
+            .scaleEffect(appeared ? 1 : 0.85)
+            .opacity(appeared ? 1 : 0)
+        }
+        .onAppear {
+            SoundManager.shared.playTap()
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { appeared = true }
+            withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true).delay(0.3)) { bounce = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) { showNext = true }
+            }
+        }
+    }
+}
+
 // MARK: - Tier Unlock Overlay
 
 struct TierUnlockOverlay: View {

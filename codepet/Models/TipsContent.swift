@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-/// A pet-specialized vibe-coding skill tile shown in the Tips tab.
+/// A pet-specialized agentic-coding skill tile shown in the Tips tab.
 struct TipSkillTile {
     let icon: String   // SF Symbol name
     let title: L10n
@@ -112,48 +112,48 @@ struct TipsContent {
                 icon: "arrow.clockwise",
                 title: L10n(vi: "Endpoint idempotent", en: "Idempotent endpoints"),
                 hint: L10n(
-                    vi: "Làm cho POST an toàn khi retry. Mất mạng không được phép tính tiền người dùng hai lần.",
-                    en: "Make POST safe to retry. Network drops shouldn't double-charge users."
+                    vi: "Để agent làm POST an toàn khi retry — rồi bắt nó chứng minh: gọi lại đúng request hai lần và kiểm tra không có gì bị tính đôi.",
+                    en: "Have the agent make POST safe to retry — then make it prove it: replay the same call twice and check nothing doubles."
                 )
             ),
             TipSkillTile(
                 icon: "server.rack",
                 title: L10n(vi: "Transaction trong DB", en: "Database transactions"),
                 hint: L10n(
-                    vi: "Bọc các thao tác ghi nhiều bước. Một lỗi không được phép để lại dữ liệu nửa chừng.",
-                    en: "Wrap multi-step writes. One failure shouldn't leave data half-baked."
+                    vi: "Bảo agent bọc thao tác ghi nhiều bước — rồi đọc diff để chắc rằng một lỗi giữa chừng không để lại dữ liệu nửa vời.",
+                    en: "Tell the agent to wrap the multi-step write — then read the diff to confirm a mid-way failure can't leave data half-baked."
                 )
             ),
             TipSkillTile(
                 icon: "clock.arrow.circlepath",
                 title: L10n(vi: "Background job", en: "Background jobs"),
                 hint: L10n(
-                    vi: "Việc gì chậm thì cho vào queue. Để người dùng đợi là mất người dùng.",
-                    en: "Anything slow goes in a queue. Block the user, lose the user."
+                    vi: "Để agent đẩy việc chậm vào queue — bạn là người quyết việc nào 'chậm' đến mức không được bắt người dùng đợi.",
+                    en: "Have the agent move the slow work to a queue — you decide what counts as 'slow' enough to never block a user."
                 )
             ),
             TipSkillTile(
                 icon: "gauge.high",
                 title: L10n(vi: "Rate limit cho API", en: "API rate limiting"),
                 hint: L10n(
-                    vi: "Bảo vệ prod khỏi bị lạm dụng — và bảo vệ chính bạn khỏi script chạy loạn.",
-                    en: "Protect prod from abuse — and yourself from runaway scripts."
+                    vi: "Để agent thêm rate limit — rồi tự tông vào nó bằng một script chạy loạn trước khi kẻ xấu làm điều đó.",
+                    en: "Let the agent add the limiter — then try to break it with a runaway script before an attacker does."
                 )
             ),
             TipSkillTile(
                 icon: "macbook.and.iphone",
                 title: L10n(vi: "Responsive layout", en: "Responsive layout"),
                 hint: L10n(
-                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
-                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                    vi: "Để agent dựng layout cho cả điện thoại lẫn máy tính — rồi tự kéo co cửa sổ và bắt những chỗ vỡ.",
+                    en: "Have the agent build the phone and desktop layouts — then resize the window yourself and catch what breaks."
                 )
             ),
             TipSkillTile(
                 icon: "speedometer",
                 title: L10n(vi: "Hiệu năng", en: "Performance"),
                 hint: L10n(
-                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
-                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
+                    vi: "Bảo agent profile và tối ưu — nhưng tự đo trước và sau. Tin số liệu, đừng tin cảm giác.",
+                    en: "Ask the agent to profile and optimize — but measure before and after yourself. Numbers, not vibes."
                 )
             ),
         ],
@@ -164,48 +164,48 @@ struct TipsContent {
                 icon: "square.on.square",
                 title: L10n(vi: "Ghép component", en: "Component composition"),
                 hint: L10n(
-                    vi: "Các mảnh nhỏ tái sử dụng được luôn thắng một component khổng lồ.",
-                    en: "Small reusable pieces beat one giant component every time."
+                    vi: "Bảo agent tách ra những mảnh tái sử dụng được — rồi soi chỗ ghép: bạn có dùng lại được không, hay nó chỉ chia nhỏ file cho có?",
+                    en: "Get the agent to extract reusable pieces — then review the seams: would you actually reuse them, or did it just split files?"
                 )
             ),
             TipSkillTile(
                 icon: "exclamationmark.triangle",
                 title: L10n(vi: "Loading & error state", en: "Loading & error states"),
                 hint: L10n(
-                    vi: "Mọi call async đều cần spinner và fallback. Không có ngoại lệ.",
-                    en: "Every async call needs a spinner and a fallback. No exceptions."
+                    vi: "Bắt agent xử lý mọi nhánh async — rồi tự kiểm fallback bằng cách ngắt mạng giữa chừng.",
+                    en: "Make the agent handle every async path — then check the fallbacks yourself by killing the network mid-load."
                 )
             ),
             TipSkillTile(
                 icon: "checkmark.rectangle.stack",
                 title: L10n(vi: "UX kiểm tra form", en: "Form validation UX"),
                 hint: L10n(
-                    vi: "Hãy hữu ích, đừng khó tính. Kiểm tra trong lúc người dùng gõ, không phải khi họ submit.",
-                    en: "Be helpful, not pedantic. Validate as users type, not on submit."
+                    vi: "Để agent kiểm tra ngay khi người dùng gõ — bạn là người quyết khi nào 'hữu ích' biến thành 'khó tính'.",
+                    en: "Have the agent validate as the user types — you're the one who decides where 'helpful' turns into 'pedantic'."
                 )
             ),
             TipSkillTile(
                 icon: "figure.walk",
                 title: L10n(vi: "Cơ bản về Accessibility", en: "Accessibility basics"),
                 hint: L10n(
-                    vi: "Điều hướng bàn phím, độ tương phản, alt text. A11y là một phần của ship, không phải thêm thắt.",
-                    en: "Keyboard nav, contrast, alt text. A11y is shipping, not extra."
+                    vi: "Bảo agent lo điều hướng bàn phím, độ tương phản, alt text — rồi tự tab qua từng phần, không đụng tới chuột.",
+                    en: "Ask the agent for keyboard nav, contrast, and alt text — then tab through it yourself with the mouse untouched."
                 )
             ),
             TipSkillTile(
                 icon: "macbook.and.iphone",
                 title: L10n(vi: "Responsive layout", en: "Responsive layout"),
                 hint: L10n(
-                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
-                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                    vi: "Để agent dựng layout cho cả điện thoại lẫn máy tính — rồi tự kéo co cửa sổ và bắt những chỗ vỡ.",
+                    en: "Have the agent build the phone and desktop layouts — then resize the window yourself and catch what breaks."
                 )
             ),
             TipSkillTile(
                 icon: "speedometer",
                 title: L10n(vi: "Hiệu năng", en: "Performance"),
                 hint: L10n(
-                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
-                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
+                    vi: "Bảo agent profile và tối ưu — nhưng tự đo trước và sau. Tin số liệu, đừng tin cảm giác.",
+                    en: "Ask the agent to profile and optimize — but measure before and after yourself. Numbers, not vibes."
                 )
             ),
         ],
@@ -216,48 +216,48 @@ struct TipsContent {
                 icon: "ruler",
                 title: L10n(vi: "Khoảng cách & nhịp", en: "Spacing & rhythm"),
                 hint: L10n(
-                    vi: "Chọn thang 4 hoặc 8 px. Dùng khắp nơi. Sự nhất quán là lòng tốt vô hình.",
-                    en: "Pick a 4 or 8 px scale. Use it everywhere. Consistency is invisible kindness."
+                    vi: "Đưa agent thang 4 hoặc 8px và bắt nó tuân theo — rồi rà màn hình tìm cái giá trị duy nhất lọt lưới.",
+                    en: "Give the agent a 4 or 8 px scale and make it stick to it — then scan the screen for the one value that escaped."
                 )
             ),
             TipSkillTile(
                 icon: "textformat.size",
                 title: L10n(vi: "Hệ phân cấp font chữ", en: "Type hierarchy"),
                 hint: L10n(
-                    vi: "Tối đa ba size trong một màn hình. To, vừa, nhỏ. Vậy thôi.",
-                    en: "Three sizes max in one screen. Big, medium, small. That's it."
+                    vi: "Ra lệnh cho agent: tối đa ba size. Rồi nhìn lại — to, vừa, nhỏ có thực sự dẫn mắt bạn đi không?",
+                    en: "Tell the agent: three sizes max. Then read the result — did big, medium, small actually guide your eye?"
                 )
             ),
             TipSkillTile(
                 icon: "circle.lefthalf.filled",
                 title: L10n(vi: "Độ tương phản màu", en: "Color contrast"),
                 hint: L10n(
-                    vi: "Chữ thân bài cần tương phản 4.5:1 với nền. Đo đi, đừng nhìn bằng mắt.",
-                    en: "Body text needs 4.5:1 against background. Test it, don't eyeball it."
+                    vi: "Để agent đạt 4.5:1 cho chữ thân bài — rồi tự chạy số, đừng tin con mắt trên màn hình xịn của bạn.",
+                    en: "Have the agent hit 4.5:1 on body text — then run the numbers, don't trust how it looks on your nice monitor."
                 )
             ),
             TipSkillTile(
                 icon: "tray",
                 title: L10n(vi: "Trạng thái rỗng", en: "Empty states"),
                 hint: L10n(
-                    vi: "Mọi danh sách đều có lúc bằng không. Hãy thiết kế view đó kỹ như view có đầy đủ.",
-                    en: "Every list has zero. Design that view as carefully as the full one."
+                    vi: "Bảo agent thiết kế view rỗng kỹ như view đầy — bạn kiểm xem nó có bị làm cho qua loa không.",
+                    en: "Ask the agent to design the zero-item view as carefully as the full one — you check it's not an afterthought."
                 )
             ),
             TipSkillTile(
                 icon: "macbook.and.iphone",
                 title: L10n(vi: "Responsive layout", en: "Responsive layout"),
                 hint: L10n(
-                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
-                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                    vi: "Để agent dựng layout cho cả điện thoại lẫn máy tính — rồi tự kéo co cửa sổ và bắt những chỗ vỡ.",
+                    en: "Have the agent build the phone and desktop layouts — then resize the window yourself and catch what breaks."
                 )
             ),
             TipSkillTile(
                 icon: "speedometer",
                 title: L10n(vi: "Hiệu năng", en: "Performance"),
                 hint: L10n(
-                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
-                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
+                    vi: "Bảo agent profile và tối ưu — nhưng tự đo trước và sau. Tin số liệu, đừng tin cảm giác.",
+                    en: "Ask the agent to profile and optimize — but measure before and after yourself. Numbers, not vibes."
                 )
             ),
         ],
@@ -268,48 +268,48 @@ struct TipsContent {
                 icon: "checkmark.seal",
                 title: L10n(vi: "Định nghĩa \"xong\", không phải tính năng", en: "Define done, not features"),
                 hint: L10n(
-                    vi: "\"Xong\" là kiểm chứng được. \"Tính năng\" là mơ ước. Hãy spec phần bằng chứng, không phải phần việc.",
-                    en: "Done is testable. 'Feature' is wishful. Spec the proof, not the work."
+                    vi: "Spec cho agent phần bằng chứng, không phải phần việc — \"xong\" là thứ nó kiểm chứng được, không phải thứ bạn mong.",
+                    en: "Spec the agent the proof, not the work — 'done' is something it can verify, not something you hope for."
                 )
             ),
             TipSkillTile(
                 icon: "person.text.rectangle",
                 title: L10n(vi: "User story", en: "User stories"),
                 hint: L10n(
-                    vi: "Là [ai], tôi [muốn] để [kết quả]. Thiếu chữ \"để\" là chỗ scope bị trôi.",
-                    en: "As a [who], I [want] so I [outcome]. Missing the 'so' is where scope drifts."
+                    vi: "Đưa agent đủ [ai] / [muốn] / [để] — bỏ mất chữ \"để\" là nó sẽ chăm chỉ làm sai thứ bạn cần.",
+                    en: "Hand the agent the [who] / [want] / [so] — drop the 'so' and it'll happily build the wrong thing well."
                 )
             ),
             TipSkillTile(
                 icon: "scissors",
                 title: L10n(vi: "Cắt scope, không cắt chất lượng", en: "Cut scope, not quality"),
                 hint: L10n(
-                    vi: "Khi bị ép, bỏ tính năng. Chất lượng là không thương lượng.",
-                    en: "When pressed, drop features. Quality is non-negotiable."
+                    vi: "Khi hết giờ, bảo agent bỏ tính năng nào — đừng bao giờ bảo nó cắt góc chất lượng.",
+                    en: "When time's short, tell the agent which features to drop — never which corners to cut."
                 )
             ),
             TipSkillTile(
                 icon: "person.3",
                 title: L10n(vi: "Sắp xếp các bên liên quan", en: "Stakeholder triage"),
                 hint: L10n(
-                    vi: "Biết ai quyết, ai khuyên, ai chỉ được báo. Đừng lẫn lộn ba bên này.",
-                    en: "Know who decides, who advises, who's just informed. Don't confuse the three."
+                    vi: "Cho agent biết ai quyết, ai khuyên, ai chỉ được báo — bối cảnh nó không đoán được, nhưng sẽ hành động dựa vào.",
+                    en: "Tell the agent who decides, who advises, who's just informed — context it can't guess but will act on."
                 )
             ),
             TipSkillTile(
                 icon: "macbook.and.iphone",
                 title: L10n(vi: "Responsive layout", en: "Responsive layout"),
                 hint: L10n(
-                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
-                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                    vi: "Để agent dựng layout cho cả điện thoại lẫn máy tính — rồi tự kéo co cửa sổ và bắt những chỗ vỡ.",
+                    en: "Have the agent build the phone and desktop layouts — then resize the window yourself and catch what breaks."
                 )
             ),
             TipSkillTile(
                 icon: "speedometer",
                 title: L10n(vi: "Hiệu năng", en: "Performance"),
                 hint: L10n(
-                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
-                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
+                    vi: "Bảo agent profile và tối ưu — nhưng tự đo trước và sau. Tin số liệu, đừng tin cảm giác.",
+                    en: "Ask the agent to profile and optimize — but measure before and after yourself. Numbers, not vibes."
                 )
             ),
         ],
@@ -320,48 +320,48 @@ struct TipsContent {
                 icon: "doc.text.below.ecg",
                 title: L10n(vi: "Hạ tầng dạng code", en: "Infra as code"),
                 hint: L10n(
-                    vi: "Nếu không tái tạo được từ một repo thì đó không phải hạ tầng. Đó là một điều ước.",
-                    en: "If it can't be reproduced from a repo, it's not infrastructure. It's a wish."
+                    vi: "Bắt agent viết hạ tầng tái tạo được từ repo — rồi xoá sạch và dựng lại để chứng minh đó không phải một điều ước.",
+                    en: "Make the agent write infra you can reproduce from the repo — then tear it down and rebuild to prove it wasn't a wish."
                 )
             ),
             TipSkillTile(
                 icon: "arrow.triangle.2.circlepath",
                 title: L10n(vi: "Pipeline CI/CD", en: "CI/CD pipelines"),
                 hint: L10n(
-                    vi: "Đỏ trên main = không gì khác được đi tiếp đến khi xanh trở lại. Không ngoại lệ.",
-                    en: "Red on main = nothing else moves until it's green. No exceptions."
+                    vi: "Để agent dựng pipeline — nhưng bạn giữ luật: đỏ trên main thì không gì đi tiếp đến khi xanh trở lại.",
+                    en: "Have the agent wire the pipeline — but you hold the rule: red on main, nothing moves until it's green."
                 )
             ),
             TipSkillTile(
                 icon: "list.bullet.indent",
                 title: L10n(vi: "Log > metric > alert", en: "Logs > metrics > alerts"),
                 hint: L10n(
-                    vi: "Log mọi thứ, đo điều quan trọng, chỉ alert khi cần đánh thức ai đó.",
-                    en: "Log everything, measure what matters, alert only on what wakes someone."
+                    vi: "Để agent log khắp nơi — bạn chọn danh sách ngắn những thứ đáng đánh thức ai đó lúc 3 giờ sáng.",
+                    en: "Let the agent add logging everywhere — you decide the short list worth waking someone at 3am."
                 )
             ),
             TipSkillTile(
                 icon: "exclamationmark.triangle.fill",
                 title: L10n(vi: "Diễn tập phục hồi sự cố", en: "Disaster recovery drills"),
                 hint: L10n(
-                    vi: "Prod sẽ hỏng. Tập dượt bây giờ hoặc hoảng loạn sau. Chọn một.",
-                    en: "Prod will fail. Practice it now or panic later. Pick one."
+                    vi: "Bảo agent viết kịch bản phục hồi — rồi diễn tập thật, vì prod sẽ hỏng đúng lúc bạn đang ngủ.",
+                    en: "Ask the agent to script the recovery — then actually run the drill, because prod will fail while you're asleep."
                 )
             ),
             TipSkillTile(
                 icon: "macbook.and.iphone",
                 title: L10n(vi: "Responsive layout", en: "Responsive layout"),
                 hint: L10n(
-                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
-                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                    vi: "Để agent dựng layout cho cả điện thoại lẫn máy tính — rồi tự kéo co cửa sổ và bắt những chỗ vỡ.",
+                    en: "Have the agent build the phone and desktop layouts — then resize the window yourself and catch what breaks."
                 )
             ),
             TipSkillTile(
                 icon: "speedometer",
                 title: L10n(vi: "Hiệu năng", en: "Performance"),
                 hint: L10n(
-                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
-                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
+                    vi: "Bảo agent profile và tối ưu — nhưng tự đo trước và sau. Tin số liệu, đừng tin cảm giác.",
+                    en: "Ask the agent to profile and optimize — but measure before and after yourself. Numbers, not vibes."
                 )
             ),
         ],
@@ -372,48 +372,48 @@ struct TipsContent {
                 icon: "square.grid.3x3",
                 title: L10n(vi: "Chất lượng dữ liệu trước", en: "Data quality first"),
                 hint: L10n(
-                    vi: "Rác vào, rác ra. 80% công sức cho dữ liệu, 20% cho model.",
-                    en: "Garbage in, garbage out. 80% of effort goes on data, 20% on the model."
+                    vi: "Hướng agent vào dữ liệu trước khi vào model — 80% thắng lợi nằm ở việc dọn sạch cái bạn đưa cho nó.",
+                    en: "Point the agent at the data before the model — 80% of the win is cleaning what you feed it."
                 )
             ),
             TipSkillTile(
                 icon: "chart.line.uptrend.xyaxis",
                 title: L10n(vi: "Kỷ luật train / val / test", en: "Train / val / test discipline"),
                 hint: L10n(
-                    vi: "Ba bộ. Đừng đụng vào test cho đến cuối. Đụng sớm là gian lận.",
-                    en: "Three sets. Never touch test until the end. Touching it early is cheating."
+                    vi: "Để agent chia ba bộ — và cấm nó đụng vào test cho đến cuối. Nhìn lén sớm là gian lận.",
+                    en: "Have the agent split three ways — and forbid it from touching test until the end. Early peeking is cheating."
                 )
             ),
             TipSkillTile(
                 icon: "chart.bar.xaxis",
                 title: L10n(vi: "Đánh giá vượt qua accuracy", en: "Eval beyond accuracy"),
                 hint: L10n(
-                    vi: "Accuracy nói dối trên dữ liệu mất cân bằng. Dùng precision, recall, F1, AUC.",
-                    en: "Accuracy lies on imbalanced data. Use precision, recall, F1, AUC."
+                    vi: "Bắt agent báo cáo precision, recall, F1, AUC — chỉ mỗi accuracy sẽ nói dối bạn trên dữ liệu mất cân bằng.",
+                    en: "Make the agent report precision, recall, F1, AUC — accuracy alone will lie to you on imbalanced data."
                 )
             ),
             TipSkillTile(
                 icon: "drop.fill",
                 title: L10n(vi: "Pipeline đặc trưng", en: "Feature pipelines"),
                 hint: L10n(
-                    vi: "Nếu không tái tạo được feature, bạn không tái tạo được kết quả.",
-                    en: "If you can't reproduce features, you can't reproduce results."
+                    vi: "Để agent làm feature tái tạo được — không dựng lại được thì cũng không tin được kết quả nó đưa.",
+                    en: "Have the agent make features reproducible — if you can't rebuild them, you can't trust the result it gave you."
                 )
             ),
             TipSkillTile(
                 icon: "macbook.and.iphone",
                 title: L10n(vi: "Responsive layout", en: "Responsive layout"),
                 hint: L10n(
-                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
-                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                    vi: "Để agent dựng layout cho cả điện thoại lẫn máy tính — rồi tự kéo co cửa sổ và bắt những chỗ vỡ.",
+                    en: "Have the agent build the phone and desktop layouts — then resize the window yourself and catch what breaks."
                 )
             ),
             TipSkillTile(
                 icon: "speedometer",
                 title: L10n(vi: "Hiệu năng", en: "Performance"),
                 hint: L10n(
-                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
-                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
+                    vi: "Bảo agent profile và tối ưu — nhưng tự đo trước và sau. Tin số liệu, đừng tin cảm giác.",
+                    en: "Ask the agent to profile and optimize — but measure before and after yourself. Numbers, not vibes."
                 )
             ),
         ],
@@ -424,48 +424,48 @@ struct TipsContent {
                 icon: "battery.50",
                 title: L10n(vi: "Ý thức về pin & mạng", en: "Battery & network awareness"),
                 hint: L10n(
-                    vi: "Tác vụ nền ngốn pin người dùng. Call mạng ngốn niềm tin. Cả hai = gỡ app.",
-                    en: "Background tasks drain users. Network calls drain trust. Both = uninstall."
+                    vi: "Để agent giảm tối đa việc nền và call mạng — rồi tự canh pin; cả hai đều bào mòn niềm tin.",
+                    en: "Have the agent minimize background work and network calls — then watch the battery yourself; both drain trust."
                 )
             ),
             TipSkillTile(
                 icon: "bell.badge",
                 title: L10n(vi: "Phép tắc push notification", en: "Push notification etiquette"),
                 hint: L10n(
-                    vi: "Chỉ ping khi liên quan đến HỌ. Ping marketing = tắt thông báo.",
-                    en: "Notify only when it's about THEM. Marketing pings = settings off."
+                    vi: "Bảo agent chỉ thông báo khi việc đó là về NGƯỜI DÙNG — bạn là bộ lọc chặn spam marketing.",
+                    en: "Tell the agent to notify only when it's about THE USER — you are the filter against marketing spam."
                 )
             ),
             TipSkillTile(
                 icon: "wifi.slash",
                 title: L10n(vi: "Pattern offline-first", en: "Offline-first patterns"),
                 hint: L10n(
-                    vi: "Giả định mạng đã mất. Thiết kế cho nó. Online chỉ là cộng thêm.",
-                    en: "Assume the network is gone. Design for it. Online is a bonus."
+                    vi: "Để agent giả định mất mạng và thiết kế cho điều đó — rồi tự test ở chế độ máy bay, không phải trên wifi.",
+                    en: "Have the agent assume the network is gone and design for it — then test it in airplane mode, not on wifi."
                 )
             ),
             TipSkillTile(
                 icon: "shippingbox",
                 title: L10n(vi: "Kỷ luật kích thước app", en: "App size discipline"),
                 hint: L10n(
-                    vi: "Mỗi MB là rào cản tải về. Bớt asset, lazy-load, ship gọn.",
-                    en: "Every MB is a download barrier. Strip assets, lazy-load, ship lean."
+                    vi: "Bảo agent bỏ asset thừa và lazy-load — bạn canh số MB, vì mỗi megabyte là một rào cản tải về.",
+                    en: "Ask the agent to strip assets and lazy-load — you watch the MB count, because every megabyte is a download barrier."
                 )
             ),
             TipSkillTile(
                 icon: "macbook.and.iphone",
                 title: L10n(vi: "Responsive layout", en: "Responsive layout"),
                 hint: L10n(
-                    vi: "Đẹp trên cả điện thoại lẫn máy tính. Đừng bắt người dùng phải zoom.",
-                    en: "Look right on phones and desktops alike. Don't make users pinch-zoom."
+                    vi: "Để agent dựng layout cho cả điện thoại lẫn máy tính — rồi tự kéo co cửa sổ và bắt những chỗ vỡ.",
+                    en: "Have the agent build the phone and desktop layouts — then resize the window yourself and catch what breaks."
                 )
             ),
             TipSkillTile(
                 icon: "speedometer",
                 title: L10n(vi: "Hiệu năng", en: "Performance"),
                 hint: L10n(
-                    vi: "Tải nhanh, ảnh tối ưu, không giật layout. Tốc độ cũng là tính năng.",
-                    en: "Fast loads, optimized images, no layout jank. Speed is a feature too."
+                    vi: "Bảo agent profile và tối ưu — nhưng tự đo trước và sau. Tin số liệu, đừng tin cảm giác.",
+                    en: "Ask the agent to profile and optimize — but measure before and after yourself. Numbers, not vibes."
                 )
             ),
         ],

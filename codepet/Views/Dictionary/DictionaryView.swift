@@ -83,7 +83,7 @@ struct DictionaryView: View {
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(uiLanguage == .vi ? "TỪ ĐIỂN" : "DICTIONARY")
-                .font(CodepetTheme.pixel(11))
+                .font(CodepetTheme.body(11, weight: .bold))
                 .tracking(1.2)
                 .foregroundColor(CodepetTheme.mutedText)
                 .padding(.horizontal, 20)
@@ -113,7 +113,7 @@ struct DictionaryView: View {
             HStack(spacing: 10) {
                 sidebarIcon(topic.icon, accent: accent, selected: isSelected)
                 Text(topic.title(uiLanguage))
-                    .font(CodepetTheme.pixel(13))
+                    .font(CodepetTheme.body(13, weight: .semibold))
                     .foregroundColor(isSelected ? .white : CodepetTheme.primaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -242,7 +242,7 @@ struct DictionaryView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(CodepetTheme.display(22, weight: .bold))
+                        .font(CodepetTheme.body(22, weight: .bold))
                         .foregroundColor(CodepetTheme.primaryText)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
@@ -368,7 +368,7 @@ struct DictionaryView: View {
                         Text(uiLanguage == .vi
                              ? "Trong \(group.projectName), bạn đang dùng:"
                              : "In \(group.projectName), you're using:")
-                            .font(CodepetTheme.display(14, weight: .bold))
+                            .font(CodepetTheme.body(14, weight: .bold))
                             .foregroundColor(CodepetTheme.primaryText)
                         Spacer()
                         Image(systemName: showProjectPanel ? "chevron.up" : "chevron.down")

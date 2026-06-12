@@ -207,7 +207,16 @@ struct ProfileHeroCard: View {
 struct ProfileStatsBento: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var gameState: GameState
+    @EnvironmentObject var challengeProgress: ChallengeProgress
     @Environment(\.uiLanguage) private var uiLanguage
+
+    /// Agentic-coding exercises completed / available (the active learning loop).
+    private var completedExercises: Int {
+        challengeProgress.activeChallenges.filter {
+            challengeProgress.completedChallengeIds.contains($0.id)
+        }.count
+    }
+    private var totalExercises: Int { challengeProgress.activeChallenges.count }
 
     // Measured width of the section, used to split the top row ~60/40.
     @State private var rowWidth: CGFloat = 0
@@ -272,10 +281,11 @@ struct ProfileStatsBento: View {
             // content (lesson progress, coin context) so the height reads full.
             HStack(spacing: spacing) {
                 ProfileStatChip(accent: CodepetTheme.accentTeal, icon: "book.fill",
-                                value: "\(appState.completedLessons.count)",
-                                label: "Lessons", darkText: true,
-                                progress: Double(appState.completedLessons.count) / Double(max(1, totalLessons)),
-                                footnote: "\(appState.completedLessons.count) of \(totalLessons) completed")
+                                value: "\(completedExercises)",
+                                label: "Exercises", darkText: true,
+                                progress: Double(completedExercises) / Double(max(1, totalExercises)),
+                                footnote: "\(completedExercises) of \(totalExercises) completed",
+                                badge: "\(appState.totalXP) XP")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 ProfileStatChip(accent: CodepetTheme.accentGold, icon: "bitcoinsign.circle.fill",
                                 value: "\(gameState.coins)",
@@ -708,6 +718,8 @@ private struct ProfileStatChip: View {
     var progress: Double? = nil
     /// Caption under the bar / at the bottom of the card.
     var footnote: String? = nil
+    /// Optional trailing badge (e.g. XP earned), shown top-right of the header.
+    var badge: String? = nil
 
     private var ink: Color { darkText ? Color(hex: "#2D2B26") : .white }
 
@@ -736,6 +748,15 @@ private struct ProfileStatChip: View {
                 }
 
                 Spacer(minLength: 0)
+
+                if let badge = badge {
+                    Text(badge)
+                        .font(.pixelSystem(size: 12, weight: .bold))
+                        .foregroundColor(ink)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(ink.opacity(0.18)))
+                }
             }
 
             Spacer(minLength: 0)

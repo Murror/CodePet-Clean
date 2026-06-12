@@ -4,7 +4,7 @@ import Combine
 
 // MARK: - Skill progress tracking
 
-/// Progress for a single vibe-coding skill tile.
+/// Progress for a single agentic-coding skill tile.
 /// Each skill has 5 practice slots (dots); filling all 5 marks it as mastered.
 struct SkillProgress: Codable, Equatable {
     let skillId: String

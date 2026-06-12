@@ -3,7 +3,7 @@ import Foundation
 /// A lightweight, generic grader for the prompt the user writes during an
 /// exercise. Unlike `PromptAnalyzer` (which needs per-scenario required
 /// elements), this scores any prompt on the universal qualities of a good
-/// vibe-coding instruction, so every SkillChallenge can grade a from-scratch
+/// agentic-coding instruction, so every SkillChallenge can grade a from-scratch
 /// prompt without bespoke data. Rule-based — costs zero tokens.
 enum PracticePromptGrader {
 
@@ -12,7 +12,7 @@ enum PracticePromptGrader {
         let letter: String      // S / A / B / C / D
         let checklist: [Check]  // the 4 qualities of a good prompt, met or not
 
-        /// One quality of a good vibe-coding prompt.
+        /// One quality of a good agentic-coding prompt.
         struct Check: Equatable {
             let met: Bool
             let label: String   // short name, e.g. "Names a place"

@@ -1146,7 +1146,10 @@ struct ReflectionTab: View {
 
     @ViewBuilder
     private func sessionBody(for session: Session) -> some View {
-        VStack(alignment: .leading, spacing: 28) {
+        // LazyVStack so long sessions only build turn views as they scroll into
+        // view — a plain VStack materializes every turn (markdown parsing,
+        // glossary scan, typewriter state) the instant the session is opened.
+        LazyVStack(alignment: .leading, spacing: 28) {
             // Session header strip
             sessionHeaderStrip(for: session)
 

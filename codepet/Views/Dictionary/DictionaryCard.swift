@@ -81,7 +81,7 @@ struct DictionaryCard: View {
                 .pixelBox(fill: accentColor, shadowOffset: 2, blockSize: 2, steps: 2, borderWidth: 2)
 
             Text(term.title(uiLanguage))
-                .font(CodepetTheme.display(16, weight: .bold))
+                .font(CodepetTheme.body(16, weight: .bold))
                 .foregroundColor(CodepetTheme.primaryText)
                 .lineLimit(2)
                 .minimumScaleFactor(0.85)

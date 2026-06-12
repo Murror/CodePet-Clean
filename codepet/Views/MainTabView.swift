@@ -3,6 +3,7 @@ import SwiftUI
 struct MainTabView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var gameState: GameState
+    @EnvironmentObject var challengeProgress: ChallengeProgress
     @State private var showChat = false
     @State private var didSetLaunchTab = false
     @AppStorage("cp_lastStreakRewardDay") private var lastStreakRewardDay = ""
@@ -82,6 +83,15 @@ struct MainTabView: View {
                     )
                 }
 
+                // Skill "Leveled Up" celebration
+                if let celebration = appState.skillCelebration {
+                    SkillLeveledUpOverlay(
+                        celebration: celebration,
+                        characterId: appState.activeChar,
+                        onDismiss: { appState.skillCelebration = nil }
+                    )
+                }
+
                 // Global pet chat bubble — visible on all tabs except when chat is already open
                 if !showChat && appState.selectedTab != .skills {
                     VStack {
@@ -126,6 +136,9 @@ struct MainTabView: View {
                             character: PetCharacter.all[appState.activeChar] ?? PetCharacter.all["byte"]!,
                             onClose: { withAnimation(.easeOut(duration: 0.2)) { appState.activeExercise = nil } }
                         )
+                        // Fresh state (sandbox, prompt, runner) per exercise so
+                        // "Next" starts the next one clean.
+                        .id(exercise.id)
                         .frame(width: max(520, geo.size.width * 0.5), height: geo.size.height * 0.86)
                         .background(Color(hex: "#F7F5FC"))
                         .clipShape(RoundedRectangle(cornerRadius: 16))
@@ -134,6 +147,26 @@ struct MainTabView: View {
                     }
                     .zIndex(200)
                     .transition(.opacity.combined(with: .scale(scale: 0.97)))
+                }
+
+                // Per-exercise "Exercise complete!" celebration — full-screen,
+                // above the workspace, so there's no modal box behind it.
+                if let cel = appState.exerciseCelebration {
+                    ExerciseCompleteOverlay(
+                        characterId: appState.activeChar,
+                        earnedXP: cel.earnedXP,
+                        isLast: cel.nextChallengeId == nil,
+                        onAdvance: {
+                            if let nextId = cel.nextChallengeId,
+                               let next = challengeProgress.activeChallenges.first(where: { $0.id == nextId }) {
+                                appState.activeExercise = next
+                            } else {
+                                appState.activeExercise = nil
+                            }
+                            appState.exerciseCelebration = nil
+                        }
+                    )
+                    .zIndex(300)
                 }
             }
 

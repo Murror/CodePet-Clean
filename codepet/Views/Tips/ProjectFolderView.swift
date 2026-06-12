@@ -550,9 +550,7 @@ struct ProjectFolderContentView: View {
                 sectionLabel(
                     icon: "exclamationmark.triangle.fill",
                     text: uiLanguage == .vi ? "Cần chú ý" : "Needs attention",
-                    bgColor: Color(hex: "#FFF8E0"),
-                    borderColor: Color(hex: "#E09D00"),
-                    textColor: Color(hex: "#8B6914")
+                    iconColor: Color(hex: "#FFCC33")
                 )
                 ForEach(missingItems) { result in
                     healthRow(result, isMissing: true)
@@ -566,9 +564,7 @@ struct ProjectFolderContentView: View {
                     text: uiLanguage == .vi
                         ? "Đã xong (\(passedItems.count))"
                         : "Passed (\(passedItems.count))",
-                    bgColor: Color(hex: "#E8F8EC"),
-                    borderColor: Color(hex: "#34A853"),
-                    textColor: Color(hex: "#1E6B30")
+                    iconColor: Color(hex: "#7CE0A3")
                 )
                 ForEach(passedItems) { result in
                     healthRow(result, isMissing: false)
@@ -579,9 +575,7 @@ struct ProjectFolderContentView: View {
             sectionLabel(
                 icon: "book.closed.fill",
                 text: uiLanguage == .vi ? "Sách nên đọc" : "Recommended reading",
-                bgColor: palette.fill,
-                borderColor: palette.mid,
-                textColor: palette.dark
+                iconColor: .white
             )
 
             if !readings.isEmpty {
@@ -600,27 +594,15 @@ struct ProjectFolderContentView: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .lineSpacing(3)
                 }
-                .foregroundColor(palette.dark.opacity(0.85))
+                .foregroundColor(Color.white.opacity(0.9))
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    PixelStaircaseRectangle(blockSize: 2, steps: 2)
-                        .fill(Color.white.opacity(0.5))
-                )
-                .overlay(
-                    PixelStaircaseRectangle(blockSize: 2, steps: 2)
-                        .stroke(palette.mid.opacity(0.4), lineWidth: 2)
-                )
             }
         }
         .padding(20)
-        .background(
-            LinearGradient(
-                colors: [palette.fill, palette.light],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-        )
+        // Solid vivid brand color — same treatment as the agentic-coding skill
+        // cards. Inner content uses white text for contrast on this strong bg.
+        .background(palette.mid)
     }
 
     // ── Project header with icon + score ──
@@ -628,11 +610,11 @@ struct ProjectFolderContentView: View {
     private var projectHeader: some View {
         HStack(spacing: 12) {
             // Project icon — pixel art, no background
-            PixelArtIcon(kind: .folder, color: palette.mid, size: 28)
+            PixelArtIcon(kind: .folder, color: .white, size: 28)
 
             Text(report.projectName)
-                .font(CodepetTheme.pixel(22))
-                .foregroundColor(ReflectionTheme.primaryText)
+                .font(CodepetTheme.body(22, weight: .bold))
+                .foregroundColor(.white)
 
             Spacer()
 
@@ -654,37 +636,33 @@ struct ProjectFolderContentView: View {
         .padding(.bottom, 14)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(Color(hex: "#2D2B26"))
+                .fill(Color.white.opacity(0.4))
                 .frame(height: 3)
         }
     }
 
     // ── Section label (colored left border) ──
 
+    /// Minimal section label — no band, no divider line. White uppercase text
+    /// + a colored status icon (the icon carries the color meaning). Sections
+    /// are separated by whitespace alone for a clean, simple look.
     private func sectionLabel(
         icon: String,
         text: String,
-        bgColor: Color,
-        borderColor: Color,
-        textColor: Color
+        iconColor: Color
     ) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 7) {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: .medium))
+                .font(.system(size: 16, weight: .bold))
+                .foregroundColor(iconColor)
             Text(text)
-                .font(.pixelSystem(size: 12, weight: .bold))
+                .font(.pixelSystem(size: 16, weight: .bold))
+                .foregroundColor(.white)
+                .tracking(0.5)
+                .textCase(.uppercase)
         }
-        .foregroundColor(textColor)
-        .textCase(.uppercase)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(bgColor)
-        .overlay(alignment: .leading) {
-            Rectangle().fill(borderColor).frame(width: 4)
-        }
-        .padding(.top, 16)
-        .padding(.bottom, 8)
+        .padding(.top, 22)
+        .padding(.bottom, 12)
     }
 
     // ── Health check row ──
@@ -705,13 +683,13 @@ struct ProjectFolderContentView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(result.rule.title(uiLanguage))
                     .font(.pixelSystem(size: 13, weight: isMissing ? .semibold : .regular))
-                    .foregroundColor(isMissing ? ReflectionTheme.primaryText : ReflectionTheme.secondaryText)
+                    .foregroundColor(isMissing ? .white : Color.white.opacity(0.85))
 
                 Text(isMissing
                      ? result.rule.missingDescription(uiLanguage)
                      : result.rule.description(uiLanguage))
                     .font(.pixelSystem(size: 11))
-                    .foregroundColor(isMissing ? Color(hex: "#A06B00") : ReflectionTheme.mutedText)
+                    .foregroundColor(Color.white.opacity(0.8))
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -723,8 +701,8 @@ struct ProjectFolderContentView: View {
                         .font(.pixelSystem(size: 9, weight: .bold))
                 }
                 .buttonStyle(PixelButtonStyle(
-                    fill: palette.mid,
-                    foreground: .white,
+                    fill: .white,
+                    foreground: palette.dark,
                     paddingH: 10,
                     paddingV: 4,
                     blockSize: 2,
@@ -739,7 +717,7 @@ struct ProjectFolderContentView: View {
         .padding(.vertical, 6)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(Color(hex: "#2D2B26").opacity(0.08))
+                .fill(Color.white.opacity(0.18))
                 .frame(height: 1)
                 .padding(.leading, 36)
         }
@@ -763,17 +741,17 @@ struct ProjectFolderContentView: View {
             if readings.count > 2 {
                 HStack(spacing: 0) {
                     LinearGradient(
-                        colors: [palette.light.opacity(0), palette.light],
+                        colors: [palette.mid.opacity(0), palette.mid],
                         startPoint: .leading,
                         endPoint: .trailing
                     )
                     .frame(width: 32)
 
                     ZStack {
-                        palette.light
+                        palette.mid
                         Image(systemName: "chevron.right")
                             .font(.system(size: 11, weight: .heavy))
-                            .foregroundColor(palette.mid)
+                            .foregroundColor(.white)
                     }
                     .frame(width: 20)
                 }
@@ -902,9 +880,12 @@ struct ProjectFolderContentView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(cardBg)
+        // White outline so the card never blends into the vivid body
+        // background — even when the card color is close to the project color
+        // (e.g. a blue card on a blue project).
         .overlay(
             PixelStaircaseRectangle(blockSize: 3, steps: 2)
-                .stroke(Color(hex: "#2D2B26"), lineWidth: 3)
+                .stroke(Color.white, lineWidth: 3)
         )
         .clipShape(PixelStaircaseRectangle(blockSize: 3, steps: 2))
         .background(
@@ -1043,9 +1024,10 @@ struct ProjectFoldersView: View {
                             }
 
                             // ── Overflow menu: "+N more" ──
+                            // Sits flush against the last project tab (zero
+                            // spacing), matching the gap between the tabs.
                             if !overflowProjects.isEmpty {
                                 overflowMenu
-                                    .padding(.leading, 8)
                             }
                         }
                         .padding(.leading, 8)
@@ -1088,27 +1070,36 @@ struct ProjectFoldersView: View {
                 }
             }
         } label: {
-            // Compact dropdown-arrow tab, styled like an inactive project tab
-            // so it reads as a sibling. The hidden-project count lives in the
-            // tooltip to keep the face minimal.
+            // Compact dropdown-arrow tab framed like a project folder tab so it
+            // reads as a defined sibling rather than a faint ghost. Uses the
+            // same solid border + drop shadow as the project tabs, with the
+            // chevron centered. The hidden-project count lives in the tooltip
+            // to keep the face minimal.
             Image(systemName: "chevron.down")
-                .font(.system(size: 12, weight: .bold))
+                .font(.system(size: 13, weight: .bold))
                 .foregroundColor(Color(hex: "#2D2B26").opacity(0.5))
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
+                .padding(.vertical, 10)
                 .background(
                     ZStack {
+                        // Drop shadow — same depth as the inactive project tabs.
                         PixelFolderTabShape(blockSize: 4, steps: 2)
                             .fill(Color(hex: "#2D2B26").opacity(0.06))
                             .offset(x: 2, y: 2)
+                        // Tab fill — same as the inactive 'sprout'/'codepet-pixel' tabs.
                         PixelFolderTabShape(blockSize: 4, steps: 2)
                             .fill(Color(hex: "#F0F0F0"))
+                        // Border — matches the inactive project tabs exactly.
                         PixelFolderTabShape(blockSize: 4, steps: 2)
-                            .stroke(Color(hex: "#2D2B26").opacity(0.18), lineWidth: 2)
+                            .stroke(Color(hex: "#2D2B26").opacity(0.18), lineWidth: 1.5)
                     }
                 )
         }
-        .menuStyle(.borderlessButton)
+        // .button style + plain button style renders the label at full color
+        // fidelity. The default/borderlessButton menu style dims and restyles
+        // custom labels, which washed out the folder-tab border.
+        .menuStyle(.button)
+        .buttonStyle(.plain)
         .menuIndicator(.hidden)
         .fixedSize()
         .help(uiLanguage == .vi

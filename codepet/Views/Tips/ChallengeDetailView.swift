@@ -28,7 +28,7 @@ struct ChallengeDetailView: View {
                         difficultyBadge
 
                         Text(challenge.title)
-                            .font(.pixelSystem(size: 20, weight: .bold))
+                            .font(CodepetTheme.body(20, weight: .bold))
                             .foregroundColor(.white)
                     }
 
