@@ -550,6 +550,10 @@ struct ProjectFolderContentView: View {
     /// Rule ids whose inline plan panel is currently open.
     @State private var expandedPlans: Set<String> = []
 
+    /// Rule ids whose plan the user has revealed past the free preview.
+    /// (Progressive disclosure now; becomes the purchase gate when gating is on.)
+    @State private var unlockedPlans: Set<String> = []
+
     /// Pillars that actually have relevant checks for this project, in display order.
     private var activePillars: [HealthPillar] {
         HealthPillar.allCases
@@ -985,6 +989,13 @@ struct ProjectFolderContentView: View {
 
     @ViewBuilder
     private func planContent(_ plan: SectionPlan, result: ProjectHealthResult) -> some View {
+        let unlocked = unlockedPlans.contains(result.rule.id)
+        // Free preview shows ~half the steps; the rest are blurred behind the
+        // unlock CTA. Once unlocked, the whole plan (and pitfalls) is shown.
+        let previewCount = max(1, plan.steps.count / 2)
+        let visibleCount = unlocked ? plan.steps.count : min(previewCount, plan.steps.count)
+        let hiddenCount = plan.steps.count - visibleCount
+
         VStack(alignment: .leading, spacing: 10) {
             // Summary + effort
             Text(plan.summary)
@@ -1002,18 +1013,19 @@ struct ProjectFolderContentView: View {
                 .foregroundColor(.white.opacity(0.7))
             }
 
-            // Steps
-            ForEach(Array(plan.steps.enumerated()), id: \.offset) { idx, step in
-                planStepRow(index: idx + 1, step: step)
+            // Visible steps
+            ForEach(0..<visibleCount, id: \.self) { idx in
+                planStepRow(index: idx + 1, step: plan.steps[idx])
             }
 
-            // Locked-step CTA (free tier)
-            if plan.lockedStepCount > 0 {
-                unlockCTA(count: plan.lockedStepCount)
+            // Locked preview: blurred peek at the next step + unlock CTA
+            if !unlocked && hiddenCount > 0 {
+                lockedTeaser(plan: plan, result: result,
+                             hiddenCount: hiddenCount, nextIndex: visibleCount + 1)
             }
 
-            // Pitfalls
-            if !plan.pitfalls.isEmpty {
+            // Pitfalls (full plan only)
+            if unlocked && !plan.pitfalls.isEmpty {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(uiLanguage == .vi ? "TRÁNH" : "AVOID")
                         .font(.pixelSystem(size: 9, weight: .bold))
@@ -1033,6 +1045,59 @@ struct ProjectFolderContentView: View {
             }
         }
         .padding(14)
+    }
+
+    /// Blurred peek at the remaining steps + the unlock CTA. Keeps the panel
+    /// compact by default and doubles as the freemium teaser.
+    private func lockedTeaser(
+        plan: SectionPlan, result: ProjectHealthResult,
+        hiddenCount: Int, nextIndex: Int
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // A short, blurred glimpse of the next step so it reads as "there's more".
+            if nextIndex - 1 < plan.steps.count {
+                planStepRow(index: nextIndex, step: plan.steps[nextIndex - 1])
+                    .frame(maxHeight: 64, alignment: .top)
+                    .clipped()
+                    .blur(radius: 6)
+                    .opacity(0.65)
+                    .allowsHitTesting(false)
+                    .overlay(
+                        LinearGradient(
+                            colors: [Color.clear, Color.black.opacity(0.22)],
+                            startPoint: .top, endPoint: .bottom
+                        )
+                    )
+            }
+
+            Button(action: { revealPlan(result, plan) }) {
+                HStack(spacing: 6) {
+                    Image(systemName: "lock.fill").font(.system(size: 10, weight: .bold))
+                    Text((uiLanguage == .vi
+                          ? "Mở khoá để xem toàn bộ kế hoạch"
+                          : "Unlock to view full plan details")
+                         + " (\(hiddenCount))")
+                }
+            }
+            .buttonStyle(PixelButtonStyle(
+                fill: palette.fill, foreground: palette.dark,
+                paddingH: 14, paddingV: 7, blockSize: 2, steps: 1,
+                borderWidth: 2, shadowOffset: 2,
+                font: .pixelSystem(size: 11, weight: .bold)
+            ))
+        }
+    }
+
+    /// Reveal the rest of the plan. While gating is OFF the full content is
+    /// already present, so this is a free progressive-disclosure reveal. When
+    /// gating is ON the withheld steps have no content and this is where a
+    /// purchase flow would hook in (step 4 client work, not yet built).
+    private func revealPlan(_ result: ProjectHealthResult, _ plan: SectionPlan) {
+        withAnimation(.easeInOut(duration: 0.18)) {
+            unlockedPlans.insert(result.rule.id)
+        }
+        // TODO(monetization): if plan.lockedStepCount > 0 (server-gated), route
+        // to the purchase flow instead of revealing.
     }
 
     private func planStepRow(index: Int, step: SectionPlan.Step) -> some View {
@@ -1076,24 +1141,6 @@ struct ProjectFolderContentView: View {
             }
             Spacer(minLength: 0)
         }
-    }
-
-    private func unlockCTA(count: Int) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "lock.fill")
-                .font(.system(size: 10, weight: .bold))
-                .foregroundColor(palette.dark)
-            Text(uiLanguage == .vi
-                 ? "Mở khoá kế hoạch đầy đủ (còn \(count) bước)"
-                 : "Unlock full plan (\(count) more steps)")
-                .font(.pixelSystem(size: 10, weight: .bold))
-                .foregroundColor(palette.dark)
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(palette.fill)
-        .overlay(Rectangle().stroke(Color(hex: "#2D2B26"), lineWidth: 2))
     }
 
     // ── Upcoming (stage-gated) row ──
