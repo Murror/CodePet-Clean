@@ -842,64 +842,9 @@ struct ProjectFolderContentView: View {
 
             Spacer()
 
-            if isMissing, let urlString = result.rule.learnMoreURL, let url = URL(string: urlString) {
-                Button(action: { onLearnMore(url) }) {
-                    Text(uiLanguage == .vi ? "Tìm hiểu" : "Learn more")
-                        .font(.pixelSystem(size: 9, weight: .bold))
-                }
-                .buttonStyle(PixelButtonStyle(
-                    fill: .white,
-                    foreground: palette.dark,
-                    paddingH: 10,
-                    paddingV: 4,
-                    blockSize: 2,
-                    steps: 1,
-                    borderWidth: 2,
-                    shadowOffset: 2,
-                    font: .pixelSystem(size: 9, weight: .bold)
-                ))
-            }
-
-            // Get plan / View plan — opens the action plan in a modal layer.
-            // Cached plans say "View plan".
-            if isMissing {
-                Button(action: { openPlan(result) }) {
-                    Text(planButtonLabel(key: planKey))
-                        .font(.pixelSystem(size: 9, weight: .bold))
-                }
-                .buttonStyle(PixelButtonStyle(
-                    fill: .white,
-                    foreground: palette.dark,
-                    paddingH: 10,
-                    paddingV: 4,
-                    blockSize: 2,
-                    steps: 1,
-                    borderWidth: 2,
-                    shadowOffset: 2,
-                    font: .pixelSystem(size: 9, weight: .bold)
-                ))
-            }
-
-            // Mark done / undo — for self-attested checks and missing auto checks.
-            if canToggle {
-                Button(action: { onToggleAttestation(result.rule.id) }) {
-                    Text(isMissing
-                         ? (uiLanguage == .vi ? "Đánh dấu xong" : "Mark done")
-                         : (uiLanguage == .vi ? "Hoàn tác" : "Undo"))
-                        .font(.pixelSystem(size: 9, weight: .bold))
-                }
-                .buttonStyle(PixelButtonStyle(
-                    fill: isMissing ? palette.fill : Color.black.opacity(0.2),
-                    foreground: isMissing ? palette.dark : .white,
-                    paddingH: 10,
-                    paddingV: 4,
-                    blockSize: 2,
-                    steps: 1,
-                    borderWidth: 2,
-                    shadowOffset: 2,
-                    font: .pixelSystem(size: 9, weight: .bold)
-                ))
-            }
+            // All per-row actions live in one compact dropdown so the row width
+            // stays consistent regardless of which actions apply.
+            rowActionsMenu(result, isMissing: isMissing, canToggle: canToggle, planKey: planKey)
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 4)
@@ -909,6 +854,48 @@ struct ProjectFolderContentView: View {
                 .frame(height: 1)
                 .padding(.leading, 36)
         }
+    }
+
+    // ── Row actions (compact dropdown) ──
+
+    @ViewBuilder
+    private func rowActionsMenu(
+        _ result: ProjectHealthResult, isMissing: Bool, canToggle: Bool, planKey: String
+    ) -> some View {
+        Menu {
+            if isMissing {
+                Button(action: { openPlan(result) }) {
+                    Label(planButtonLabel(key: planKey), systemImage: "list.bullet.rectangle")
+                }
+                if let urlString = result.rule.learnMoreURL, let url = URL(string: urlString) {
+                    Button(action: { onLearnMore(url) }) {
+                        Label(uiLanguage == .vi ? "Tìm hiểu" : "Learn more", systemImage: "book")
+                    }
+                }
+            }
+            if canToggle {
+                Button(action: { onToggleAttestation(result.rule.id) }) {
+                    Label(
+                        isMissing
+                            ? (uiLanguage == .vi ? "Đánh dấu xong" : "Mark done")
+                            : (uiLanguage == .vi ? "Hoàn tác" : "Undo"),
+                        systemImage: isMissing ? "checkmark" : "arrow.uturn.backward"
+                    )
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 13, weight: .bold))
+                .foregroundColor(palette.dark)
+                .frame(width: 36, height: 26)
+                .background(PixelStaircaseRectangle(blockSize: 2, steps: 1).fill(Color.white))
+                .overlay(PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                    .stroke(Color(hex: "#2D2B26"), lineWidth: 2))
+        }
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
     }
 
     // ── Plan: button label, open, modal layer ──
@@ -950,6 +937,25 @@ struct ProjectFolderContentView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
+                // Regenerate — fetches a fresh plan (e.g. after a prompt change).
+                Button(action: {
+                    unlockedPlans.remove(result.rule.id)
+                    Task {
+                        await planEnricher.generatePlan(
+                            project: project, report: report, result: result,
+                            language: uiLanguage, tipsState: tipsState, force: true
+                        )
+                    }
+                }) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .buttonStyle(PixelButtonStyle(
+                    fill: .white, foreground: palette.dark,
+                    paddingH: 9, paddingV: 7, blockSize: 2, steps: 1,
+                    borderWidth: 2, shadowOffset: 2,
+                    font: .pixelSystem(size: 11, weight: .bold)
+                ))
                 Button(action: { planSheet = nil }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 11, weight: .bold))
@@ -1027,22 +1033,13 @@ struct ProjectFolderContentView: View {
         let visibleCount = unlocked ? plan.steps.count : min(previewCount, plan.steps.count)
         let hiddenCount = plan.steps.count - visibleCount
 
-        VStack(alignment: .leading, spacing: 10) {
-            // Summary + effort
+        VStack(alignment: .leading, spacing: 14) {
+            // Summary
             Text(plan.summary)
-                .font(.pixelSystem(size: 12, weight: .semibold))
+                .font(.pixelSystem(size: 15, weight: .semibold))
                 .foregroundColor(Color(hex: "#2D2B26"))
+                .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
-
-            if !plan.estEffort.isEmpty {
-                HStack(spacing: 5) {
-                    Image(systemName: "clock")
-                        .font(.system(size: 9, weight: .bold))
-                    Text(plan.estEffort)
-                        .font(.pixelSystem(size: 10, weight: .bold))
-                }
-                .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
-            }
 
             // Visible steps
             ForEach(0..<visibleCount, id: \.self) { idx in
@@ -1057,17 +1054,18 @@ struct ProjectFolderContentView: View {
 
             // Pitfalls (full plan only)
             if unlocked && !plan.pitfalls.isEmpty {
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 6) {
                     Text(uiLanguage == .vi ? "TRÁNH" : "AVOID")
-                        .font(.pixelSystem(size: 9, weight: .bold))
+                        .font(.pixelSystem(size: 11, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.55))
                         .tracking(0.5)
                     ForEach(Array(plan.pitfalls.enumerated()), id: \.offset) { _, p in
                         HStack(alignment: .top, spacing: 6) {
-                            Text("—").foregroundColor(Color(hex: "#2D2B26").opacity(0.55))
+                            Text("•").foregroundColor(Color(hex: "#2D2B26").opacity(0.55))
                             Text(p)
-                                .font(.pixelSystem(size: 11))
-                                .foregroundColor(Color(hex: "#2D2B26").opacity(0.75))
+                                .font(.pixelSystem(size: 13))
+                                .foregroundColor(Color(hex: "#2D2B26").opacity(0.8))
+                                .lineSpacing(2)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -1138,34 +1136,36 @@ struct ProjectFolderContentView: View {
             ZStack {
                 Rectangle()
                     .fill(locked ? palette.fill.opacity(0.6) : palette.mid)
-                    .frame(width: 20, height: 20)
-                    .overlay(Rectangle().stroke(Color(hex: "#2D2B26").opacity(locked ? 0.15 : 0.5), lineWidth: 1.5))
+                    .frame(width: 26, height: 26)
+                    .overlay(Rectangle().stroke(Color(hex: "#2D2B26").opacity(locked ? 0.15 : 0.5), lineWidth: 2))
                 if locked {
                     Image(systemName: "lock.fill")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(.system(size: 11, weight: .bold))
                         .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                 } else {
                     Text("\(index)")
-                        .font(.pixelSystem(size: 11, weight: .bold))
+                        .font(.pixelSystem(size: 13, weight: .bold))
                         .foregroundColor(.white)
                 }
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(step.title)
-                    .font(.pixelSystem(size: 12, weight: .semibold))
+                    .font(.pixelSystem(size: 15, weight: .bold))
                     .foregroundColor(Color(hex: "#2D2B26").opacity(locked ? 0.5 : 1.0))
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let detail = step.detail {
                     Text(detail)
-                        .font(.pixelSystem(size: 11))
-                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.8))
+                        .font(.pixelSystem(size: 13))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.82))
+                        .lineSpacing(3)
                         .fixedSize(horizontal: false, vertical: true)
                     if !step.doneWhen.isEmpty {
                         Text((uiLanguage == .vi ? "Xong khi: " : "Done when: ") + step.doneWhen)
-                            .font(.pixelSystem(size: 10))
-                            .foregroundColor(Color(hex: "#2D2B26").opacity(0.55))
+                            .font(.pixelSystem(size: 12))
+                            .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
+                            .lineSpacing(2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
