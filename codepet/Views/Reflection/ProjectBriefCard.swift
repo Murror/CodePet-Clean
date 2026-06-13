@@ -243,6 +243,9 @@ struct ProjectBriefCard: View {
             }
         }
         projectStore.updateBrief(projectId: projectPath, brief: fullBrief)
+        // The user hand-edited the description: it is now theirs, so the
+        // from-history synthesis must never overwrite it.
+        projectStore.markBriefUserOwned(projectPath: projectPath)
         isEditing = false
         withAnimation(.easeInOut(duration: 0.2)) {
             savedConfirmation = Date().addingTimeInterval(2)

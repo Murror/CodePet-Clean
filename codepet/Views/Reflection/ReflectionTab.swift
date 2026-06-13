@@ -51,6 +51,10 @@ struct ReflectionTab: View {
     /// onChange(of: dataVersion) triggers a single recompute of sessions + groups.
     @State private var dataVersion: Int = 0
 
+    /// One-time, from-history brief backfill. Runs in the recompute path once
+    /// sessions + summaries are loaded; idempotent and self-throttling.
+    @StateObject private var briefSynthesizer = BriefSynthesizer(api: ReflectionAPIClient())
+
     // MARK: - Pet name
 
     private var petName: String {
@@ -331,6 +335,14 @@ struct ReflectionTab: View {
                 }
             }
             autoSummarizeIfNeeded(sessions: cachedSessions, persona: persona)
+            // One-time per-project: synthesize a complete brief from the
+            // project's full session history (overwrites empty/auto, never a
+            // user-edited description).
+            briefSynthesizer.backfill(
+                sessions: cachedSessions,
+                projectStore: projectStore,
+                language: uiLanguage == .vi ? "vi" : "en"
+            )
         }
         .onChange(of: endStore.endedSessionIds) { _ in
             // A session just ended — recompute then check auto-summarize.

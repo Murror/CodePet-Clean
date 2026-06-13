@@ -30,8 +30,20 @@ final class ProjectStore: ObservableObject {
     /// so manual reassignments survive app restarts.
     private var manualOverrides: [String: String] = [:]
 
+    /// Project paths whose description the user typed/edited by hand. ONLY
+    /// these are protected: the from-history synthesis may overwrite any other
+    /// description (empty, per-session auto-fill, or a legacy auto value), but
+    /// never one in this set. Positive tracking is deliberate — it correctly
+    /// leaves machine-written descriptions (which carry no marker) replaceable.
+    private var userEditedBriefs: Set<String> = []
+    /// Project paths whose one-time from-history brief backfill has run, so it
+    /// runs at most once per project.
+    private var backfilledBriefs: Set<String> = []
+
     private let userDefaultsKey = "cp_detected_projects"
     private let overridesKey = "cp_session_project_overrides"
+    private let userEditedBriefsKey = "cp_brief_user_edited"
+    private let backfilledBriefsKey = "cp_brief_backfilled"
     private let logger = Logger(subsystem: "app.murror.codepet", category: "ProjectStore")
 
     // MARK: - Persistence
@@ -51,6 +63,13 @@ final class ProjectStore: ObservableObject {
             for (sid, path) in overrides { sessionToRoot[sid] = path }
             logger.info("Loaded \(overrides.count) manual session overrides")
         }
+        // Restore brief ownership / backfill markers
+        if let edited = UserDefaults.standard.stringArray(forKey: userEditedBriefsKey) {
+            userEditedBriefs = Set(edited)
+        }
+        if let done = UserDefaults.standard.stringArray(forKey: backfilledBriefsKey) {
+            backfilledBriefs = Set(done)
+        }
     }
 
     /// Wipe all detected projects, caches, and manual overrides. Called on
@@ -60,8 +79,12 @@ final class ProjectStore: ObservableObject {
         cwdToRoot = [:]
         sessionToRoot = [:]
         manualOverrides = [:]
+        userEditedBriefs = []
+        backfilledBriefs = []
         UserDefaults.standard.removeObject(forKey: userDefaultsKey)
         UserDefaults.standard.removeObject(forKey: overridesKey)
+        UserDefaults.standard.removeObject(forKey: userEditedBriefsKey)
+        UserDefaults.standard.removeObject(forKey: backfilledBriefsKey)
         logger.info("ProjectStore reset for account switch")
     }
 
@@ -73,12 +96,19 @@ final class ProjectStore: ObservableObject {
         cwdToRoot = [:]
         sessionToRoot = [:]
         manualOverrides = [:]
+        userEditedBriefs = []
+        backfilledBriefs = []
         load()
     }
 
     private func persist() {
         guard let data = try? JSONEncoder().encode(projects) else { return }
         UserDefaults.standard.set(data, forKey: userDefaultsKey)
+    }
+
+    private func persistBriefMarkers() {
+        UserDefaults.standard.set(Array(userEditedBriefs), forKey: userEditedBriefsKey)
+        UserDefaults.standard.set(Array(backfilledBriefs), forKey: backfilledBriefsKey)
     }
 
     private func persistOverrides() {
@@ -251,6 +281,34 @@ final class ProjectStore: ObservableObject {
     func brief(for projectPath: String?) -> String {
         guard let path = projectPath else { return "" }
         return projects[path]?.brief ?? ""
+    }
+
+    // MARK: - Brief ownership & backfill
+
+    /// True only when the user has NOT hand-edited this project's description,
+    /// so the from-history synthesis is free to (re)write it. Empty, per-session
+    /// auto-filled, and legacy machine-written descriptions are all writable.
+    func briefDescriptionIsSynthesisWritable(projectPath: String) -> Bool {
+        !userEditedBriefs.contains(projectPath)
+    }
+
+    /// Mark a project's description as user-owned — the user typed it, so
+    /// synthesis must never overwrite it again. Also marks backfill done.
+    func markBriefUserOwned(projectPath: String) {
+        userEditedBriefs.insert(projectPath)
+        backfilledBriefs.insert(projectPath)
+        persistBriefMarkers()
+    }
+
+    /// Whether the one-time from-history backfill has already run for a project.
+    func briefBackfillDone(projectPath: String) -> Bool {
+        backfilledBriefs.contains(projectPath)
+    }
+
+    /// Mark the one-time from-history backfill as complete for a project.
+    func markBriefBackfilled(projectPath: String) {
+        backfilledBriefs.insert(projectPath)
+        persistBriefMarkers()
     }
 
     // MARK: - Stage & Attestations (Project Health)

@@ -54,7 +54,13 @@ final class SessionSummaryEnricher: ObservableObject {
         // Don't auto-summarize sessions with no tool events (no file edits,
         // no bash commands). These are "check-in" sessions with only text replies.
         guard session.hasMeaningfulWork else { return false }
-        if endedSessionIds.contains(session.id) { return true }
+        // A split-off segment's id is "<cliId>#2"; the CLI session-end event
+        // records only the raw cliId, so also match on the prefix before "#".
+        // Without this, later segments would miss the instant end-trigger and
+        // wait for the 30-min idle path instead. (The first/morning segment
+        // keeps the raw id and already has its summary, so it won't re-fire.)
+        let rawSessionId = session.id.components(separatedBy: "#").first ?? session.id
+        if endedSessionIds.contains(session.id) || endedSessionIds.contains(rawSessionId) { return true }
         let lastActivity = session.turns.compactMap { $0.endedAt ?? $0.startedAt }.max() ?? session.startedAt
         return now.timeIntervalSince(lastActivity) > idleThreshold
     }
@@ -201,6 +207,7 @@ final class SessionSummaryEnricher: ObservableObject {
         // so for a project with real history it describes THIS project, not a
         // generic app.
         let overviewTrimmed = (overview ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let didAutoFillDesc = parts.desc.isEmpty && !overviewTrimmed.isEmpty
         let newDesc = parts.desc.isEmpty ? overviewTrimmed : parts.desc
 
         // Append new changelog entry (if provided and non-empty)
@@ -217,7 +224,11 @@ final class SessionSummaryEnricher: ObservableObject {
             return
         }
         ps.updateBrief(projectId: projectPath, brief: updatedBrief)
-        logger.info("Updated project brief for \(projectPath): desc=user-owned, log=\(changelogTrimmed.isEmpty ? "unchanged" : "+entry")")
+        // No ownership marking here: the per-session fill only writes an empty
+        // description, and an empty/machine-written description stays writable
+        // by the from-history synthesis. Only a hand-edit (ProjectBriefCard)
+        // marks a brief user-owned.
+        logger.info("Updated project brief for \(projectPath): desc=\(didAutoFillDesc ? "auto-filled" : "unchanged"), log=\(changelogTrimmed.isEmpty ? "unchanged" : "+entry")")
     }
 
     private static let briefDateFormatter: DateFormatter = {

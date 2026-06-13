@@ -442,6 +442,7 @@ protocol ReflectionAPIClientProtocol {
     func chatSessionStream(_ request: ChatSessionRequest) -> AsyncThrowingStream<ChatStreamEvent, Error>
     func fetchGuidance(_ request: GenerateGuidanceRequest) async throws -> GenerateGuidanceResponse
     func fetchPlan(_ request: GeneratePlanRequest) async throws -> GeneratePlanResponse
+    func synthesizeBrief(_ request: SynthesizeBriefRequest) async throws -> SynthesizeBriefResponse
 }
 
 extension ReflectionAPIClientProtocol {
@@ -449,6 +450,48 @@ extension ReflectionAPIClientProtocol {
     /// plan generation. The real client overrides this.
     func fetchPlan(_ request: GeneratePlanRequest) async throws -> GeneratePlanResponse {
         throw ReflectionAPIError.malformedResponse
+    }
+    /// Default so existing conformers (e.g. test mocks) don't have to implement
+    /// brief synthesis. The real client overrides this.
+    func synthesizeBrief(_ request: SynthesizeBriefRequest) async throws -> SynthesizeBriefResponse {
+        throw ReflectionAPIError.malformedResponse
+    }
+}
+
+// MARK: - Synthesize Brief DTOs
+
+/// Request to the synthesizeBrief Cloud Function: a project's full session
+/// history (already-generated summaries) → one complete project description.
+struct SynthesizeBriefRequest: Codable {
+    let language: String        // "vi" | "en"
+    let project: ProjectDTO
+    let sessions: [SessionDTO]
+    let currentBrief: String?   // user's current description (for continuity)
+
+    struct ProjectDTO: Codable {
+        let name: String
+    }
+
+    struct SessionDTO: Codable {
+        let date: String?       // "yyyy-MM-dd"
+        let summary: String
+        let lesson: String?
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case language, project, sessions
+        case currentBrief = "current_brief"
+    }
+}
+
+struct SynthesizeBriefResponse: Codable {
+    let overview: String
+    let model: String
+    let generatedAt: String
+
+    enum CodingKeys: String, CodingKey {
+        case overview, model
+        case generatedAt = "generated_at"
     }
 }
 
@@ -467,6 +510,7 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
     private static let chatEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/chatSession")!
     private static let guidanceEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/generateGuidance")!
     private static let planEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/generatePlan")!
+    private static let synthesizeBriefEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/synthesizeBrief")!
 
     private let session: URLSession
     private let authTokenProvider: () async throws -> String
@@ -875,6 +919,34 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
         if http.statusCode == 200 {
             do {
                 return try JSONDecoder().decode(GeneratePlanResponse.self, from: data)
+            } catch {
+                throw ReflectionAPIError.malformedResponse
+            }
+        }
+
+        let parsed = try? JSONDecoder().decode(SummarizeTurnError.self, from: data)
+        throw ReflectionAPIError.http(status: http.statusCode, body: parsed)
+    }
+
+    // MARK: - Synthesize Brief (non-streaming)
+
+    func synthesizeBrief(_ request: SynthesizeBriefRequest) async throws -> SynthesizeBriefResponse {
+        let token = try await authTokenProvider()
+
+        var urlRequest = URLRequest(url: Self.synthesizeBriefEndpoint)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await session.data(for: urlRequest)
+        guard let http = response as? HTTPURLResponse else {
+            throw ReflectionAPIError.malformedResponse
+        }
+
+        if http.statusCode == 200 {
+            do {
+                return try JSONDecoder().decode(SynthesizeBriefResponse.self, from: data)
             } catch {
                 throw ReflectionAPIError.malformedResponse
             }

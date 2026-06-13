@@ -6,6 +6,7 @@ import { handleSummarizeSession } from "./summarizeSession";
 import { handleChatSession } from "./chat";
 import { handleGenerateGuidance } from "./generateGuidance";
 import { handleGeneratePlan } from "./generatePlan";
+import { handleSynthesizeBrief } from "./synthesizeBrief";
 import { handleRevenueCatWebhook } from "./revenueCatWebhook";
 import { handleExtractKnowledge } from "./extractKnowledge";
 
@@ -56,6 +57,14 @@ export const generatePlan = onRequest(
     secrets: ["ANTHROPIC_API_KEY"]
   },
   handleGeneratePlan
+);
+
+export const synthesizeBrief = onRequest(
+  {
+    cors: false,
+    secrets: ["ANTHROPIC_API_KEY"]
+  },
+  handleSynthesizeBrief
 );
 
 // RevenueCat -> Firestore entitlements bridge. No declared secret so it can
