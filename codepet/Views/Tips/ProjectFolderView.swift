@@ -837,9 +837,6 @@ struct ProjectFolderContentView: View {
 
     private func healthRow(_ result: ProjectHealthResult) -> some View {
         let isMissing = !result.passed
-        // Auto-detected passes can't be toggled (they reflect the files);
-        // everything else can be confirmed/undone by the user.
-        let canToggle = result.state != .passed
         let planKey = SectionPlan.key(
             projectPath: project.id, ruleId: result.rule.id, stage: report.stage.rawValue
         )
@@ -899,22 +896,6 @@ struct ProjectFolderContentView: View {
                 ))
             }
 
-            // Mark done / undo — for self-attested checks and missing auto checks.
-            if canToggle {
-                Button(action: { onToggleAttestation(result.rule.id) }) {
-                    Text(isMissing
-                         ? (uiLanguage == .vi ? "Đánh dấu xong" : "Mark done")
-                         : (uiLanguage == .vi ? "Hoàn tác" : "Undo"))
-                        .font(.pixelSystem(size: 9, weight: .bold))
-                }
-                .buttonStyle(PixelButtonStyle(
-                    fill: isMissing ? palette.fill : Color.black.opacity(0.2),
-                    foreground: isMissing ? palette.dark : .white,
-                    paddingH: 10, paddingV: 4, blockSize: 2, steps: 1,
-                    borderWidth: 2, shadowOffset: 2,
-                    font: .pixelSystem(size: 9, weight: .bold)
-                ))
-            }
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 6)
