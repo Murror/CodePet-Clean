@@ -844,15 +844,16 @@ struct ProjectFolderContentView: View {
         )
 
         return HStack(alignment: .center, spacing: 12) {
-            // Status icon — pixel-art square
-            Image(systemName: isMissing ? "xmark" : "checkmark")
-                .font(.system(size: 9, weight: .bold))
-                .foregroundColor(isMissing ? Color(hex: "#8B6914") : Color(hex: "#1E6B30"))
+            // Status icon — pixel-art square. Neutral "to-do" circle when not
+            // yet satisfied (reads as a task, not a failure); green check when passed.
+            Image(systemName: isMissing ? "circle" : "checkmark")
+                .font(.system(size: isMissing ? 8 : 9, weight: .bold))
+                .foregroundColor(isMissing ? Color(hex: "#2D2B26").opacity(0.45) : Color(hex: "#1E6B30"))
                 .frame(width: 20, height: 20)
-                .background(isMissing ? Color(hex: "#FCEBA8") : Color(hex: "#B8F0B0"))
+                .background(isMissing ? Color(hex: "#EAE6F5") : Color(hex: "#B8F0B0"))
                 .overlay(
                     Rectangle()
-                        .stroke(Color(hex: "#2D2B26"), lineWidth: 2)
+                        .stroke(Color(hex: "#2D2B26").opacity(isMissing ? 0.55 : 1.0), lineWidth: 2)
                 )
 
             VStack(alignment: .leading, spacing: 3) {
