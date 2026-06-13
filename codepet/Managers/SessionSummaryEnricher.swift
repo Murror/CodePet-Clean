@@ -191,11 +191,17 @@ final class SessionSummaryEnricher: ObservableObject {
             parts = (currentBrief.trimmingCharacters(in: .whitespacesAndNewlines), "")
         }
 
-        // Description is user-owned — never overwrite it with the LLM overview.
-        // The auto-overview (de279c0) clobbered every project's description with a
-        // generic "CodePet is an iOS learning app…" blurb because the summarizer
-        // returns an ungrounded overview. Only the changelog auto-updates now.
-        let newDesc = parts.desc
+        // Auto-fill the description from the LLM project_overview, but ONLY when
+        // it is currently empty. Once there is any description (user-written, or
+        // a previous auto-fill), it is left untouched. This restores the "auto
+        // brief overview" — a blank brief box gets populated automatically — while
+        // structurally preventing the de279c0 regression, where the overview
+        // clobbered every project's existing description with a generic blurb.
+        // The server's overview is now grounded in the session + current brief,
+        // so for a project with real history it describes THIS project, not a
+        // generic app.
+        let overviewTrimmed = (overview ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let newDesc = parts.desc.isEmpty ? overviewTrimmed : parts.desc
 
         // Append new changelog entry (if provided and non-empty)
         let changelogTrimmed = (changelog ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
