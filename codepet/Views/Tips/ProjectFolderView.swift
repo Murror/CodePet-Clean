@@ -856,16 +856,17 @@ struct ProjectFolderContentView: View {
                         .stroke(Color(hex: "#2D2B26"), lineWidth: 2)
                 )
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(result.rule.title(uiLanguage))
-                    .font(.pixelSystem(size: 13, weight: isMissing ? .semibold : .regular))
+                    .font(.pixelSystem(size: 15, weight: isMissing ? .bold : .semibold))
                     .foregroundColor(isMissing ? .white : Color.white.opacity(0.85))
 
                 Text(isMissing
                      ? result.rule.missingDescription(uiLanguage)
                      : result.rule.description(uiLanguage))
-                    .font(.pixelSystem(size: 11))
-                    .foregroundColor(Color.white.opacity(0.8))
+                    .font(.pixelSystem(size: 13))
+                    .foregroundColor(Color.white.opacity(0.85))
+                    .lineSpacing(2)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
@@ -1213,7 +1214,7 @@ struct ProjectFolderContentView: View {
                 )
 
             Text(result.rule.title(uiLanguage))
-                .font(.pixelSystem(size: 12))
+                .font(.pixelSystem(size: 14))
                 .foregroundColor(Color.white.opacity(0.65))
 
             Spacer()
