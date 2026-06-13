@@ -46,6 +46,32 @@ struct GuidanceResult: Codable, Equatable {
     }
 }
 
+// MARK: - Project Health action plan
+
+/// A generated, per-section action plan (from the generatePlan Cloud Function).
+/// Cached per (project + check + stage); unlike daily guidance it does not
+/// expire daily — it's invalidated by a stage/brief change or manual regenerate.
+struct SectionPlan: Codable, Equatable {
+    struct Step: Codable, Equatable {
+        let title: String
+        /// The how-to. `nil` = locked (free tier; only step titles are shown).
+        let detail: String?
+        let doneWhen: String
+    }
+    let summary: String
+    let steps: [Step]
+    let pitfalls: [String]
+    let estEffort: String
+    let tier: String            // "preview" | "full"
+    let lockedStepCount: Int
+    let generatedAt: Date
+
+    /// Stable cache key for a plan: project path + rule id + stage.
+    static func key(projectPath: String, ruleId: String, stage: String) -> String {
+        "\(projectPath)::\(ruleId)::\(stage)"
+    }
+}
+
 // MARK: - Tips state
 
 /// Central state for the Tips tab. Tracks skill progress, mastery count,
@@ -112,6 +138,12 @@ final class TipsState: ObservableObject {
     /// Keyed by the date string (yyyy-MM-dd) so dismissals reset daily.
     @Published var dismissedGuidanceDates: Set<String> = []
 
+    // MARK: - Project Health plans
+
+    /// Generated action plans, keyed by `SectionPlan.key(projectPath:ruleId:stage:)`.
+    /// Cached so revisiting a section doesn't regenerate; persisted across launches.
+    @Published var plansByKey: [String: SectionPlan] = [:]
+
     /// Whether today's guidance has been dismissed.
     var isGuidanceDismissed: Bool {
         dismissedGuidanceDates.contains(Self.todayKey)
@@ -153,6 +185,7 @@ final class TipsState: ObservableObject {
         guidanceError = nil
         dismissedGuidanceDates = []
         completedSetupActions = []
+        plansByKey = [:]
     }
 
     // MARK: - Helpers

@@ -334,6 +334,82 @@ struct GenerateGuidanceResponse: Codable {
     }
 }
 
+// MARK: - Plan DTOs (Project Health action plans)
+
+/// Request for the generatePlan Cloud Function — a per-section action plan.
+struct GeneratePlanRequest: Codable {
+    let language: String        // "vi" | "en"
+    let project: ProjectDTO
+    let section: SectionDTO
+    /// Optional recent narratives for personalization (reuses guidance's DTO).
+    let recentNarratives: [GenerateGuidanceRequest.NarrativeSummaryDTO]?
+
+    struct ProjectDTO: Codable {
+        let name: String
+        let stage: String       // ProjectStage rawValue
+        let brief: String
+        let tags: [String]      // ProjectTag rawValues
+        let domains: [String]   // ProjectDomain rawValues
+    }
+
+    struct SectionDTO: Codable {
+        let ruleId: String
+        let title: String
+        let pillar: String          // HealthPillar rawValue
+        let currentState: String    // "missing" | "passed" | "attested"
+
+        enum CodingKeys: String, CodingKey {
+            case ruleId = "rule_id"
+            case title, pillar
+            case currentState = "current_state"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case language, project, section
+        case recentNarratives = "recent_narratives"
+    }
+}
+
+/// Response from the generatePlan Cloud Function. `locked_step_count` and the
+/// empty `detail` on locked steps reflect server-side paywall gating.
+struct GeneratePlanResponse: Codable {
+    let plan: PlanPayload
+    let tier: String            // "preview" | "full"
+    let lockedStepCount: Int
+    let model: String
+    let generatedAt: String
+
+    struct PlanPayload: Codable {
+        let summary: String
+        let steps: [StepPayload]
+        let pitfalls: [String]?
+        let estEffort: String
+
+        enum CodingKeys: String, CodingKey {
+            case summary, steps, pitfalls
+            case estEffort = "est_effort"
+        }
+    }
+
+    struct StepPayload: Codable {
+        let title: String
+        let detail: String      // "" when locked (free tier)
+        let doneWhen: String
+
+        enum CodingKeys: String, CodingKey {
+            case title, detail
+            case doneWhen = "done_when"
+        }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case plan, tier, model
+        case lockedStepCount = "locked_step_count"
+        case generatedAt = "generated_at"
+    }
+}
+
 // MARK: - Narrative Stream DTOs
 
 enum NarrativeStreamEvent: Equatable {
@@ -365,6 +441,15 @@ protocol ReflectionAPIClientProtocol {
     func summarizeSessionStream(_ request: SummarizeSessionRequest) -> AsyncThrowingStream<SessionSummaryStreamEvent, Error>
     func chatSessionStream(_ request: ChatSessionRequest) -> AsyncThrowingStream<ChatStreamEvent, Error>
     func fetchGuidance(_ request: GenerateGuidanceRequest) async throws -> GenerateGuidanceResponse
+    func fetchPlan(_ request: GeneratePlanRequest) async throws -> GeneratePlanResponse
+}
+
+extension ReflectionAPIClientProtocol {
+    /// Default so existing conformers (e.g. test mocks) don't have to implement
+    /// plan generation. The real client overrides this.
+    func fetchPlan(_ request: GeneratePlanRequest) async throws -> GeneratePlanResponse {
+        throw ReflectionAPIError.malformedResponse
+    }
 }
 
 enum ReflectionAPIError: Error {
@@ -381,6 +466,7 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
     private static let sessionEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/summarizeSession")!
     private static let chatEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/chatSession")!
     private static let guidanceEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/generateGuidance")!
+    private static let planEndpoint = URL(string: "https://us-central1-devpet-8f4b1.cloudfunctions.net/generatePlan")!
 
     private let session: URLSession
     private let authTokenProvider: () async throws -> String
@@ -761,6 +847,34 @@ final class ReflectionAPIClient: ReflectionAPIClientProtocol {
         if http.statusCode == 200 {
             do {
                 return try JSONDecoder().decode(GenerateGuidanceResponse.self, from: data)
+            } catch {
+                throw ReflectionAPIError.malformedResponse
+            }
+        }
+
+        let parsed = try? JSONDecoder().decode(SummarizeTurnError.self, from: data)
+        throw ReflectionAPIError.http(status: http.statusCode, body: parsed)
+    }
+
+    // MARK: - Plan (non-streaming)
+
+    func fetchPlan(_ request: GeneratePlanRequest) async throws -> GeneratePlanResponse {
+        let token = try await authTokenProvider()
+
+        var urlRequest = URLRequest(url: Self.planEndpoint)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        urlRequest.httpBody = try JSONEncoder().encode(request)
+
+        let (data, response) = try await session.data(for: urlRequest)
+        guard let http = response as? HTTPURLResponse else {
+            throw ReflectionAPIError.malformedResponse
+        }
+
+        if http.statusCode == 200 {
+            do {
+                return try JSONDecoder().decode(GeneratePlanResponse.self, from: data)
             } catch {
                 throw ReflectionAPIError.malformedResponse
             }

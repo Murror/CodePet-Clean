@@ -17,6 +17,7 @@ final class TipsPersistence {
         static let focusRepeatCount = "cp_tips_focusRepeatCount"
         static let completedSetupActions = "cp_tips_completedSetupActions"
         static let dismissedGuidanceDates = "cp_tips_dismissedGuidanceDates"
+        static let plans = "cp_tips_plans"
         static let hasSavedBefore = "cp_tips_hasSavedBefore"
     }
 
@@ -46,6 +47,13 @@ final class TipsPersistence {
 
         // Dismissed guidance dates — Set<String> stored as [String]
         defaults.set(Array(state.dismissedGuidanceDates), forKey: Key.dismissedGuidanceDates)
+
+        // Project Health plans — encode the whole dictionary as JSON Data
+        if state.plansByKey.isEmpty {
+            defaults.removeObject(forKey: Key.plans)
+        } else if let data = try? JSONEncoder().encode(state.plansByKey) {
+            defaults.set(data, forKey: Key.plans)
+        }
 
         print("[TipsPersistence] Saved — \(state.skillProgress.count) skills, guidance: \(state.currentGuidance != nil)")
     }
@@ -83,6 +91,12 @@ final class TipsPersistence {
             state.dismissedGuidanceDates = Set(array)
         }
 
+        // Project Health plans
+        if let data = defaults.data(forKey: Key.plans),
+           let decoded = try? JSONDecoder().decode([String: SectionPlan].self, from: data) {
+            state.plansByKey = decoded
+        }
+
         let mastered = state.skillProgress.values.filter { $0.isMastered }.count
         print("[TipsPersistence] Loaded — \(state.skillProgress.count) skills (\(mastered) mastered), guidance fresh: \(state.currentGuidance?.isFresh ?? false)")
     }
@@ -109,6 +123,7 @@ final class TipsPersistence {
             Key.currentGuidance,
             Key.completedSetupActions,
             Key.dismissedGuidanceDates,
+            Key.plans,
             Key.hasSavedBefore
         ]
         for key in keysToRemove {
