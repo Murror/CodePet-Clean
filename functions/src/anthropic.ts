@@ -1,6 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
 
 export const MODEL = "claude-haiku-4-5-20251001";
+// Higher-tier model for Project Health action plans: plans are richer,
+// less frequent, and (later) paywalled, so quality justifies the cost.
+export const PLAN_MODEL = "claude-sonnet-4-6";
 export const MAX_TOKENS = 2000;
 const MAX_PROMPT_CHARS = 8000;
 const MAX_EVENTS = 50;

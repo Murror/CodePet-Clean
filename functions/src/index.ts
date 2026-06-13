@@ -5,6 +5,7 @@ import { handleSummarizeTurn } from "./summarizeTurn";
 import { handleSummarizeSession } from "./summarizeSession";
 import { handleChatSession } from "./chat";
 import { handleGenerateGuidance } from "./generateGuidance";
+import { handleGeneratePlan } from "./generatePlan";
 import { handleExtractKnowledge } from "./extractKnowledge";
 
 admin.initializeApp();
@@ -46,6 +47,14 @@ export const generateGuidance = onRequest(
     secrets: ["ANTHROPIC_API_KEY"]
   },
   handleGenerateGuidance
+);
+
+export const generatePlan = onRequest(
+  {
+    cors: false,
+    secrets: ["ANTHROPIC_API_KEY"]
+  },
+  handleGeneratePlan
 );
 
 export const extractKnowledge = onRequest(
