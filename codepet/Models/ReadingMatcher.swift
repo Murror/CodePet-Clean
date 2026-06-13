@@ -255,9 +255,7 @@ struct ReadingMatcher {
             scored.sort { $0.score > $1.score }
             let picks = Array(scored.prefix(maxPerProject).filter { $0.score > 0 })
 
-            guard !picks.isEmpty else { continue }
-
-            let matched = picks.map { pair in
+            let techMatched = picks.map { pair in
                 MatchedReading(
                     item: pair.item,
                     projectName: project.displayName,
@@ -266,13 +264,40 @@ struct ReadingMatcher {
                 )
             }
 
+            // Business / marketing readings, matched by the project's lifecycle
+            // stage rather than its tech stack — so an idea-stage project (which
+            // may have no detected tech at all) still gets validation/positioning
+            // books, and a growth-stage project gets retention/marketing ones.
+            let stage = ProjectHealthEngine.inferStage(for: project, tags: projectTags)
+            let businessMatched = TipsContent.businessReadingPool
+                .filter { $0.stages.isEmpty || $0.stages.contains(stage) }
+                .prefix(maxBusinessPerProject)
+                .map { item in
+                    MatchedReading(
+                        item: item,
+                        projectName: project.displayName,
+                        projectPath: project.id,
+                        score: 0
+                    )
+                }
+
+            // Tech picks lead (most specific to what they're building now), then
+            // the stage-relevant business books. Skip the project entirely only
+            // if neither axis matched.
+            let combined = techMatched + businessMatched
+            guard !combined.isEmpty else { continue }
+
             groups.append(ProjectReadingGroup(
                 projectName: project.displayName,
                 projectPath: project.id,
-                readings: matched
+                readings: combined
             ))
         }
 
         return groups
     }
+
+    /// Max business/marketing readings blended into each project group, so the
+    /// stage-relevant books don't crowd out the pet's tech picks.
+    private static let maxBusinessPerProject = 2
 }

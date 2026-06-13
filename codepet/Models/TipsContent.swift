@@ -85,8 +85,25 @@ struct TipReadingItem {
     /// general engineering/design books are. A domain match is weighted higher
     /// than a tech match so same-tech projects surface different top picks.
     let domains: [ProjectDomain]
+    /// Lifecycle stages this reading is relevant for. Used to surface
+    /// business/marketing books at the right moment (e.g. validation books at
+    /// `.idea`, growth books at `.growth`). Empty = relevant at every stage.
+    let stages: [ProjectStage]
+    /// Which health pillar this reading speaks to. Empty = general. Lets the
+    /// matcher surface business/growth books independently of the tech stack.
+    let pillars: [HealthPillar]
 
-    init(title: L10n, author: String, kind: L10n, why: L10n, url: String? = nil, tags: [ProjectTag] = [], domains: [ProjectDomain] = []) {
+    init(
+        title: L10n,
+        author: String,
+        kind: L10n,
+        why: L10n,
+        url: String? = nil,
+        tags: [ProjectTag] = [],
+        domains: [ProjectDomain] = [],
+        stages: [ProjectStage] = [],
+        pillars: [HealthPillar] = []
+    ) {
         self.title = title
         self.author = author
         self.kind = kind
@@ -94,6 +111,8 @@ struct TipReadingItem {
         self.url = url
         self.tags = tags
         self.domains = domains
+        self.stages = stages
+        self.pillars = pillars
     }
 }
 
@@ -1178,6 +1197,124 @@ struct TipsContent {
                 domains: [.productivity]
             ),
         ],
+    ]
+
+    // MARK: - Business / Marketing reading pool (universal, stage-matched)
+
+    /// Pet-agnostic books on validation, positioning, pricing, launch, and
+    /// growth. Unlike `tipReadingPool` (matched by tech stack / domain), these
+    /// are matched by the project's lifecycle **stage** — so a project at
+    /// `.idea` sees validation books, and one at `.growth` sees retention books.
+    /// Surfaced alongside the pet's tech readings in the project folder.
+    static let businessReadingPool: [TipReadingItem] = [
+        TipReadingItem(
+            title: L10n(vi: "The Mom Test", en: "The Mom Test"),
+            author: "Rob Fitzpatrick",
+            kind: L10n(vi: "Sách · 130 trang", en: "Book · 130 pages"),
+            why: L10n(
+                vi: "Cách nói chuyện với người dùng để học sự thật, không phải lời khen. Đọc trước khi viết thêm dòng code nào.",
+                en: "How to talk to users and learn the truth instead of compliments. Read it before writing more code."
+            ),
+            url: "http://momtestbook.com/",
+            stages: [.idea, .building],
+            pillars: [.business]
+        ),
+        TipReadingItem(
+            title: L10n(vi: "The Lean Startup", en: "The Lean Startup"),
+            author: "Eric Ries",
+            kind: L10n(vi: "Sách · 336 trang", en: "Book · 336 pages"),
+            why: L10n(
+                vi: "Vòng lặp build–measure–learn: ship nhỏ, đo thật, học nhanh trước khi đốt nhiều thời gian.",
+                en: "The build–measure–learn loop: ship small, measure real, learn fast before burning months."
+            ),
+            url: "http://theleanstartup.com/",
+            stages: [.idea, .building],
+            pillars: [.business]
+        ),
+        TipReadingItem(
+            title: L10n(vi: "Obviously Awesome", en: "Obviously Awesome"),
+            author: "April Dunford",
+            kind: L10n(vi: "Sách · 200 trang", en: "Book · 200 pages"),
+            why: L10n(
+                vi: "Định vị sản phẩm: vì sao 'nó là gì' quan trọng hơn 'nó làm gì'. Nền cho mọi câu marketing.",
+                en: "Positioning: why 'what it is' matters more than 'what it does.' The base for every marketing line."
+            ),
+            url: "https://www.obviouslyawesome.com/",
+            stages: [.building, .launch],
+            pillars: [.business]
+        ),
+        TipReadingItem(
+            title: L10n(vi: "$100M Offers", en: "$100M Offers"),
+            author: "Alex Hormozi",
+            kind: L10n(vi: "Sách · 170 trang", en: "Book · 170 pages"),
+            why: L10n(
+                vi: "Cách dựng một lời chào hàng hấp dẫn đến mức khó từ chối — định giá, bundle, và giá trị cảm nhận.",
+                en: "How to build an offer so good people feel stupid saying no — pricing, bundling, perceived value."
+            ),
+            url: "https://www.acquisition.com/books",
+            stages: [.building, .launch],
+            pillars: [.business]
+        ),
+        TipReadingItem(
+            title: L10n(vi: "Make", en: "Make"),
+            author: "Pieter Levels",
+            kind: L10n(vi: "Hướng dẫn · 250 trang", en: "Guide · 250 pages"),
+            why: L10n(
+                vi: "Sổ tay của indie maker: ship nhanh, kiếm tiền sớm, làm một mình. Rất sát với chỉ-một-người-build.",
+                en: "The indie maker's handbook: ship fast, charge early, do it solo. Tailored to building alone."
+            ),
+            url: "https://makebook.io/",
+            stages: [.idea, .building, .launch],
+            pillars: [.business, .growth]
+        ),
+        TipReadingItem(
+            title: L10n(vi: "Traction", en: "Traction"),
+            author: "Gabriel Weinberg & Justin Mares",
+            kind: L10n(vi: "Sách · 240 trang", en: "Book · 240 pages"),
+            why: L10n(
+                vi: "19 kênh tăng trưởng và khung 'bullseye' để tìm kênh nào thật sự hiệu quả cho bạn.",
+                en: "19 growth channels and the 'bullseye' framework for finding which one actually works for you."
+            ),
+            url: "https://www.goodreads.com/book/show/22091581-traction",
+            stages: [.launch, .growth],
+            pillars: [.growth]
+        ),
+        TipReadingItem(
+            title: L10n(vi: "Do Things That Don't Scale", en: "Do Things That Don't Scale"),
+            author: "Paul Graham",
+            kind: L10n(vi: "Bài luận · 20 phút", en: "Essay · 20 min"),
+            why: L10n(
+                vi: "Vì sao những người dùng đầu tiên đáng để bạn tự tay đi tìm và chăm sóc từng người.",
+                en: "Why your first users are worth recruiting and delighting one by one, by hand."
+            ),
+            url: "https://paulgraham.com/ds.html",
+            stages: [.launch],
+            pillars: [.growth]
+        ),
+        TipReadingItem(
+            title: L10n(vi: "This Is Marketing", en: "This Is Marketing"),
+            author: "Seth Godin",
+            kind: L10n(vi: "Sách · 288 trang", en: "Book · 288 pages"),
+            why: L10n(
+                vi: "Marketing là phục vụ một nhóm nhỏ nhất khả thi thật giỏi — không phải hét to với tất cả mọi người.",
+                en: "Marketing as serving the smallest viable audience well — not shouting at everyone."
+            ),
+            url: "https://seths.blog/2018/11/this-is-marketing/",
+            stages: [.launch, .growth],
+            pillars: [.growth]
+        ),
+        TipReadingItem(
+            title: L10n(vi: "Hooked", en: "Hooked"),
+            author: "Nir Eyal",
+            kind: L10n(vi: "Sách · 256 trang", en: "Book · 256 pages"),
+            why: L10n(
+                vi: "Mô hình trigger → action → reward → investment để xây thói quen giữ người dùng quay lại.",
+                en: "The trigger → action → reward → investment model for building habits that bring users back."
+            ),
+            url: "https://www.nirandfar.com/hooked/",
+            stages: [.growth],
+            pillars: [.growth]
+        ),
     ]
 
     // MARK: - Pet note bottom (1 string per pet)
