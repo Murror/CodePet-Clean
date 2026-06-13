@@ -42,6 +42,7 @@ enum ProjectStage: String, Codable, CaseIterable, Identifiable {
 enum HealthPillar: String, CaseIterable {
     case engineering
     case business
+    case marketing
     case growth
 
     /// Display order in the folder body.
@@ -49,7 +50,8 @@ enum HealthPillar: String, CaseIterable {
         switch self {
         case .engineering: return 0
         case .business:    return 1
-        case .growth:      return 2
+        case .marketing:   return 2
+        case .growth:      return 3
         }
     }
 
@@ -57,6 +59,7 @@ enum HealthPillar: String, CaseIterable {
         switch self {
         case .engineering: return L10n(vi: "Kỹ thuật", en: "Engineering")
         case .business:    return L10n(vi: "Kinh doanh", en: "Business")
+        case .marketing:   return L10n(vi: "Tiếp thị", en: "Marketing")
         case .growth:      return L10n(vi: "Tăng trưởng", en: "Growth")
         }
     }
@@ -575,6 +578,91 @@ enum ProjectHealthEngine {
                 en: "Build a retention loop: lifecycle email, notifications, or a sharing/referral mechanic"
             ),
             pillar: .growth,
+            relevantFrom: .growth,
+            evaluation: .selfAttested,
+            appliesTo: [],
+            detectPatterns: [],
+            detectBriefKeywords: [],
+            learnMoreURL: nil
+        ),
+
+        // ── Marketing ────────────────────────────────────────────────
+        // How the product is positioned and promoted: name, message, content,
+        // proof, and launch assets. Distinct from Growth (analytics, retention,
+        // channels). Mostly self-attested — these leave no detectable trace.
+        ProjectHealthRule(
+            id: "mkt_name_tagline",
+            title: L10n(vi: "Tên & tagline", en: "Name & tagline"),
+            description: L10n(vi: "Đã có tên và một câu mô tả ngắn", en: "You have a name and a one-line hook"),
+            missingDescription: L10n(
+                vi: "Đặt tên sản phẩm và viết một câu hook: bạn giúp ai làm được gì",
+                en: "Name the product and write a one-line hook: who you help and what they get"
+            ),
+            pillar: .marketing,
+            relevantFrom: .idea,
+            evaluation: .selfAttested,
+            appliesTo: [],
+            detectPatterns: [],
+            detectBriefKeywords: [],
+            learnMoreURL: nil
+        ),
+        ProjectHealthRule(
+            id: "mkt_brand_basics",
+            title: L10n(vi: "Nhận diện cơ bản", en: "Brand basics"),
+            description: L10n(vi: "Tên, logo, và phong cách nhất quán", en: "Consistent name, logo, and look"),
+            missingDescription: L10n(
+                vi: "Thống nhất tên, logo và màu sắc trên trang web và các bài đăng",
+                en: "Make your name, logo, and colors consistent across your site and posts"
+            ),
+            pillar: .marketing,
+            relevantFrom: .building,
+            evaluation: .selfAttested,
+            appliesTo: [],
+            detectPatterns: [],
+            detectBriefKeywords: [],
+            learnMoreURL: nil
+        ),
+        ProjectHealthRule(
+            id: "mkt_launch_assets",
+            title: L10n(vi: "Tài sản ra mắt", en: "Launch assets ready"),
+            description: L10n(vi: "Video demo, ảnh chụp, và nội dung ra mắt", en: "Demo video, screenshots, and launch copy"),
+            missingDescription: L10n(
+                vi: "Chuẩn bị video demo, ảnh chụp màn hình và nội dung cho ngày ra mắt",
+                en: "Prepare a demo video, screenshots, and copy for launch day"
+            ),
+            pillar: .marketing,
+            relevantFrom: .launch,
+            evaluation: .selfAttested,
+            appliesTo: [],
+            detectPatterns: [],
+            detectBriefKeywords: [],
+            learnMoreURL: nil
+        ),
+        ProjectHealthRule(
+            id: "mkt_content",
+            title: L10n(vi: "Tiếp thị nội dung", en: "Content marketing"),
+            description: L10n(vi: "Đang đăng nội dung thu hút khán giả", en: "You publish content that attracts your audience"),
+            missingDescription: L10n(
+                vi: "Đăng nội dung (bài viết, video ngắn) thu hút đúng người một cách tự nhiên",
+                en: "Publish content (posts, short videos) that pulls in the right people organically"
+            ),
+            pillar: .marketing,
+            relevantFrom: .launch,
+            evaluation: .selfAttested,
+            appliesTo: [],
+            detectPatterns: [],
+            detectBriefKeywords: [],
+            learnMoreURL: nil
+        ),
+        ProjectHealthRule(
+            id: "mkt_social_proof",
+            title: L10n(vi: "Bằng chứng xã hội", en: "Social proof"),
+            description: L10n(vi: "Có lời chứng thực / đánh giá từ người dùng", en: "You have testimonials or reviews"),
+            missingDescription: L10n(
+                vi: "Thu thập lời chứng thực, đánh giá hoặc trích dẫn từ người dùng để tạo niềm tin",
+                en: "Collect testimonials, reviews, or user quotes to build trust"
+            ),
+            pillar: .marketing,
             relevantFrom: .growth,
             evaluation: .selfAttested,
             appliesTo: [],

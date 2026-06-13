@@ -761,6 +761,7 @@ struct ProjectFolderContentView: View {
         switch pillar {
         case .engineering: return "hammer.fill"
         case .business:    return "dollarsign.circle.fill"
+        case .marketing:   return "megaphone.fill"
         case .growth:      return "chart.line.uptrend.xyaxis"
         }
     }
@@ -769,6 +770,7 @@ struct ProjectFolderContentView: View {
         switch pillar {
         case .engineering: return Color(hex: "#9BD0FF")
         case .business:    return Color(hex: "#7CE0A3")
+        case .marketing:   return Color(hex: "#FF9EC4")
         case .growth:      return Color(hex: "#FFCC33")
         }
     }
