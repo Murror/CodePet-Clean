@@ -19,7 +19,7 @@ final class MockAPIClient: ReflectionAPIClientProtocol {
         if let response = response { return response }
         return SummarizeTurnResponse(
             turnId: request.turnId,
-            narrative: .init(title: "T", whatYouWanted: "w", whatHappened: "h", lesson: "l", nextSteps: "n", mood: "excited"),
+            narrative: .init(title: "T", whatYouWanted: "w", whatHappened: "h", lesson: "l", nextSteps: "n", mood: "excited", detectedSkills: nil),
             model: "claude-haiku-4-5-20251001",
             cacheHit: false
         )
@@ -29,7 +29,7 @@ final class MockAPIClient: ReflectionAPIClientProtocol {
         if let error = error { throw error }
         return SummarizeSessionResponse(
             sessionId: request.sessionId,
-            summary: .init(summary: "Mock session summary", lesson: "Mock lesson"),
+            summary: .init(summary: "Mock session summary", lesson: "Mock lesson", briefUpdate: nil, projectOverview: nil),
             model: "claude-haiku-4-5-20251001"
         )
     }
@@ -44,7 +44,7 @@ final class MockAPIClient: ReflectionAPIClientProtocol {
                 continuation.yield(.started)
                 let resp = self.response ?? SummarizeTurnResponse(
                     turnId: request.turnId,
-                    narrative: .init(title: "T", whatYouWanted: "w", whatHappened: "h", lesson: "l", nextSteps: "n", mood: "excited"),
+                    narrative: .init(title: "T", whatYouWanted: "w", whatHappened: "h", lesson: "l", nextSteps: "n", mood: "excited", detectedSkills: nil),
                     model: "claude-haiku-4-5-20251001",
                     cacheHit: false
                 )

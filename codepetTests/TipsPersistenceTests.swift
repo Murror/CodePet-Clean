@@ -35,12 +35,12 @@ final class TipsPersistenceTests: XCTestCase {
         let original = TipsState()
         original.currentGuidance = GuidanceResult(
             headline: "Test headline",
-            body: "Test body",
-            actionLabel: "Try it",
+            project: "CodePet",
+            strength: "Test strength",
+            gap: "Test gap",
+            move: "Test move",
+            status: "new",
             mood: "excited",
-            sourcePatterns: ["pattern1", "pattern2"],
-            expertQuote: nil,
-            expertName: nil,
             generatedAt: Date()
         )
         persistence.save(original)
@@ -50,7 +50,36 @@ final class TipsPersistenceTests: XCTestCase {
 
         XCTAssertEqual(restored.currentGuidance?.headline, "Test headline")
         XCTAssertEqual(restored.currentGuidance?.mood, "excited")
-        XCTAssertEqual(restored.currentGuidance?.sourcePatterns.count, 2)
+        XCTAssertEqual(restored.currentGuidance?.move, "Test move")
+    }
+
+    func testSaveAndLoadPlans() {
+        let original = TipsState()
+        let key = SectionPlan.key(projectPath: "/p/codepet", ruleId: "biz_problem_validated", stage: "idea")
+        original.plansByKey[key] = SectionPlan(
+            summary: "Validate the problem",
+            steps: [
+                SectionPlan.Step(title: "Talk to 5 users", detail: "Interview them", doneWhen: "5 quotes collected"),
+                SectionPlan.Step(title: "Locked step", detail: nil, doneWhen: "—")
+            ],
+            pitfalls: ["Leading questions"],
+            estEffort: "about half a day",
+            tier: "preview",
+            lockedStepCount: 1,
+            generatedAt: Date()
+        )
+        persistence.save(original)
+
+        let restored = TipsState()
+        persistence.load(into: restored)
+
+        let plan = restored.plansByKey[key]
+        XCTAssertEqual(plan?.summary, "Validate the problem")
+        XCTAssertEqual(plan?.steps.count, 2)
+        XCTAssertEqual(plan?.steps.first?.detail, "Interview them")
+        XCTAssertNil(plan?.steps.last?.detail)   // locked step round-trips as nil
+        XCTAssertEqual(plan?.tier, "preview")
+        XCTAssertEqual(plan?.lockedStepCount, 1)
     }
 
     func testSaveAndLoadSetupActions() {

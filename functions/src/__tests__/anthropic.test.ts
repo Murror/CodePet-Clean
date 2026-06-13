@@ -45,7 +45,7 @@ describe("anthropic prompt builders", () => {
     expect(props.next_steps).toBeDefined();
     expect(props.mood).toBeDefined();
     expect((NARRATIVE_TOOL.input_schema as any).required)
-      .toEqual(["title", "what_you_wanted", "what_happened", "lesson", "next_steps", "mood"]);
+      .toEqual(["title", "what_you_wanted", "what_happened", "lesson", "next_steps", "mood", "detected_skills"]);
   });
 
   test("SYSTEM_PROMPT contains language placeholder", () => {

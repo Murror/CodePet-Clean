@@ -14,7 +14,8 @@ final class ReflectionAPIClientTests: XCTestCase {
             ],
             rawSummary: "Edit foo.swift",
             petPersona: nil,
-            userBrief: nil
+            userBrief: nil,
+            petMemory: nil
         )
         let data = try JSONEncoder().encode(payload)
         let json = try JSONSerialization.jsonObject(with: data) as! [String: Any]

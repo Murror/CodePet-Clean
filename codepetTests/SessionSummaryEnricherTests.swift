@@ -14,7 +14,7 @@ final class MockSessionAPIClient: ReflectionAPIClientProtocol {
         // Not used in session enricher tests
         return SummarizeTurnResponse(
             turnId: request.turnId,
-            narrative: .init(title: "T", whatYouWanted: "w", whatHappened: "h", lesson: "l", nextSteps: nil, mood: "idle"),
+            narrative: .init(title: "T", whatYouWanted: "w", whatHappened: "h", lesson: "l", nextSteps: nil, mood: "idle", detectedSkills: nil),
             model: "claude-haiku-4-5-20251001",
             cacheHit: false
         )
@@ -25,7 +25,7 @@ final class MockSessionAPIClient: ReflectionAPIClientProtocol {
         if let error = sessionError { throw error }
         return SummarizeSessionResponse(
             sessionId: request.sessionId,
-            summary: .init(summary: "Test arc summary", lesson: "Test lesson"),
+            summary: .init(summary: "Test arc summary", lesson: "Test lesson", briefUpdate: nil, projectOverview: nil),
             model: "claude-haiku-4-5-20251001"
         )
     }
@@ -35,7 +35,7 @@ final class MockSessionAPIClient: ReflectionAPIClientProtocol {
             Task {
                 continuation.yield(.started)
                 let narrative = SummarizeTurnResponse.NarrativePayload(
-                    title: "T", whatYouWanted: "w", whatHappened: "h", lesson: "l", nextSteps: nil, mood: "idle"
+                    title: "T", whatYouWanted: "w", whatHappened: "h", lesson: "l", nextSteps: nil, mood: "idle", detectedSkills: nil
                 )
                 continuation.yield(.done(narrative: narrative, model: "claude-haiku-4-5-20251001", cacheHit: false))
                 continuation.finish()

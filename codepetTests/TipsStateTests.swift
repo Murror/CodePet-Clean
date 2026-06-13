@@ -65,12 +65,12 @@ final class TipsStateTests: XCTestCase {
     func testGuidanceFreshnessToday() {
         let guidance = GuidanceResult(
             headline: "Test",
-            body: "Body",
-            actionLabel: nil,
+            project: nil,
+            strength: "Strength",
+            gap: nil,
+            move: "Move",
+            status: "new",
             mood: "thinking",
-            sourcePatterns: [],
-            expertQuote: nil,
-            expertName: nil,
             generatedAt: Date()
         )
         state.currentGuidance = guidance
@@ -82,12 +82,12 @@ final class TipsStateTests: XCTestCase {
         let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Date())!
         let guidance = GuidanceResult(
             headline: "Old",
-            body: "Body",
-            actionLabel: nil,
+            project: nil,
+            strength: "Strength",
+            gap: nil,
+            move: "Move",
+            status: "new",
             mood: "calm",
-            sourcePatterns: [],
-            expertQuote: nil,
-            expertName: nil,
             generatedAt: yesterday
         )
         state.currentGuidance = guidance
