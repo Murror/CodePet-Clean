@@ -6,6 +6,7 @@ import { handleSummarizeSession } from "./summarizeSession";
 import { handleChatSession } from "./chat";
 import { handleGenerateGuidance } from "./generateGuidance";
 import { handleGeneratePlan } from "./generatePlan";
+import { handleRevenueCatWebhook } from "./revenueCatWebhook";
 import { handleExtractKnowledge } from "./extractKnowledge";
 
 admin.initializeApp();
@@ -55,6 +56,16 @@ export const generatePlan = onRequest(
     secrets: ["ANTHROPIC_API_KEY"]
   },
   handleGeneratePlan
+);
+
+// RevenueCat -> Firestore entitlements bridge. No declared secret so it can
+// deploy inert before RevenueCat is connected; reads REVENUECAT_WEBHOOK_TOKEN
+// from env at runtime (rejects all requests until that is set).
+export const revenueCatWebhook = onRequest(
+  {
+    cors: false
+  },
+  handleRevenueCatWebhook
 );
 
 export const extractKnowledge = onRequest(

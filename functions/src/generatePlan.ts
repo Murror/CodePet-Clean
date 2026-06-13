@@ -6,6 +6,7 @@ import { verifyAuth } from "./auth";
 import { checkAndIncrement } from "./rateLimit";
 import { PLAN_MODEL } from "./anthropic";
 import { NarrativeSummaryInput } from "./generateGuidance";
+import { resolvePlanTier, PlanTier } from "./entitlements";
 
 // MARK: - Plan-specific types
 
@@ -48,22 +49,12 @@ export interface PlanOutput {
 //
 // The paywall is enforced HERE, server-side: locked step `detail` is stripped
 // before the response leaves the server, so a free user can never read it from
-// the network. `PLAN_GATING_ENABLED` ships OFF so plans launch free to validate
-// demand; flip it on once entitlements (RevenueCat -> entitlements/{uid}) land.
-
-const PLAN_GATING_ENABLED = false;
-
-/** Resolve the user's plan tier. Stub for now — everyone is "full" until the
- *  RevenueCat webhook + entitlements/{uid} lookup is wired (build-order step 4). */
-async function resolveTier(_uid: string): Promise<"preview" | "full"> {
-  if (!PLAN_GATING_ENABLED) return "full";
-  // TODO(step 4): read entitlements/{uid}.pro from Firestore.
-  return "preview";
-}
+// the network. Tier resolution lives in entitlements.ts (reads the RevenueCat-
+// written entitlements/{uid}); gating ships OFF until a purchase flow exists.
 
 /** Free preview keeps summary + every step's title/done_when, but only the
  *  FIRST step's detail. Returns the (possibly redacted) plan + locked count. */
-function applyTier(plan: PlanOutput, tier: "preview" | "full"): { plan: PlanOutput; lockedStepCount: number } {
+function applyTier(plan: PlanOutput, tier: PlanTier): { plan: PlanOutput; lockedStepCount: number } {
   if (tier === "full") return { plan, lockedStepCount: 0 };
   let locked = 0;
   const steps = plan.steps.map((s, i) => {
@@ -320,7 +311,7 @@ export async function handleGeneratePlan(
   }
 
   // Resolve entitlement and gate (server-side — locked detail never leaves here)
-  const tier = await resolveTier(auth.uid);
+  const tier = await resolvePlanTier(auth.uid);
   const { plan: gatedPlan, lockedStepCount } = applyTier(plan, tier);
 
   // Respond
