@@ -547,12 +547,18 @@ struct ProjectFolderContentView: View {
     /// non-actionable context, and at early stages it can be 9+ rows.
     @State private var upcomingExpanded = false
 
-    /// Rule ids whose inline plan panel is currently open.
-    @State private var expandedPlans: Set<String> = []
+    /// The check whose plan is shown in the modal layer (nil = no sheet).
+    @State private var planSheet: PlanSheetTarget?
 
     /// Rule ids whose plan the user has revealed past the free preview.
     /// (Progressive disclosure now; becomes the purchase gate when gating is on.)
     @State private var unlockedPlans: Set<String> = []
+
+    /// Identifiable wrapper so the plan opens via `.sheet(item:)`.
+    private struct PlanSheetTarget: Identifiable {
+        let result: ProjectHealthResult
+        var id: String { result.rule.id }
+    }
 
     /// Pillars that actually have relevant checks for this project, in display order.
     private var activePillars: [HealthPillar] {
@@ -610,6 +616,10 @@ struct ProjectFolderContentView: View {
         // Solid vivid brand color — same treatment as the agentic-coding skill
         // cards. Inner content uses white text for contrast on this strong bg.
         .background(palette.mid)
+        // Plan opens in its own modal layer (keeps the folder compact).
+        .sheet(item: $planSheet) { target in
+            planSheetView(target.result)
+        }
     }
 
     // ── Project header with icon + score ──
@@ -804,10 +814,8 @@ struct ProjectFolderContentView: View {
         let planKey = SectionPlan.key(
             projectPath: project.id, ruleId: result.rule.id, stage: report.stage.rawValue
         )
-        let planOpen = expandedPlans.contains(result.rule.id)
 
-        return VStack(alignment: .leading, spacing: 0) {
-        HStack(alignment: .center, spacing: 12) {
+        return HStack(alignment: .center, spacing: 12) {
             // Status icon — pixel-art square
             Image(systemName: isMissing ? "xmark" : "checkmark")
                 .font(.system(size: 9, weight: .bold))
@@ -852,16 +860,16 @@ struct ProjectFolderContentView: View {
                 ))
             }
 
-            // Get plan / View plan — generates a step-by-step action plan for
-            // missing checks. Cached plans say "View plan".
+            // Get plan / View plan — opens the action plan in a modal layer.
+            // Cached plans say "View plan".
             if isMissing {
-                Button(action: { togglePlan(result) }) {
-                    Text(planButtonLabel(key: planKey, isOpen: planOpen))
+                Button(action: { openPlan(result) }) {
+                    Text(planButtonLabel(key: planKey))
                         .font(.pixelSystem(size: 9, weight: .bold))
                 }
                 .buttonStyle(PixelButtonStyle(
-                    fill: planOpen ? Color.black.opacity(0.2) : .white,
-                    foreground: planOpen ? .white : palette.dark,
+                    fill: .white,
+                    foreground: palette.dark,
                     paddingH: 10,
                     paddingV: 4,
                     blockSize: 2,
@@ -901,29 +909,18 @@ struct ProjectFolderContentView: View {
                 .frame(height: 1)
                 .padding(.leading, 36)
         }
-
-            // Inline plan panel
-            if planOpen {
-                planPanel(result: result, key: planKey)
-            }
-        }
     }
 
-    // ── Plan: button label, toggle, inline panel ──
+    // ── Plan: button label, open, modal layer ──
 
-    private func planButtonLabel(key: String, isOpen: Bool) -> String {
-        if isOpen { return uiLanguage == .vi ? "Ẩn" : "Hide" }
+    private func planButtonLabel(key: String) -> String {
         if tipsState.plansByKey[key] != nil { return uiLanguage == .vi ? "Xem kế hoạch" : "View plan" }
         return uiLanguage == .vi ? "Lập kế hoạch" : "Get plan"
     }
 
-    private func togglePlan(_ result: ProjectHealthResult) {
-        let id = result.rule.id
-        if expandedPlans.contains(id) {
-            expandedPlans.remove(id)
-            return
-        }
-        expandedPlans.insert(id)
+    /// Open the plan in its modal layer and kick off generation (cache-or-fetch).
+    private func openPlan(_ result: ProjectHealthResult) {
+        planSheet = PlanSheetTarget(result: result)
         Task {
             await planEnricher.generatePlan(
                 project: project, report: report, result: result,
@@ -932,59 +929,93 @@ struct ProjectFolderContentView: View {
         }
     }
 
+    /// The plan modal: header bar + scrollable body (loading / error / plan).
     @ViewBuilder
-    private func planPanel(result: ProjectHealthResult, key: String) -> some View {
-        Group {
-            if planEnricher.isLoading(key) {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small).tint(.white)
-                    Text(uiLanguage == .vi ? "Đang lập kế hoạch…" : "Generating plan…")
-                        .font(.pixelSystem(size: 11))
-                        .foregroundColor(.white.opacity(0.85))
+    private func planSheetView(_ result: ProjectHealthResult) -> some View {
+        let key = SectionPlan.key(
+            projectPath: project.id, ruleId: result.rule.id, stage: report.stage.rawValue
+        )
+        VStack(spacing: 0) {
+            // Header bar
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(uiLanguage == .vi ? "Kế hoạch hành động" : "Action plan")
+                        .font(.pixelSystem(size: 10, weight: .bold))
+                        .foregroundColor(.white.opacity(0.7))
+                        .tracking(0.5)
+                        .textCase(.uppercase)
+                    Text(result.rule.title(uiLanguage))
+                        .font(.pixelSystem(size: 17, weight: .bold))
+                        .foregroundColor(.white)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer()
+                Button(action: { planSheet = nil }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .bold))
+                }
+                .buttonStyle(PixelButtonStyle(
+                    fill: .white, foreground: palette.dark,
+                    paddingH: 9, paddingV: 7, blockSize: 2, steps: 1,
+                    borderWidth: 2, shadowOffset: 2,
+                    font: .pixelSystem(size: 11, weight: .bold)
+                ))
+            }
+            .padding(16)
+            .background(palette.dark)
+
+            // Body
+            ScrollView {
+                Group {
+                    if planEnricher.isLoading(key) {
+                        HStack(spacing: 8) {
+                            ProgressView().controlSize(.small).tint(.white)
+                            Text(uiLanguage == .vi ? "Đang lập kế hoạch…" : "Generating plan…")
+                                .font(.pixelSystem(size: 12))
+                                .foregroundColor(.white.opacity(0.85))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(20)
+                    } else if let plan = tipsState.plansByKey[key] {
+                        planContent(plan, result: result)
+                    } else {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .foregroundColor(Color(hex: "#FFCC33"))
+                                Text(uiLanguage == .vi
+                                     ? "Không lập được kế hoạch."
+                                     : "Couldn't generate a plan.")
+                                    .font(.pixelSystem(size: 12))
+                                    .foregroundColor(.white.opacity(0.9))
+                            }
+                            Button(action: {
+                                Task {
+                                    await planEnricher.generatePlan(
+                                        project: project, report: report, result: result,
+                                        language: uiLanguage, tipsState: tipsState, force: true
+                                    )
+                                }
+                            }) {
+                                Text(uiLanguage == .vi ? "Thử lại" : "Retry")
+                                    .font(.pixelSystem(size: 11, weight: .bold))
+                            }
+                            .buttonStyle(PixelButtonStyle(
+                                fill: .white, foreground: palette.dark,
+                                paddingH: 14, paddingV: 7, blockSize: 2, steps: 1,
+                                borderWidth: 2, shadowOffset: 2,
+                                font: .pixelSystem(size: 11, weight: .bold)
+                            ))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(20)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
-            } else if let plan = tipsState.plansByKey[key] {
-                planContent(plan, result: result)
-            } else {
-                // Failed (or returned nothing) — offer a retry.
-                HStack(spacing: 10) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(Color(hex: "#FFCC33"))
-                    Text(uiLanguage == .vi
-                         ? "Không lập được kế hoạch. Thử lại."
-                         : "Couldn't generate a plan. Try again.")
-                        .font(.pixelSystem(size: 11))
-                        .foregroundColor(.white.opacity(0.85))
-                    Spacer()
-                    Button(action: {
-                        Task {
-                            await planEnricher.generatePlan(
-                                project: project, report: report, result: result,
-                                language: uiLanguage, tipsState: tipsState, force: true
-                            )
-                        }
-                    }) {
-                        Text(uiLanguage == .vi ? "Thử lại" : "Retry")
-                            .font(.pixelSystem(size: 9, weight: .bold))
-                    }
-                    .buttonStyle(PixelButtonStyle(
-                        fill: .white, foreground: palette.dark,
-                        paddingH: 10, paddingV: 4, blockSize: 2, steps: 1,
-                        borderWidth: 2, shadowOffset: 2,
-                        font: .pixelSystem(size: 9, weight: .bold)
-                    ))
-                }
-                .padding(14)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.black.opacity(0.14))
-        .overlay(
-            Rectangle().stroke(Color.white.opacity(0.25), lineWidth: 1.5)
-        )
-        .padding(.leading, 32)
-        .padding(.bottom, 6)
+        .frame(width: 560, height: 540)
+        .background(palette.mid)
     }
 
     @ViewBuilder
