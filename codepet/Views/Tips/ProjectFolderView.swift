@@ -871,54 +871,52 @@ struct ProjectFolderContentView: View {
 
             Spacer()
 
-            // All per-row actions live in one compact dropdown so the row width
-            // stays consistent regardless of which actions apply.
-            rowActionsMenu(result, isMissing: isMissing, canToggle: canToggle, planKey: planKey)
+            if isMissing, let urlString = result.rule.learnMoreURL, let url = URL(string: urlString) {
+                Button(action: { onLearnMore(url) }) {
+                    Text(uiLanguage == .vi ? "Tìm hiểu" : "Learn more")
+                        .font(.pixelSystem(size: 9, weight: .bold))
+                }
+                .buttonStyle(PixelButtonStyle(
+                    fill: .white, foreground: palette.dark,
+                    paddingH: 10, paddingV: 4, blockSize: 2, steps: 1,
+                    borderWidth: 2, shadowOffset: 2,
+                    font: .pixelSystem(size: 9, weight: .bold)
+                ))
+            }
+
+            // Get plan / View plan — opens the action plan in a modal layer.
+            if isMissing {
+                Button(action: { openPlan(result) }) {
+                    Text(planButtonLabel(key: planKey))
+                        .font(.pixelSystem(size: 9, weight: .bold))
+                }
+                .buttonStyle(PixelButtonStyle(
+                    fill: .white, foreground: palette.dark,
+                    paddingH: 10, paddingV: 4, blockSize: 2, steps: 1,
+                    borderWidth: 2, shadowOffset: 2,
+                    font: .pixelSystem(size: 9, weight: .bold)
+                ))
+            }
+
+            // Mark done / undo — for self-attested checks and missing auto checks.
+            if canToggle {
+                Button(action: { onToggleAttestation(result.rule.id) }) {
+                    Text(isMissing
+                         ? (uiLanguage == .vi ? "Đánh dấu xong" : "Mark done")
+                         : (uiLanguage == .vi ? "Hoàn tác" : "Undo"))
+                        .font(.pixelSystem(size: 9, weight: .bold))
+                }
+                .buttonStyle(PixelButtonStyle(
+                    fill: isMissing ? palette.fill : Color.black.opacity(0.2),
+                    foreground: isMissing ? palette.dark : .white,
+                    paddingH: 10, paddingV: 4, blockSize: 2, steps: 1,
+                    borderWidth: 2, shadowOffset: 2,
+                    font: .pixelSystem(size: 9, weight: .bold)
+                ))
+            }
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 6)
-    }
-
-    // ── Row actions (compact dropdown) ──
-
-    @ViewBuilder
-    private func rowActionsMenu(
-        _ result: ProjectHealthResult, isMissing: Bool, canToggle: Bool, planKey: String
-    ) -> some View {
-        Menu {
-            if isMissing {
-                Button(action: { openPlan(result) }) {
-                    Label(planButtonLabel(key: planKey), systemImage: "list.bullet.rectangle")
-                }
-                if let urlString = result.rule.learnMoreURL, let url = URL(string: urlString) {
-                    Button(action: { onLearnMore(url) }) {
-                        Label(uiLanguage == .vi ? "Tìm hiểu" : "Learn more", systemImage: "book")
-                    }
-                }
-            }
-            if canToggle {
-                Button(action: { onToggleAttestation(result.rule.id) }) {
-                    Label(
-                        isMissing
-                            ? (uiLanguage == .vi ? "Đánh dấu xong" : "Mark done")
-                            : (uiLanguage == .vi ? "Hoàn tác" : "Undo"),
-                        systemImage: isMissing ? "checkmark" : "arrow.uturn.backward"
-                    )
-                }
-            }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(palette.dark)
-                .frame(width: 36, height: 26)
-                .background(PixelStaircaseRectangle(blockSize: 2, steps: 1).fill(Color.white))
-                .overlay(PixelStaircaseRectangle(blockSize: 2, steps: 1)
-                    .stroke(Color(hex: "#2D2B26"), lineWidth: 2))
-        }
-        .menuStyle(.button)
-        .buttonStyle(.plain)
-        .menuIndicator(.hidden)
-        .fixedSize()
     }
 
     // ── Plan: button label, open, modal layer ──
