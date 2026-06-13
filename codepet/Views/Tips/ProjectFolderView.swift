@@ -536,6 +536,10 @@ struct ProjectFolderContentView: View {
     /// Toggle a self-attested check ("Mark done" / undo).
     let onToggleAttestation: (String) -> Void
 
+    /// "Coming up later" is collapsed by default — it's forward-looking,
+    /// non-actionable context, and at early stages it can be 9+ rows.
+    @State private var upcomingExpanded = false
+
     /// Pillars that actually have relevant checks for this project, in display order.
     private var activePillars: [HealthPillar] {
         HealthPillar.allCases
@@ -555,16 +559,9 @@ struct ProjectFolderContentView: View {
                 pillarSection(pillar)
             }
 
-            // ── Coming up later (stage-gated checks) ──
+            // ── Coming up later (stage-gated checks) — collapsed by default ──
             if !report.upcoming.isEmpty {
-                sectionLabel(
-                    icon: "clock.fill",
-                    text: uiLanguage == .vi ? "Sắp tới" : "Coming up later",
-                    iconColor: Color.white.opacity(0.7)
-                )
-                ForEach(report.upcoming) { result in
-                    upcomingRow(result)
-                }
+                upcomingSection
             }
 
             // ── Recommended reading ──
@@ -743,8 +740,44 @@ struct ProjectFolderContentView: View {
                 .tracking(0.5)
                 .textCase(.uppercase)
         }
-        .padding(.top, 22)
-        .padding(.bottom, 12)
+        .padding(.top, 14)
+        .padding(.bottom, 8)
+    }
+
+    // ── Coming up later (collapsible) ──
+
+    private var upcomingSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.15)) { upcomingExpanded.toggle() }
+            }) {
+                HStack(spacing: 7) {
+                    Image(systemName: "clock.fill")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.white.opacity(0.7))
+                    Text((uiLanguage == .vi ? "Sắp tới" : "Coming up later")
+                         + " (\(report.upcoming.count))")
+                        .font(.pixelSystem(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .tracking(0.5)
+                        .textCase(.uppercase)
+                    Image(systemName: upcomingExpanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white.opacity(0.7))
+                    Spacer()
+                }
+                .padding(.top, 14)
+                .padding(.bottom, upcomingExpanded ? 8 : 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if upcomingExpanded {
+                ForEach(report.upcoming) { result in
+                    upcomingRow(result)
+                }
+            }
+        }
     }
 
     // ── Health check row ──
@@ -822,7 +855,7 @@ struct ProjectFolderContentView: View {
             }
         }
         .padding(.horizontal, 4)
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.white.opacity(0.18))
@@ -864,7 +897,7 @@ struct ProjectFolderContentView: View {
                 .overlay(Rectangle().stroke(Color.white.opacity(0.3), lineWidth: 1.5))
         }
         .padding(.horizontal, 4)
-        .padding(.vertical, 5)
+        .padding(.vertical, 3)
     }
 
     // ── Reading scroll (horizontal, with trailing arrow) ──
