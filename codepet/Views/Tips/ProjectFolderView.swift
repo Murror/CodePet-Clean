@@ -525,6 +525,8 @@ struct ProjectTabButton: View {
 
 struct ProjectFolderContentView: View {
     let report: ProjectHealthReport
+    /// The project these checks belong to — source of brief/domains for plan generation.
+    let project: Project
     let readings: [ReadingMatcher.MatchedReading]
     let palette: ProjectPalette
     let uiLanguage: AppLanguage
@@ -536,9 +538,17 @@ struct ProjectFolderContentView: View {
     /// Toggle a self-attested check ("Mark done" / undo).
     let onToggleAttestation: (String) -> Void
 
+    /// Generates per-section action plans on demand.
+    @ObservedObject var planEnricher: PlanEnricher
+    /// Holds the cached plans (plansByKey) the panel reads.
+    @EnvironmentObject var tipsState: TipsState
+
     /// "Coming up later" is collapsed by default — it's forward-looking,
     /// non-actionable context, and at early stages it can be 9+ rows.
     @State private var upcomingExpanded = false
+
+    /// Rule ids whose inline plan panel is currently open.
+    @State private var expandedPlans: Set<String> = []
 
     /// Pillars that actually have relevant checks for this project, in display order.
     private var activePillars: [HealthPillar] {
@@ -787,8 +797,13 @@ struct ProjectFolderContentView: View {
         // Auto-detected passes can't be toggled (they reflect the files);
         // everything else can be confirmed/undone by the user.
         let canToggle = result.state != .passed
+        let planKey = SectionPlan.key(
+            projectPath: project.id, ruleId: result.rule.id, stage: report.stage.rawValue
+        )
+        let planOpen = expandedPlans.contains(result.rule.id)
 
-        return HStack(alignment: .center, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 0) {
+        HStack(alignment: .center, spacing: 12) {
             // Status icon — pixel-art square
             Image(systemName: isMissing ? "xmark" : "checkmark")
                 .font(.system(size: 9, weight: .bold))
@@ -833,6 +848,26 @@ struct ProjectFolderContentView: View {
                 ))
             }
 
+            // Get plan / View plan — generates a step-by-step action plan for
+            // missing checks. Cached plans say "View plan".
+            if isMissing {
+                Button(action: { togglePlan(result) }) {
+                    Text(planButtonLabel(key: planKey, isOpen: planOpen))
+                        .font(.pixelSystem(size: 9, weight: .bold))
+                }
+                .buttonStyle(PixelButtonStyle(
+                    fill: planOpen ? Color.black.opacity(0.2) : .white,
+                    foreground: planOpen ? .white : palette.dark,
+                    paddingH: 10,
+                    paddingV: 4,
+                    blockSize: 2,
+                    steps: 1,
+                    borderWidth: 2,
+                    shadowOffset: 2,
+                    font: .pixelSystem(size: 9, weight: .bold)
+                ))
+            }
+
             // Mark done / undo — for self-attested checks and missing auto checks.
             if canToggle {
                 Button(action: { onToggleAttestation(result.rule.id) }) {
@@ -862,6 +897,203 @@ struct ProjectFolderContentView: View {
                 .frame(height: 1)
                 .padding(.leading, 36)
         }
+
+            // Inline plan panel
+            if planOpen {
+                planPanel(result: result, key: planKey)
+            }
+        }
+    }
+
+    // ── Plan: button label, toggle, inline panel ──
+
+    private func planButtonLabel(key: String, isOpen: Bool) -> String {
+        if isOpen { return uiLanguage == .vi ? "Ẩn" : "Hide" }
+        if tipsState.plansByKey[key] != nil { return uiLanguage == .vi ? "Xem kế hoạch" : "View plan" }
+        return uiLanguage == .vi ? "Lập kế hoạch" : "Get plan"
+    }
+
+    private func togglePlan(_ result: ProjectHealthResult) {
+        let id = result.rule.id
+        if expandedPlans.contains(id) {
+            expandedPlans.remove(id)
+            return
+        }
+        expandedPlans.insert(id)
+        Task {
+            await planEnricher.generatePlan(
+                project: project, report: report, result: result,
+                language: uiLanguage, tipsState: tipsState
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func planPanel(result: ProjectHealthResult, key: String) -> some View {
+        Group {
+            if planEnricher.isLoading(key) {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small).tint(.white)
+                    Text(uiLanguage == .vi ? "Đang lập kế hoạch…" : "Generating plan…")
+                        .font(.pixelSystem(size: 11))
+                        .foregroundColor(.white.opacity(0.85))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+            } else if let plan = tipsState.plansByKey[key] {
+                planContent(plan, result: result)
+            } else {
+                // Failed (or returned nothing) — offer a retry.
+                HStack(spacing: 10) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(Color(hex: "#FFCC33"))
+                    Text(uiLanguage == .vi
+                         ? "Không lập được kế hoạch. Thử lại."
+                         : "Couldn't generate a plan. Try again.")
+                        .font(.pixelSystem(size: 11))
+                        .foregroundColor(.white.opacity(0.85))
+                    Spacer()
+                    Button(action: {
+                        Task {
+                            await planEnricher.generatePlan(
+                                project: project, report: report, result: result,
+                                language: uiLanguage, tipsState: tipsState, force: true
+                            )
+                        }
+                    }) {
+                        Text(uiLanguage == .vi ? "Thử lại" : "Retry")
+                            .font(.pixelSystem(size: 9, weight: .bold))
+                    }
+                    .buttonStyle(PixelButtonStyle(
+                        fill: .white, foreground: palette.dark,
+                        paddingH: 10, paddingV: 4, blockSize: 2, steps: 1,
+                        borderWidth: 2, shadowOffset: 2,
+                        font: .pixelSystem(size: 9, weight: .bold)
+                    ))
+                }
+                .padding(14)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.black.opacity(0.14))
+        .overlay(
+            Rectangle().stroke(Color.white.opacity(0.25), lineWidth: 1.5)
+        )
+        .padding(.leading, 32)
+        .padding(.bottom, 6)
+    }
+
+    @ViewBuilder
+    private func planContent(_ plan: SectionPlan, result: ProjectHealthResult) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            // Summary + effort
+            Text(plan.summary)
+                .font(.pixelSystem(size: 12, weight: .semibold))
+                .foregroundColor(.white)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !plan.estEffort.isEmpty {
+                HStack(spacing: 5) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 9, weight: .bold))
+                    Text(plan.estEffort)
+                        .font(.pixelSystem(size: 10, weight: .bold))
+                }
+                .foregroundColor(.white.opacity(0.7))
+            }
+
+            // Steps
+            ForEach(Array(plan.steps.enumerated()), id: \.offset) { idx, step in
+                planStepRow(index: idx + 1, step: step)
+            }
+
+            // Locked-step CTA (free tier)
+            if plan.lockedStepCount > 0 {
+                unlockCTA(count: plan.lockedStepCount)
+            }
+
+            // Pitfalls
+            if !plan.pitfalls.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(uiLanguage == .vi ? "TRÁNH" : "AVOID")
+                        .font(.pixelSystem(size: 9, weight: .bold))
+                        .foregroundColor(.white.opacity(0.6))
+                        .tracking(0.5)
+                    ForEach(Array(plan.pitfalls.enumerated()), id: \.offset) { _, p in
+                        HStack(alignment: .top, spacing: 6) {
+                            Text("—").foregroundColor(.white.opacity(0.6))
+                            Text(p)
+                                .font(.pixelSystem(size: 11))
+                                .foregroundColor(.white.opacity(0.8))
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(14)
+    }
+
+    private func planStepRow(index: Int, step: SectionPlan.Step) -> some View {
+        let locked = step.detail == nil
+        return HStack(alignment: .top, spacing: 10) {
+            // Step number / lock badge
+            ZStack {
+                Rectangle()
+                    .fill(locked ? Color.white.opacity(0.12) : Color.white)
+                    .frame(width: 20, height: 20)
+                    .overlay(Rectangle().stroke(Color(hex: "#2D2B26").opacity(locked ? 0 : 0.4), lineWidth: 1.5))
+                if locked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.white.opacity(0.6))
+                } else {
+                    Text("\(index)")
+                        .font(.pixelSystem(size: 11, weight: .bold))
+                        .foregroundColor(palette.dark)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(step.title)
+                    .font(.pixelSystem(size: 12, weight: .semibold))
+                    .foregroundColor(locked ? .white.opacity(0.6) : .white)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let detail = step.detail {
+                    Text(detail)
+                        .font(.pixelSystem(size: 11))
+                        .foregroundColor(.white.opacity(0.82))
+                        .fixedSize(horizontal: false, vertical: true)
+                    if !step.doneWhen.isEmpty {
+                        Text((uiLanguage == .vi ? "Xong khi: " : "Done when: ") + step.doneWhen)
+                            .font(.pixelSystem(size: 10))
+                            .foregroundColor(.white.opacity(0.6))
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func unlockCTA(count: Int) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(palette.dark)
+            Text(uiLanguage == .vi
+                 ? "Mở khoá kế hoạch đầy đủ (còn \(count) bước)"
+                 : "Unlock full plan (\(count) more steps)")
+                .font(.pixelSystem(size: 10, weight: .bold))
+                .foregroundColor(palette.dark)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(palette.fill)
+        .overlay(Rectangle().stroke(Color(hex: "#2D2B26"), lineWidth: 2))
     }
 
     // ── Upcoming (stage-gated) row ──
@@ -1112,6 +1344,8 @@ struct ProjectFoldersView: View {
     let onSetStage: (String, ProjectStage?) -> Void
     /// (projectPath, ruleId) — toggle a self-attested check.
     let onToggleAttestation: (String, String) -> Void
+    /// Generates per-section action plans (shared across folders).
+    @ObservedObject var planEnricher: PlanEnricher
 
     @State private var selectedProjectPath: String?
 
@@ -1294,9 +1528,10 @@ struct ProjectFoldersView: View {
         let readingGroup = readingGroups.first { $0.projectPath == projectPath }
         let readings = readingGroup?.readings ?? []
 
-        if let report = report {
+        if let report = report, let project = projects[projectPath] {
             ProjectFolderContentView(
                 report: report,
+                project: project,
                 readings: readings,
                 palette: palette,
                 uiLanguage: uiLanguage,
@@ -1304,7 +1539,8 @@ struct ProjectFoldersView: View {
                 onOpenURL: { NSWorkspace.shared.open($0) },
                 onLearnMore: { NSWorkspace.shared.open($0) },
                 onSetStage: { stage in onSetStage(projectPath, stage) },
-                onToggleAttestation: { ruleId in onToggleAttestation(projectPath, ruleId) }
+                onToggleAttestation: { ruleId in onToggleAttestation(projectPath, ruleId) },
+                planEnricher: planEnricher
             )
         } else {
             ProjectFolderEmptyView(uiLanguage: uiLanguage)

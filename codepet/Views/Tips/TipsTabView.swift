@@ -32,6 +32,9 @@ struct TipsTabView: View {
     /// SEO files). Cached per path; feeds auto-detection in `healthReports`.
     @StateObject private var projectScanner = ProjectScanner()
 
+    /// Generates per-section action plans for Project Health checks.
+    @StateObject private var planEnricher = PlanEnricher(api: ReflectionAPIClient())
+
     // Learn section navigation
 
     private var petName: String {
@@ -336,7 +339,8 @@ struct TipsTabView: View {
             },
             onToggleAttestation: { projectId, ruleId in
                 projectStore.toggleAttestation(projectId: projectId, ruleId: ruleId)
-            }
+            },
+            planEnricher: planEnricher
         )
     }
 
