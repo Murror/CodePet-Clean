@@ -244,41 +244,91 @@ enum TurnAssembler {
 }
 
 extension TurnAssembler {
+    /// A session is cut whenever two consecutive turns are separated by more
+    /// than this much idle wall-clock time, measured from the previous turn's
+    /// end to the next turn's start. The Claude Code CLI keeps one session id
+    /// for as long as its process lives, so a terminal left open all day would
+    /// otherwise fuse a morning and an evening of unrelated work into one giant
+    /// record. 45 min keeps a coffee break or a long build/commit in one
+    /// session but splits lunch or an afternoon away into a fresh one. It sits
+    /// safely above SessionSummaryEnricher's 30-min idle threshold, so any
+    /// split-off earlier segment is already idle enough to auto-summarize.
+    static let sessionIdleSplitGap: TimeInterval = 45 * 60
+
     /// Group turns into Sessions. Each session sorted oldest-first internally.
     /// Sessions sorted by their newest turn's startedAt descending.
+    ///
+    /// Turns are first grouped by their CLI session id, then each group is
+    /// split on idle gaps (see `sessionIdleSplitGap`) so a single long-lived
+    /// CLI session becomes one CodePet session per burst of real work.
     static func assembleSessions(
         turns: [Turn],
         summaries: [String: SessionSummary]
     ) -> [Session] {
         var bySession: [String: [Turn]] = [:]
         for turn in turns { bySession[turn.sessionId, default: []].append(turn) }
-        return bySession.map { sessionId, sessionTurns in
+
+        var sessions: [Session] = []
+        for (sessionId, sessionTurns) in bySession {
             let chronological = sessionTurns.sorted { $0.startedAt < $1.startedAt }
-            let earliest = chronological.first?.startedAt ?? Date()
-            let latestEnded = chronological.compactMap { $0.endedAt }.max()
-            // Infer project path: prefer the prompt's cwd (available immediately
-            // on the first poll, before any tool events arrive), fall back to
-            // the first tool event that has a cwd.
-            let projectPath = chronological.lazy.compactMap(\.cwd).first
-                ?? chronological.lazy.flatMap(\.rawEvents).compactMap(\.cwd).first
-            // Collect unique file paths from tool events — used to disambiguate
-            // multi-project workspaces (e.g. ~/Test folder with yoga-site/ + sprout/)
-            let filePaths = Array(Set(
-                chronological.lazy
-                    .flatMap(\.rawEvents)
-                    .compactMap(\.path)
-                    .filter { !$0.isEmpty }
-            ))
-            return Session(
-                id: sessionId,
-                turns: chronological,
-                startedAt: earliest,
-                endedAt: latestEnded,
-                summary: summaries[sessionId],
-                projectPath: projectPath,
-                filePaths: filePaths
-            )
+
+            // Cut into segments wherever the idle gap exceeds the threshold.
+            var segments: [[Turn]] = []
+            var current: [Turn] = []
+            for turn in chronological {
+                if let last = current.last {
+                    let prevEnd = last.endedAt ?? last.startedAt
+                    if turn.startedAt.timeIntervalSince(prevEnd) > sessionIdleSplitGap {
+                        segments.append(current)
+                        current = []
+                    }
+                }
+                current.append(turn)
+            }
+            if !current.isEmpty { segments.append(current) }
+
+            for (index, segment) in segments.enumerated() {
+                // The first segment keeps the raw CLI id so its existing summary
+                // and chat thread survive; later segments get a stable suffixed
+                // id (the past is immutable, so a turn never changes segments
+                // retroactively) and earn their own summary + chat on demand.
+                let segmentId = index == 0 ? sessionId : "\(sessionId)#\(index + 1)"
+                sessions.append(makeSession(id: segmentId, chronological: segment, summaries: summaries))
+            }
         }
-        .sorted { ($0.turns.last?.startedAt ?? .distantPast) > ($1.turns.last?.startedAt ?? .distantPast) }
+
+        return sessions
+            .sorted { ($0.turns.last?.startedAt ?? .distantPast) > ($1.turns.last?.startedAt ?? .distantPast) }
+    }
+
+    private static func makeSession(
+        id: String,
+        chronological: [Turn],
+        summaries: [String: SessionSummary]
+    ) -> Session {
+        let earliest = chronological.first?.startedAt ?? Date()
+        let latestEnded = chronological.compactMap { $0.endedAt }.max()
+        // Infer project path: prefer the prompt's cwd (available immediately
+        // on the first poll, before any tool events arrive), fall back to
+        // the first tool event that has a cwd.
+        let projectPath = chronological.lazy.compactMap(\.cwd).first
+            ?? chronological.lazy.flatMap(\.rawEvents).compactMap(\.cwd).first
+        // Collect unique file paths from tool events — used to disambiguate
+        // multi-project workspaces (e.g. ~/Test folder with yoga-site/ + sprout/)
+        let filePaths = Array(Set(
+            chronological.lazy
+                .flatMap(\.rawEvents)
+                .compactMap(\.path)
+                .filter { !$0.isEmpty }
+        ))
+        return Session(
+            id: id,
+            turns: chronological,
+            startedAt: earliest,
+            endedAt: latestEnded,
+            summary: summaries[id],
+            projectPath: projectPath,
+            filePaths: filePaths
+        )
     }
 }

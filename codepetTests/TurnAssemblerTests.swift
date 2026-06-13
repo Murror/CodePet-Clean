@@ -267,6 +267,63 @@ final class TurnAssemblerTests: XCTestCase {
         XCTAssertEqual(sessions[0].id, "B", "Session with more recent activity should sort first")
     }
 
+    func testLongIdleGapSplitsSessionIntoSegments() {
+        // One CLI session id "S" with two bursts of work separated by a 55-min
+        // idle gap (turn 1 ends 09:05, turn 2 starts 10:00). Should split into
+        // two CodePet sessions.
+        let p1 = AssemblerInput(kind: .prompt(text: "morning"), isoTime: "2026-05-05T09:00:00Z", sessionId: "S")
+        let s1 = AssemblerInput(kind: .summary(text: "morning done"), isoTime: "2026-05-05T09:05:00Z", sessionId: "S")
+        let p2 = AssemblerInput(kind: .prompt(text: "afternoon"), isoTime: "2026-05-05T10:00:00Z", sessionId: "S")
+        let s2 = AssemblerInput(kind: .summary(text: "afternoon done"), isoTime: "2026-05-05T10:05:00Z", sessionId: "S")
+
+        let turns = TurnAssembler.assemble(inputs: [p1, s1, p2, s2], now: Date(), narratives: [:])
+        let sessions = TurnAssembler.assembleSessions(turns: turns, summaries: [:])
+
+        XCTAssertEqual(sessions.count, 2, "A 55-min idle gap should split one CLI session into two")
+        // First segment keeps the raw id; later segment is suffixed.
+        XCTAssertEqual(Set(sessions.map { $0.id }), ["S", "S#2"])
+        let first = sessions.first(where: { $0.id == "S" })!
+        let second = sessions.first(where: { $0.id == "S#2" })!
+        XCTAssertEqual(first.turns.count, 1, "Morning burst is its own session")
+        XCTAssertEqual(second.turns.count, 1, "Afternoon burst is its own session")
+    }
+
+    func testShortGapDoesNotSplitSession() {
+        // 09:05 end -> 09:49 start is a 44-min gap, just under the 45-min cut.
+        let p1 = AssemblerInput(kind: .prompt(text: "first"), isoTime: "2026-05-05T09:00:00Z", sessionId: "S")
+        let s1 = AssemblerInput(kind: .summary(text: "first done"), isoTime: "2026-05-05T09:05:00Z", sessionId: "S")
+        let p2 = AssemblerInput(kind: .prompt(text: "second"), isoTime: "2026-05-05T09:49:00Z", sessionId: "S")
+        let s2 = AssemblerInput(kind: .summary(text: "second done"), isoTime: "2026-05-05T09:54:00Z", sessionId: "S")
+
+        let turns = TurnAssembler.assemble(inputs: [p1, s1, p2, s2], now: Date(), narratives: [:])
+        let sessions = TurnAssembler.assembleSessions(turns: turns, summaries: [:])
+
+        XCTAssertEqual(sessions.count, 1, "A sub-45-min gap should stay one session")
+        XCTAssertEqual(sessions[0].id, "S")
+        XCTAssertEqual(sessions[0].turns.count, 2)
+    }
+
+    func testSplitSegmentsResolveTheirOwnSummaries() {
+        // After a split, each segment looks up its own summary by its derived id.
+        let p1 = AssemblerInput(kind: .prompt(text: "morning"), isoTime: "2026-05-05T09:00:00Z", sessionId: "S")
+        let s1 = AssemblerInput(kind: .summary(text: "morning done"), isoTime: "2026-05-05T09:05:00Z", sessionId: "S")
+        let p2 = AssemblerInput(kind: .prompt(text: "evening"), isoTime: "2026-05-05T17:00:00Z", sessionId: "S")
+        let s2 = AssemblerInput(kind: .summary(text: "evening done"), isoTime: "2026-05-05T17:05:00Z", sessionId: "S")
+
+        let turns = TurnAssembler.assemble(inputs: [p1, s1, p2, s2], now: Date(), narratives: [:])
+        let summaries = [
+            "S": SessionSummary(sessionId: "S", summary: "morning recap", lesson: "L1",
+                                generatedAt: Date(), model: "m", schemaVersion: 1),
+            "S#2": SessionSummary(sessionId: "S#2", summary: "evening recap", lesson: "L2",
+                                  generatedAt: Date(), model: "m", schemaVersion: 1),
+        ]
+        let sessions = TurnAssembler.assembleSessions(turns: turns, summaries: summaries)
+
+        XCTAssertEqual(sessions.count, 2)
+        XCTAssertEqual(sessions.first(where: { $0.id == "S" })?.summary?.summary, "morning recap")
+        XCTAssertEqual(sessions.first(where: { $0.id == "S#2" })?.summary?.summary, "evening recap")
+    }
+
     func testAssembleSessionsAttachesSummary() {
         let p = AssemblerInput(kind: .prompt(text: "do stuff"), isoTime: "2026-05-05T09:00:00Z", sessionId: "S1")
         let s = AssemblerInput(kind: .summary(text: "done"), isoTime: "2026-05-05T09:05:00Z", sessionId: "S1")
