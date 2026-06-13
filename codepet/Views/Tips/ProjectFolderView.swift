@@ -969,10 +969,10 @@ struct ProjectFolderContentView: View {
                 Group {
                     if planEnricher.isLoading(key) {
                         HStack(spacing: 8) {
-                            ProgressView().controlSize(.small).tint(.white)
+                            ProgressView().controlSize(.small).tint(palette.dark)
                             Text(uiLanguage == .vi ? "Đang lập kế hoạch…" : "Generating plan…")
                                 .font(.pixelSystem(size: 12))
-                                .foregroundColor(.white.opacity(0.85))
+                                .foregroundColor(Color(hex: "#2D2B26").opacity(0.85))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(20)
@@ -982,12 +982,12 @@ struct ProjectFolderContentView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 10) {
                                 Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(Color(hex: "#FFCC33"))
+                                    .foregroundColor(Color(hex: "#E8660A"))
                                 Text(uiLanguage == .vi
                                      ? "Không lập được kế hoạch."
                                      : "Couldn't generate a plan.")
                                     .font(.pixelSystem(size: 12))
-                                    .foregroundColor(.white.opacity(0.9))
+                                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.9))
                             }
                             Button(action: {
                                 Task {
@@ -1001,7 +1001,7 @@ struct ProjectFolderContentView: View {
                                     .font(.pixelSystem(size: 11, weight: .bold))
                             }
                             .buttonStyle(PixelButtonStyle(
-                                fill: .white, foreground: palette.dark,
+                                fill: palette.mid, foreground: .white,
                                 paddingH: 14, paddingV: 7, blockSize: 2, steps: 1,
                                 borderWidth: 2, shadowOffset: 2,
                                 font: .pixelSystem(size: 11, weight: .bold)
@@ -1015,7 +1015,7 @@ struct ProjectFolderContentView: View {
             }
         }
         .frame(width: 560, height: 540)
-        .background(palette.mid)
+        .background(palette.light)
     }
 
     @ViewBuilder
@@ -1031,7 +1031,7 @@ struct ProjectFolderContentView: View {
             // Summary + effort
             Text(plan.summary)
                 .font(.pixelSystem(size: 12, weight: .semibold))
-                .foregroundColor(.white)
+                .foregroundColor(Color(hex: "#2D2B26"))
                 .fixedSize(horizontal: false, vertical: true)
 
             if !plan.estEffort.isEmpty {
@@ -1041,7 +1041,7 @@ struct ProjectFolderContentView: View {
                     Text(plan.estEffort)
                         .font(.pixelSystem(size: 10, weight: .bold))
                 }
-                .foregroundColor(.white.opacity(0.7))
+                .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
             }
 
             // Visible steps
@@ -1060,14 +1060,14 @@ struct ProjectFolderContentView: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(uiLanguage == .vi ? "TRÁNH" : "AVOID")
                         .font(.pixelSystem(size: 9, weight: .bold))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.55))
                         .tracking(0.5)
                     ForEach(Array(plan.pitfalls.enumerated()), id: \.offset) { _, p in
                         HStack(alignment: .top, spacing: 6) {
-                            Text("—").foregroundColor(.white.opacity(0.6))
+                            Text("—").foregroundColor(Color(hex: "#2D2B26").opacity(0.55))
                             Text(p)
                                 .font(.pixelSystem(size: 11))
-                                .foregroundColor(.white.opacity(0.8))
+                                .foregroundColor(Color(hex: "#2D2B26").opacity(0.75))
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
@@ -1095,7 +1095,7 @@ struct ProjectFolderContentView: View {
                     .allowsHitTesting(false)
                     .overlay(
                         LinearGradient(
-                            colors: [Color.clear, Color.black.opacity(0.22)],
+                            colors: [palette.light.opacity(0), palette.light],
                             startPoint: .top, endPoint: .bottom
                         )
                     )
@@ -1111,7 +1111,7 @@ struct ProjectFolderContentView: View {
                 }
             }
             .buttonStyle(PixelButtonStyle(
-                fill: palette.fill, foreground: palette.dark,
+                fill: palette.mid, foreground: .white,
                 paddingH: 14, paddingV: 7, blockSize: 2, steps: 1,
                 borderWidth: 2, shadowOffset: 2,
                 font: .pixelSystem(size: 11, weight: .bold)
@@ -1137,35 +1137,35 @@ struct ProjectFolderContentView: View {
             // Step number / lock badge
             ZStack {
                 Rectangle()
-                    .fill(locked ? Color.white.opacity(0.12) : Color.white)
+                    .fill(locked ? palette.fill.opacity(0.6) : palette.mid)
                     .frame(width: 20, height: 20)
-                    .overlay(Rectangle().stroke(Color(hex: "#2D2B26").opacity(locked ? 0 : 0.4), lineWidth: 1.5))
+                    .overlay(Rectangle().stroke(Color(hex: "#2D2B26").opacity(locked ? 0.15 : 0.5), lineWidth: 1.5))
                 if locked {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundColor(.white.opacity(0.6))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
                 } else {
                     Text("\(index)")
                         .font(.pixelSystem(size: 11, weight: .bold))
-                        .foregroundColor(palette.dark)
+                        .foregroundColor(.white)
                 }
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(step.title)
                     .font(.pixelSystem(size: 12, weight: .semibold))
-                    .foregroundColor(locked ? .white.opacity(0.6) : .white)
+                    .foregroundColor(Color(hex: "#2D2B26").opacity(locked ? 0.5 : 1.0))
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let detail = step.detail {
                     Text(detail)
                         .font(.pixelSystem(size: 11))
-                        .foregroundColor(.white.opacity(0.82))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.8))
                         .fixedSize(horizontal: false, vertical: true)
                     if !step.doneWhen.isEmpty {
                         Text((uiLanguage == .vi ? "Xong khi: " : "Done when: ") + step.doneWhen)
                             .font(.pixelSystem(size: 10))
-                            .foregroundColor(.white.opacity(0.6))
+                            .foregroundColor(Color(hex: "#2D2B26").opacity(0.55))
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
