@@ -550,6 +550,10 @@ struct ProjectFolderContentView: View {
     /// The check whose plan is shown in the modal layer (nil = no sheet).
     @State private var planSheet: PlanSheetTarget?
 
+    /// Pillars whose checks are expanded. Empty = all collapsed (compact
+    /// dropdown view; the header score still shows status at a glance).
+    @State private var expandedPillars: Set<HealthPillar> = []
+
     /// Rule ids whose plan the user has revealed past the free preview.
     /// (Progressive disclosure now; becomes the purchase gate when gating is on.)
     @State private var unlockedPlans: Set<String> = []
@@ -712,19 +716,44 @@ struct ProjectFolderContentView: View {
         }
     }
 
-    // ── Pillar section (Engineering · Business · Growth) ──
+    // ── Pillar section (Engineering · Business · Growth) — collapsible ──
 
     @ViewBuilder
     private func pillarSection(_ pillar: HealthPillar) -> some View {
         let items = report.results(for: pillar)
         let passed = items.filter(\.passed).count
-        sectionLabel(
-            icon: pillarIcon(pillar),
-            text: "\(pillar.label(uiLanguage).uppercased()) \(passed)/\(items.count)",
-            iconColor: pillarColor(pillar)
-        )
-        ForEach(items) { result in
-            healthRow(result)
+        let open = expandedPillars.contains(pillar)
+
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    if open { expandedPillars.remove(pillar) } else { expandedPillars.insert(pillar) }
+                }
+            }) {
+                HStack(spacing: 7) {
+                    Image(systemName: pillarIcon(pillar))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(pillarColor(pillar))
+                    Text("\(pillar.label(uiLanguage).uppercased()) \(passed)/\(items.count)")
+                        .font(.pixelSystem(size: 16, weight: .bold))
+                        .foregroundColor(.white)
+                        .tracking(0.5)
+                    Image(systemName: open ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white.opacity(0.7))
+                    Spacer()
+                }
+                .padding(.top, 14)
+                .padding(.bottom, open ? 8 : 4)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if open {
+                ForEach(items) { result in
+                    healthRow(result)
+                }
+            }
         }
     }
 
@@ -847,13 +876,7 @@ struct ProjectFolderContentView: View {
             rowActionsMenu(result, isMissing: isMissing, canToggle: canToggle, planKey: planKey)
         }
         .padding(.horizontal, 4)
-        .padding(.vertical, 4)
-        .overlay(alignment: .bottom) {
-            Rectangle()
-                .fill(Color.white.opacity(0.18))
-                .frame(height: 1)
-                .padding(.leading, 36)
-        }
+        .padding(.vertical, 6)
     }
 
     // ── Row actions (compact dropdown) ──
