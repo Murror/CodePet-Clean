@@ -844,17 +844,23 @@ struct ProjectFolderContentView: View {
         )
 
         return HStack(alignment: .center, spacing: 12) {
-            // Status icon — pixel-art square. Neutral "to-do" circle when not
-            // yet satisfied (reads as a task, not a failure); green check when passed.
-            Image(systemName: isMissing ? "circle" : "checkmark")
-                .font(.system(size: isMissing ? 8 : 9, weight: .bold))
-                .foregroundColor(isMissing ? Color(hex: "#2D2B26").opacity(0.45) : Color(hex: "#1E6B30"))
-                .frame(width: 20, height: 20)
-                .background(isMissing ? Color(hex: "#EAE6F5") : Color(hex: "#B8F0B0"))
-                .overlay(
-                    Rectangle()
-                        .stroke(Color(hex: "#2D2B26").opacity(isMissing ? 0.55 : 1.0), lineWidth: 2)
-                )
+            // Status marker. Not-yet-done: a simple dot (a task bullet, no box).
+            // Passed: the green pixel check. Both occupy a 20pt slot so titles align.
+            Group {
+                if isMissing {
+                    Circle()
+                        .fill(Color.white.opacity(0.7))
+                        .frame(width: 7, height: 7)
+                } else {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(Color(hex: "#1E6B30"))
+                        .frame(width: 20, height: 20)
+                        .background(Color(hex: "#B8F0B0"))
+                        .overlay(Rectangle().stroke(Color(hex: "#2D2B26"), lineWidth: 2))
+                }
+            }
+            .frame(width: 20, height: 20)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(result.rule.title(uiLanguage))
