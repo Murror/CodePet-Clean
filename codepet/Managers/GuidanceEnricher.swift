@@ -219,7 +219,8 @@ final class GuidanceEnricher: ObservableObject {
             healthGaps: Array(allGaps),
             recentActivities: [],   // TODO: derive from recent session events
             inactiveAreas: [],      // TODO: derive from session history
-            projectStage: "building" // TODO: detect from project signals
+            // Stage of the most recently active project (reports are recency-sorted).
+            projectStage: reports.first?.stage.rawValue ?? "building"
         )
 
         let matched = KnowledgeMatcher.match(

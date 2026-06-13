@@ -531,13 +531,16 @@ struct ProjectFolderContentView: View {
     let onFeedToClaude: (TipReadingItem, String?) -> Void
     let onOpenURL: (URL) -> Void
     let onLearnMore: (URL) -> Void
+    /// nil stage = revert to engine-inferred. Set by the header stage picker.
+    let onSetStage: (ProjectStage?) -> Void
+    /// Toggle a self-attested check ("Mark done" / undo).
+    let onToggleAttestation: (String) -> Void
 
-    private var missingItems: [ProjectHealthResult] {
-        report.results.filter { !$0.passed }
-    }
-
-    private var passedItems: [ProjectHealthResult] {
-        report.results.filter { $0.passed }
+    /// Pillars that actually have relevant checks for this project, in display order.
+    private var activePillars: [HealthPillar] {
+        HealthPillar.allCases
+            .sorted { $0.order < $1.order }
+            .filter { !report.results(for: $0).isEmpty }
     }
 
     var body: some View {
@@ -545,29 +548,22 @@ struct ProjectFolderContentView: View {
             // ── Project header ──
             projectHeader
 
-            // ── Needs attention ──
-            if !missingItems.isEmpty {
-                sectionLabel(
-                    icon: "exclamationmark.triangle.fill",
-                    text: uiLanguage == .vi ? "Cần chú ý" : "Needs attention",
-                    iconColor: Color(hex: "#FFCC33")
-                )
-                ForEach(missingItems) { result in
-                    healthRow(result, isMissing: true)
-                }
+            // ── One section per pillar (Engineering · Business · Growth) ──
+            // Within each, missing items sort first (see engine sort), so the
+            // pet's advice leads with what needs attention now.
+            ForEach(activePillars, id: \.self) { pillar in
+                pillarSection(pillar)
             }
 
-            // ── Passed ──
-            if !passedItems.isEmpty {
+            // ── Coming up later (stage-gated checks) ──
+            if !report.upcoming.isEmpty {
                 sectionLabel(
-                    icon: "checkmark.circle.fill",
-                    text: uiLanguage == .vi
-                        ? "Đã xong (\(passedItems.count))"
-                        : "Passed (\(passedItems.count))",
-                    iconColor: Color(hex: "#7CE0A3")
+                    icon: "clock.fill",
+                    text: uiLanguage == .vi ? "Sắp tới" : "Coming up later",
+                    iconColor: Color.white.opacity(0.7)
                 )
-                ForEach(passedItems) { result in
-                    healthRow(result, isMissing: false)
+                ForEach(report.upcoming) { result in
+                    upcomingRow(result)
                 }
             }
 
@@ -608,36 +604,122 @@ struct ProjectFolderContentView: View {
     // ── Project header with icon + score ──
 
     private var projectHeader: some View {
-        HStack(spacing: 12) {
-            // Project icon — pixel art, no background
-            PixelArtIcon(kind: .folder, color: .white, size: 28)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                // Project icon — pixel art, no background
+                PixelArtIcon(kind: .folder, color: .white, size: 28)
 
-            Text(report.projectName)
-                .font(CodepetTheme.body(22, weight: .bold))
-                .foregroundColor(.white)
+                Text(report.projectName)
+                    .font(CodepetTheme.body(22, weight: .bold))
+                    .foregroundColor(.white)
 
-            Spacer()
+                Spacer()
 
-            // Score pill
-            Text("\(report.passedCount)/\(report.totalCount) \(uiLanguage == .vi ? "đạt" : "passed")")
-                .font(.pixelSystem(size: 11, weight: .bold))
-                .foregroundColor(ReflectionTheme.primaryText)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 5)
-                .background(
-                    PixelStaircaseRectangle(blockSize: 2, steps: 2)
-                        .fill(palette.fill)
-                )
-                .overlay(
-                    PixelStaircaseRectangle(blockSize: 2, steps: 2)
-                        .stroke(Color(hex: "#2D2B26"), lineWidth: 2)
-                )
+                // Score pill
+                Text("\(report.passedCount)/\(report.totalCount) \(uiLanguage == .vi ? "đạt" : "passed")")
+                    .font(.pixelSystem(size: 11, weight: .bold))
+                    .foregroundColor(ReflectionTheme.primaryText)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(
+                        PixelStaircaseRectangle(blockSize: 2, steps: 2)
+                            .fill(palette.fill)
+                    )
+                    .overlay(
+                        PixelStaircaseRectangle(blockSize: 2, steps: 2)
+                            .stroke(Color(hex: "#2D2B26"), lineWidth: 2)
+                    )
+            }
+
+            // Stage picker — drives which checks are relevant now vs. later.
+            stagePicker
         }
         .padding(.bottom, 14)
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.white.opacity(0.4))
                 .frame(height: 3)
+        }
+    }
+
+    // ── Stage picker ──
+
+    /// A small menu that sets the project's lifecycle stage. The current stage
+    /// drives `relevantFrom` gating in the engine. "Auto" reverts to inference.
+    private var stagePicker: some View {
+        HStack(spacing: 7) {
+            Image(systemName: "flag.checkered")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(.white.opacity(0.8))
+
+            Text(uiLanguage == .vi ? "Giai đoạn:" : "Stage:")
+                .font(.pixelSystem(size: 11, weight: .semibold))
+                .foregroundColor(.white.opacity(0.8))
+
+            Menu {
+                ForEach(ProjectStage.allCases) { stage in
+                    Button(stage.label(uiLanguage)) { onSetStage(stage) }
+                }
+                Divider()
+                Button(uiLanguage == .vi ? "Tự động" : "Auto-detect") { onSetStage(nil) }
+            } label: {
+                HStack(spacing: 4) {
+                    Text(report.stage.label(uiLanguage))
+                        .font(.pixelSystem(size: 11, weight: .bold))
+                        .foregroundColor(palette.dark)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(palette.dark)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(
+                    PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                        .fill(palette.fill)
+                )
+                .overlay(
+                    PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                        .stroke(Color(hex: "#2D2B26"), lineWidth: 1.5)
+                )
+            }
+            .menuStyle(.button)
+            .buttonStyle(.plain)
+            .menuIndicator(.hidden)
+            .fixedSize()
+
+            Spacer()
+        }
+    }
+
+    // ── Pillar section (Engineering · Business · Growth) ──
+
+    @ViewBuilder
+    private func pillarSection(_ pillar: HealthPillar) -> some View {
+        let items = report.results(for: pillar)
+        let passed = items.filter(\.passed).count
+        sectionLabel(
+            icon: pillarIcon(pillar),
+            text: "\(pillar.label(uiLanguage).uppercased()) \(passed)/\(items.count)",
+            iconColor: pillarColor(pillar)
+        )
+        ForEach(items) { result in
+            healthRow(result)
+        }
+    }
+
+    private func pillarIcon(_ pillar: HealthPillar) -> String {
+        switch pillar {
+        case .engineering: return "hammer.fill"
+        case .business:    return "dollarsign.circle.fill"
+        case .growth:      return "chart.line.uptrend.xyaxis"
+        }
+    }
+
+    private func pillarColor(_ pillar: HealthPillar) -> Color {
+        switch pillar {
+        case .engineering: return Color(hex: "#9BD0FF")
+        case .business:    return Color(hex: "#7CE0A3")
+        case .growth:      return Color(hex: "#FFCC33")
         }
     }
 
@@ -667,8 +749,13 @@ struct ProjectFolderContentView: View {
 
     // ── Health check row ──
 
-    private func healthRow(_ result: ProjectHealthResult, isMissing: Bool) -> some View {
-        HStack(alignment: .center, spacing: 12) {
+    private func healthRow(_ result: ProjectHealthResult) -> some View {
+        let isMissing = !result.passed
+        // Auto-detected passes can't be toggled (they reflect the files);
+        // everything else can be confirmed/undone by the user.
+        let canToggle = result.state != .passed
+
+        return HStack(alignment: .center, spacing: 12) {
             // Status icon — pixel-art square
             Image(systemName: isMissing ? "xmark" : "checkmark")
                 .font(.system(size: 9, weight: .bold))
@@ -712,6 +799,27 @@ struct ProjectFolderContentView: View {
                     font: .pixelSystem(size: 9, weight: .bold)
                 ))
             }
+
+            // Mark done / undo — for self-attested checks and missing auto checks.
+            if canToggle {
+                Button(action: { onToggleAttestation(result.rule.id) }) {
+                    Text(isMissing
+                         ? (uiLanguage == .vi ? "Đánh dấu xong" : "Mark done")
+                         : (uiLanguage == .vi ? "Hoàn tác" : "Undo"))
+                        .font(.pixelSystem(size: 9, weight: .bold))
+                }
+                .buttonStyle(PixelButtonStyle(
+                    fill: isMissing ? palette.fill : Color.black.opacity(0.2),
+                    foreground: isMissing ? palette.dark : .white,
+                    paddingH: 10,
+                    paddingV: 4,
+                    blockSize: 2,
+                    steps: 1,
+                    borderWidth: 2,
+                    shadowOffset: 2,
+                    font: .pixelSystem(size: 9, weight: .bold)
+                ))
+            }
         }
         .padding(.horizontal, 4)
         .padding(.vertical, 6)
@@ -721,6 +829,42 @@ struct ProjectFolderContentView: View {
                 .frame(height: 1)
                 .padding(.leading, 36)
         }
+    }
+
+    // ── Upcoming (stage-gated) row ──
+
+    /// A check that isn't relevant yet at the project's current stage. Shown
+    /// muted with the stage it unlocks at, so the roadmap is visible without
+    /// nagging the user about work that isn't due.
+    private func upcomingRow(_ result: ProjectHealthResult) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 9, weight: .bold))
+                .foregroundColor(.white.opacity(0.55))
+                .frame(width: 20, height: 20)
+                .background(Color.white.opacity(0.12))
+                .overlay(
+                    Rectangle()
+                        .stroke(Color.white.opacity(0.3), lineWidth: 2)
+                )
+
+            Text(result.rule.title(uiLanguage))
+                .font(.pixelSystem(size: 12))
+                .foregroundColor(Color.white.opacity(0.65))
+
+            Spacer()
+
+            // Stage chip — when this check unlocks.
+            Text(result.rule.relevantFrom.label(uiLanguage))
+                .font(.pixelSystem(size: 9, weight: .bold))
+                .foregroundColor(.white.opacity(0.8))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 3)
+                .background(Color.white.opacity(0.15))
+                .overlay(Rectangle().stroke(Color.white.opacity(0.3), lineWidth: 1.5))
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 5)
     }
 
     // ── Reading scroll (horizontal, with trailing arrow) ──
@@ -931,6 +1075,10 @@ struct ProjectFoldersView: View {
     let uiLanguage: AppLanguage
     let onFeedToClaude: (TipReadingItem, String?) -> Void
     let onOpenURL: (URL) -> Void
+    /// (projectPath, stage) — nil stage reverts to engine inference.
+    let onSetStage: (String, ProjectStage?) -> Void
+    /// (projectPath, ruleId) — toggle a self-attested check.
+    let onToggleAttestation: (String, String) -> Void
 
     @State private var selectedProjectPath: String?
 
@@ -1121,7 +1269,9 @@ struct ProjectFoldersView: View {
                 uiLanguage: uiLanguage,
                 onFeedToClaude: onFeedToClaude,
                 onOpenURL: { NSWorkspace.shared.open($0) },
-                onLearnMore: { NSWorkspace.shared.open($0) }
+                onLearnMore: { NSWorkspace.shared.open($0) },
+                onSetStage: { stage in onSetStage(projectPath, stage) },
+                onToggleAttestation: { ruleId in onToggleAttestation(projectPath, ruleId) }
             )
         } else {
             ProjectFolderEmptyView(uiLanguage: uiLanguage)

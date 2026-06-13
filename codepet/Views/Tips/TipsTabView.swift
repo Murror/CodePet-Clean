@@ -28,6 +28,10 @@ struct TipsTabView: View {
     /// Owned by this view — created once with a fresh API client.
     @StateObject private var guidanceEnricher = GuidanceEnricher(api: ReflectionAPIClient())
 
+    /// Scans project files for business/growth signals (payment SDKs, analytics,
+    /// SEO files). Cached per path; feeds auto-detection in `healthReports`.
+    @StateObject private var projectScanner = ProjectScanner()
+
     // Learn section navigation
 
     private var petName: String {
@@ -61,6 +65,12 @@ struct TipsTabView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .background(ReflectionTheme.background)
+        .onAppear {
+            projectScanner.refresh(projects: Array(projectStore.projects.values))
+        }
+        .onChange(of: projectStore.projects.count) { _ in
+            projectScanner.refresh(projects: Array(projectStore.projects.values))
+        }
         .task {
             // Pass aggregated pet memory for richer AI guidance context.
             // A new app build forces a fresh fetch (replaces the manual reload),
@@ -294,7 +304,9 @@ struct TipsTabView: View {
     // ── Project folders (unified health + reading per project) ────────
 
     private var healthReports: [ProjectHealthReport] {
-        ProjectHealthEngine.evaluateAll(projects: projectStore.projects)
+        projectStore.projects.values
+            .sorted { $0.lastSeenAt > $1.lastSeenAt }
+            .map { ProjectHealthEngine.evaluate(project: $0, scan: projectScanner.results[$0.id]) }
     }
 
     private var projectFoldersSection: some View {
@@ -318,7 +330,13 @@ struct TipsTabView: View {
                 appState.pendingChatPrompt = prompt
                 appState.selectedTab = .reflection
             },
-            onOpenURL: { NSWorkspace.shared.open($0) }
+            onOpenURL: { NSWorkspace.shared.open($0) },
+            onSetStage: { projectId, stage in
+                projectStore.setStage(projectId: projectId, stage: stage)
+            },
+            onToggleAttestation: { projectId, ruleId in
+                projectStore.toggleAttestation(projectId: projectId, ruleId: ruleId)
+            }
         )
     }
 

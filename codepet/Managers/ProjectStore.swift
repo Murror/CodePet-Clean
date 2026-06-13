@@ -253,6 +253,30 @@ final class ProjectStore: ObservableObject {
         return projects[path]?.brief ?? ""
     }
 
+    // MARK: - Stage & Attestations (Project Health)
+
+    /// Set the lifecycle stage for a project. Passing `nil` reverts to
+    /// engine-inferred stage.
+    func setStage(projectId: String, stage: ProjectStage?) {
+        guard var project = projects[projectId] else { return }
+        project.stage = stage
+        projects[projectId] = project
+        persist()
+        logger.info("Set stage \(stage?.rawValue ?? "auto") for \(project.displayName)")
+    }
+
+    /// Toggle a self-attested health rule for a project ("Mark done" / undo).
+    func toggleAttestation(projectId: String, ruleId: String) {
+        guard var project = projects[projectId] else { return }
+        if project.attestations.contains(ruleId) {
+            project.attestations.remove(ruleId)
+        } else {
+            project.attestations.insert(ruleId)
+        }
+        projects[projectId] = project
+        persist()
+    }
+
     // MARK: - Project Root Detection
 
     /// Resolves a `cwd` to a project root using strategies in order:
