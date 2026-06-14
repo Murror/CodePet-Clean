@@ -25,13 +25,15 @@ enum PracticeSandbox {
         if reset, fm.fileExists(atPath: rootURL.path) {
             try fm.removeItem(at: rootURL)
         }
-        if !fm.fileExists(atPath: rootURL.path) {
-            for (relativePath, contents) in files {
-                let fileURL = rootURL.appendingPathComponent(relativePath)
-                try fm.createDirectory(at: fileURL.deletingLastPathComponent(),
-                                       withIntermediateDirectories: true)
-                try contents.write(to: fileURL, atomically: true, encoding: .utf8)
-            }
+        // Write any file that's missing. On a fresh sandbox this lays down the
+        // whole project; on an existing one it backfills newly-added files (e.g.
+        // a new skill's target) without clobbering the user's in-progress edits.
+        for (relativePath, contents) in files {
+            let fileURL = rootURL.appendingPathComponent(relativePath)
+            guard !fm.fileExists(atPath: fileURL.path) else { continue }
+            try fm.createDirectory(at: fileURL.deletingLastPathComponent(),
+                                   withIntermediateDirectories: true)
+            try contents.write(to: fileURL, atomically: true, encoding: .utf8)
         }
         return rootURL.path
     }
@@ -48,14 +50,20 @@ enum PracticeSandbox {
     }
 
     /// The most relevant file to show for a given skill, so the user knows what
-    /// they're working with before writing a prompt.
+    /// they're working with before writing a prompt. Each skill points at the
+    /// file that actually contains its issue.
     static func primaryFile(forSkill skillId: String) -> String {
-        // Every skill's target currently lives in page.tsx; this indirection lets
-        // us point individual skills at other files later without UI changes.
         switch skillId {
-        case "component_composition", "loading_error_states",
-             "form_validation_ux", "accessibility_basics",
-             "responsive_layout", "performance":
+        case "responsive_layout":
+            // Fixed, desktop-only styles with no breakpoints.
+            return "app/globals.css"
+        case "performance":
+            // A component that recomputes/derives on every render.
+            return "app/components/ClassList.tsx"
+        case "component_composition",   // Hero block to extract
+             "loading_error_states",     // unguarded data load
+             "form_validation_ux",       // unvalidated contact form
+             "accessibility_basics":     // images missing alt text
             return "app/page.tsx"
         default:
             return "app/page.tsx"
@@ -66,6 +74,8 @@ enum PracticeSandbox {
 
     private static let files: [String: String] = [
         "app/page.tsx": pageTSX,
+        "app/components/ClassList.tsx": classListTSX,
+        "app/globals.css": globalsCSS,
         "app/lib/site-data.ts": siteDataTS,
         "package.json": packageJSON,
         "README.md": readme
@@ -125,6 +135,88 @@ enum PracticeSandbox {
           </section>
         </main>
       );
+    }
+    """
+
+    // Performance practice target: a client component that recomputes its
+    // derived list on every render (including each keystroke) with no memoization.
+    private static let classListTSX = """
+    "use client";
+    import { useState } from "react";
+    import type { YogaClass } from "@/app/lib/site-data";
+
+    // Renders the weekly class list with a teacher filter.
+    // PERF: `visible` is rebuilt from scratch on EVERY render — filtered, sorted,
+    // and re-formatted — even when only unrelated state changes. Nothing here is
+    // memoized (no useMemo / no memoized component), so typing in the filter box
+    // re-does all of this work each keystroke.
+    export function ClassList({ classes }: { classes: YogaClass[] }) {
+      const [query, setQuery] = useState("");
+
+      const visible = classes
+        .filter((c) => c.teacher.toLowerCase().includes(query.toLowerCase()))
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((c) => ({ ...c, label: `${c.name} — ${c.time} · ${c.teacher}` }));
+
+      return (
+        <div className="classes">
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Filter by teacher"
+          />
+          <ul>
+            {visible.map((c) => (
+              <li key={c.id}>
+                <img src={c.photo} alt={`${c.name} class`} width={80} height={80} />
+                <div>
+                  <strong>{c.name}</strong>
+                  <span>{c.time} · {c.teacher}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      );
+    }
+    """
+
+    // Responsive practice target: every size is a fixed desktop pixel width and
+    // there are no media queries, so the page overflows on a phone.
+    private static let globalsCSS = """
+    /* Global styles for the yoga site.
+       NOTE: everything is sized for a wide desktop window. There are no
+       responsive breakpoints, so on a narrow screen the layout overflows
+       horizontally and the columns never stack. */
+
+    .home {
+      width: 1100px;        /* fixed — does not shrink on small screens */
+      margin: 0 auto;
+      padding: 48px;
+    }
+
+    .hero {
+      display: flex;        /* always side-by-side, even when too narrow */
+      gap: 48px;
+    }
+
+    .hero-text { width: 520px; }
+    .hero-art img { width: 520px; height: 360px; }
+
+    .classes ul {
+      display: flex;        /* a single non-wrapping row of cards */
+      gap: 24px;
+      list-style: none;
+      padding: 0;
+    }
+
+    .classes li { width: 320px; }
+
+    .contact form {
+      display: grid;
+      grid-template-columns: 1fr 1fr;   /* two columns, cramped on mobile */
+      gap: 16px;
+      width: 640px;
     }
     """
 

@@ -363,6 +363,10 @@ struct ExerciseWorkspaceView: View {
             return "In the sign-up form in \(primaryFile), check the email field isn't empty and contains an '@' before submitting. If it's invalid, show an inline message next to the field so the user knows what to fix."
         case "accessibility_basics":
             return "Add descriptive alt text to every image in \(primaryFile) that's missing it, so screen readers can describe each one. Don't change anything else."
+        case "responsive_layout":
+            return "In \(primaryFile), make the layout responsive: replace the fixed pixel widths with fluid sizing and add a mobile breakpoint so the hero and class cards stack instead of overflowing on a narrow screen. Keep the desktop look the same."
+        case "performance":
+            return "In \(primaryFile), the filtered/sorted list is recomputed on every render. Wrap that derived list in useMemo so it only recalculates when the classes or the filter query actually change. Keep the behavior identical."
         default:
             return "In \(primaryFile), make the change described in the goal, and say what should be true when it's done so that the result matches: \(challenge.acceptanceCriteria.lowercased())."
         }
