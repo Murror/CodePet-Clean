@@ -945,23 +945,25 @@ struct ProjectFoldersView: View {
             .sorted { $0.project.lastSeenAt > $1.project.lastSeenAt }
     }
 
-    /// The currently selected project path (defaults to first)
+    /// The currently selected project path. A local tab tap (selectedProjectPath)
+    /// wins; otherwise we mirror the project focused in Reflection
+    /// (syncedProjectPath); otherwise we fall back to the most recent.
     private var activeProjectPath: String {
-        selectedProjectPath ?? sortedProjects.first?.path ?? ""
+        if let local = selectedProjectPath, projects[local] != nil { return local }
+        if let synced = syncedProjectPath, projects[synced] != nil { return synced }
+        return sortedProjects.first?.path ?? ""
     }
 
-    /// Projects rendered as folder tabs: the most-recent `maxVisibleTabs`,
-    /// but always including the active one (so a project picked from the
-    /// overflow menu surfaces as a tab instead of vanishing).
+    /// Projects rendered as folder tabs: the active project first (so the project
+    /// focused in Reflection leads the strip), then the most-recent others, up to
+    /// `maxVisibleTabs`.
     private var visibleProjects: [(path: String, project: Project)] {
-        let top = Array(sortedProjects.prefix(maxVisibleTabs))
-        if activeProjectPath.isEmpty || top.contains(where: { $0.path == activeProjectPath }) {
-            return top
+        guard !activeProjectPath.isEmpty,
+              let active = sortedProjects.first(where: { $0.path == activeProjectPath }) else {
+            return Array(sortedProjects.prefix(maxVisibleTabs))
         }
-        guard let active = sortedProjects.first(where: { $0.path == activeProjectPath }) else {
-            return top
-        }
-        return [active] + top.prefix(maxVisibleTabs - 1)
+        let rest = sortedProjects.filter { $0.path != activeProjectPath }
+        return Array(([active] + rest).prefix(maxVisibleTabs))
     }
 
     /// Projects hidden behind the "+N more" menu.

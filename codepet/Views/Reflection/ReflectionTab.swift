@@ -268,7 +268,13 @@ struct ReflectionTab: View {
     /// tab. The welcome session (and anything that doesn't resolve to a detected
     /// project) clears the focus.
     private func publishActiveProject() {
-        guard let session = selectedSession, !session.isWelcome else {
+        // Prefer the explicitly-focused session; if that's the welcome card (the
+        // default when nothing is selected), fall back to the most recent real
+        // session so Project Health still tracks the latest project.
+        let focused: Session? = (selectedSession?.isWelcome == false)
+            ? selectedSession
+            : cachedSessions.first(where: { !$0.isWelcome })
+        guard let session = focused else {
             projectStore.setActiveProject(nil)
             return
         }
