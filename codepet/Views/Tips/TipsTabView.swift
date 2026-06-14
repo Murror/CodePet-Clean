@@ -163,6 +163,7 @@ struct TipsTabView: View {
             readingGroups: readingGroups,
             healthReports: healthReports,
             uiLanguage: uiLanguage,
+            orderedProjectPaths: projectStore.reflectionProjectOrder,
             syncedProjectPath: projectStore.activeProjectPath,
             onFeedToClaude: { item, projectName in
                 let title = item.title(uiLanguage)

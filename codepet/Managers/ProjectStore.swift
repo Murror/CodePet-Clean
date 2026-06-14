@@ -15,24 +15,27 @@ final class ProjectStore: ObservableObject {
 
     /// The project the user is currently focused on in the Reflection tab
     /// (resolved from the selected session). Project Health observes this to
-    /// surface the same project as its active folder tab in real time. Nil when
-    /// the focus isn't a detected project (e.g. the welcome session).
+    /// highlight the same project as its active folder tab. Nil when the focus
+    /// isn't a detected project (e.g. the welcome session).
     @Published var activeProjectPath: String? = nil
 
-    /// Set the Reflection-focused project. When the focus actually changes, the
-    /// newly-focused project is also marked most-recently-active (lastSeenAt is
-    /// only ever used for sorting), so it leads the plain newest→oldest ordering
-    /// that Project Health and the reading/dictionary matchers all share.
-    /// No-op if unchanged, so it never publishes a redundant change.
+    /// Project paths in the exact order Reflection lists its groups — most recent
+    /// activity first, and ONLY projects that actually have sessions. Project
+    /// Health renders its folder tabs in this order so the two stay in lockstep
+    /// (instead of diverging on lastSeenAt, which the hook pipeline updates
+    /// differently). Empty until Reflection has been shown at least once.
+    @Published var reflectionProjectOrder: [String] = []
+
+    /// Set the Reflection-focused project. No-op if unchanged.
     func setActiveProject(_ path: String?) {
         let normalized = (path?.isEmpty == true) ? nil : path
-        guard activeProjectPath != normalized else { return }
-        activeProjectPath = normalized
-        if let root = normalized, var project = projects[root] {
-            project.lastSeenAt = Date()
-            projects[root] = project
-            persist()
-        }
+        if activeProjectPath != normalized { activeProjectPath = normalized }
+    }
+
+    /// Publish Reflection's ordered project list (see `reflectionProjectOrder`).
+    /// No-op if unchanged.
+    func setReflectionProjectOrder(_ paths: [String]) {
+        if reflectionProjectOrder != paths { reflectionProjectOrder = paths }
     }
 
     /// Cache: session-specific key → resolved project root path.
