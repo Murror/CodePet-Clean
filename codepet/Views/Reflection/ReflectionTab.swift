@@ -263,14 +263,17 @@ struct ReflectionTab: View {
         }
     }
 
-    /// Publish the currently-focused project to the shared ProjectStore so the
-    /// Tips tab's Project Health surfaces the same project as its active folder
-    /// tab. The welcome session (and anything that doesn't resolve to a detected
-    /// project) clears the focus.
+    /// Mirror Reflection's project list into the shared ProjectStore so the Tips
+    /// tab's Project Health shows the same projects, in the same order, with the
+    /// same active project highlighted.
     private func publishActiveProject() {
-        // Prefer the explicitly-focused session; if that's the welcome card (the
-        // default when nothing is selected), fall back to the most recent real
-        // session so Project Health still tracks the latest project.
+        // Ordered project list — exactly what the sidebar groups show (most
+        // recent first, sessions-only). Project Health renders its tabs from it.
+        let ordered = cachedGroups.compactMap { $0.projectPath }
+        projectStore.setReflectionProjectOrder(ordered)
+
+        // The focused project — for the highlighted/active tab. Falls back to the
+        // most recent real session when the welcome card is the default selection.
         let focused: Session? = (selectedSession?.isWelcome == false)
             ? selectedSession
             : cachedSessions.first(where: { !$0.isWelcome })

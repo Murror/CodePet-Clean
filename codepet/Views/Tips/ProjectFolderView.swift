@@ -925,6 +925,11 @@ struct ProjectFoldersView: View {
     let readingGroups: [ReadingMatcher.ProjectReadingGroup]
     let healthReports: [ProjectHealthReport]
     let uiLanguage: AppLanguage
+    /// Project paths in Reflection's order (most recent first, sessions-only).
+    /// When non-empty, the folder tabs follow this exact order so Project Health
+    /// stays in lockstep with the Reflection sidebar. Empty → fall back to local
+    /// recency (lastSeenAt).
+    var orderedProjectPaths: [String] = []
     /// The project the user is currently focused on in Reflection. When set (and
     /// known), Project Health follows it: that project becomes the active folder
     /// tab in real time. nil leaves the local selection alone.
@@ -939,10 +944,28 @@ struct ProjectFoldersView: View {
     /// small count; beyond that the bar gets crowded and starts to scroll.
     private let maxVisibleTabs = 3
 
-    /// Sorted projects (most recent first)
+    /// Projects in display order. Mirrors Reflection's group order
+    /// (`orderedProjectPaths`) when available — most recent first, sessions-only
+    /// — with any remaining known projects appended by local recency. Falls back
+    /// to pure recency (lastSeenAt) before Reflection has published an order.
     private var sortedProjects: [(path: String, project: Project)] {
-        projects.map { (path: $0.key, project: $0.value) }
+        let byRecency = projects.map { (path: $0.key, project: $0.value) }
             .sorted { $0.project.lastSeenAt > $1.project.lastSeenAt }
+        guard !orderedProjectPaths.isEmpty else { return byRecency }
+
+        var seen = Set<String>()
+        var result: [(path: String, project: Project)] = []
+        for path in orderedProjectPaths {
+            guard let project = projects[path], !seen.contains(path) else { continue }
+            result.append((path: path, project: project))
+            seen.insert(path)
+        }
+        // Any projects Reflection didn't list (e.g. no sessions) trail behind,
+        // newest first, so nothing silently disappears.
+        for item in byRecency where !seen.contains(item.path) {
+            result.append(item)
+        }
+        return result
     }
 
     /// The currently selected project path. A local tab tap (selectedProjectPath)
