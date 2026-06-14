@@ -48,6 +48,9 @@ struct ExerciseWorkspaceView: View {
                     if !runner.events.isEmpty {
                         CodeExecutionView(events: runner.events, accent: character.color)
                     }
+                    if !runner.fileDiffs.isEmpty {
+                        FileDiffView(diffs: runner.fileDiffs, accent: character.color)
+                    }
                     if let err = sandboxError {
                         banner(err, bg: Color(hex: "#F7E3DE"), fg: Color(hex: "#8A3324"))
                     }

@@ -33,6 +33,9 @@ struct RunForRealSection: View {
                 if !runner.events.isEmpty {
                     CodeExecutionView(events: runner.events, accent: accent)
                 }
+                if !runner.fileDiffs.isEmpty {
+                    FileDiffView(diffs: runner.fileDiffs, accent: accent)
+                }
                 if let coach = coachLine {
                     coachBubble(coach)
                 }
@@ -276,5 +279,112 @@ struct CodeExecutionView: View {
         case "Glob", "Grep": return "magnifyingglass"
         default: return "wrench.and.screwdriver"
         }
+    }
+}
+
+// =============================================================================
+// MARK: - FileDiffView — real before/after for each changed file
+// =============================================================================
+
+/// Shows the actual line-level changes Claude made to each file this run, built
+/// from a pre-run snapshot diffed against what's now on disk (see
+/// ClaudeCodeRunner.computeDiffs). One collapsible block per file.
+struct FileDiffView: View {
+    let diffs: [ClaudeCodeRunner.FileDiff]
+    let accent: Color
+
+    /// Files start expanded so the change is visible without an extra tap.
+    @State private var collapsed: Set<UUID> = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("BEFORE → AFTER")
+                .font(.pixelSystem(size: 12, weight: .bold, design: .monospaced))
+                .foregroundColor(Color(hex: "#2D2B26").opacity(0.45))
+            ForEach(diffs) { diff in
+                diffBlock(diff)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func diffBlock(_ diff: ClaudeCodeRunner.FileDiff) -> some View {
+        let isOpen = !collapsed.contains(diff.id)
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: {
+                withAnimation {
+                    if isOpen { collapsed.insert(diff.id) } else { collapsed.remove(diff.id) }
+                }
+            }) {
+                HStack(spacing: 6) {
+                    Image(systemName: isOpen ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9))
+                    Image(systemName: diff.isNewFile ? "doc.badge.plus" : "pencil")
+                        .font(.system(size: 10))
+                        .foregroundColor(accent)
+                    Text(diff.fileName)
+                        .font(.pixelSystem(size: 12, design: .monospaced))
+                    if diff.isNewFile {
+                        Text("NEW")
+                            .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(RoundedRectangle(cornerRadius: 3).fill(Color(hex: "#3FA66A")))
+                    }
+                    Spacer()
+                    Text(changeSummary(diff))
+                        .font(.pixelSystem(size: 9, design: .monospaced))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
+                }
+                .foregroundColor(Color(hex: "#2D2B26").opacity(0.75))
+                .padding(.vertical, 7).padding(.horizontal, 9)
+            }
+            .buttonStyle(.plain)
+
+            if isOpen {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(diff.lines) { line in
+                            diffLine(line)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+                }
+                .frame(maxHeight: 320)
+            }
+        }
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: "#2D2B26").opacity(0.05)))
+    }
+
+    @ViewBuilder
+    private func diffLine(_ line: ClaudeCodeRunner.FileDiff.Line) -> some View {
+        let (bg, fg, gutter): (Color, Color, String) = {
+            switch line.kind {
+            case .added:   return (Color(hex: "#3FA66A").opacity(0.16), Color(hex: "#1E6B40"), "+")
+            case .removed: return (Color(hex: "#E06050").opacity(0.16), Color(hex: "#8A3324"), "−")
+            case .context: return (.clear, Color(hex: "#2D2B26").opacity(0.55), " ")
+            }
+        }()
+        HStack(alignment: .top, spacing: 6) {
+            Text(gutter)
+                .font(.pixelSystem(size: 12, design: .monospaced))
+                .foregroundColor(fg.opacity(0.7))
+                .frame(width: 10, alignment: .center)
+            Text(line.text.isEmpty ? " " : line.text)
+                .font(.pixelSystem(size: 12, design: .monospaced))
+                .foregroundColor(fg)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+        }
+        .padding(.horizontal, 9).padding(.vertical, 1)
+        .background(bg)
+    }
+
+    private func changeSummary(_ diff: ClaudeCodeRunner.FileDiff) -> String {
+        let added = diff.lines.filter { $0.kind == .added }.count
+        let removed = diff.lines.filter { $0.kind == .removed }.count
+        return "+\(added) −\(removed)"
     }
 }
