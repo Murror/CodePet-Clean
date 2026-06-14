@@ -52,8 +52,6 @@ class AppState: ObservableObject {
     /// Set by Tips tab to pre-fill a chat prompt on the Reflection tab.
     /// The Reflection chat view consumes and nils this after use.
     @Published var pendingChatPrompt: String? = nil
-    /// Challenge context for exercise-aware chat. Set when user starts an exercise.
-    @Published var pendingChallengeContext: SkillChallenge? = nil
     /// When set, MainTabView presents the large practice-workspace modal.
     /// Exercises use this (a roomy modal) instead of the narrow companion panel.
     @Published var activeExercise: SkillChallenge? = nil
