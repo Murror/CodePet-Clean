@@ -10,6 +10,7 @@ struct ExerciseWorkspaceView: View {
     let challenge: SkillChallenge
     let character: PetCharacter
 
+    @EnvironmentObject private var hookInstaller: HookInstaller
     @StateObject private var runner = ClaudeCodeRunner()
     @State private var promptText: String
     @AppStorage("cp_last_project_dir") private var lastProjectDir: String = ""
@@ -31,11 +32,16 @@ struct ExerciseWorkspaceView: View {
                 VStack(alignment: .leading, spacing: 14) {
                     exerciseHeader
                     projectRow
+                    hooksNotice
                     promptCard
                     runControls
 
                     if !runner.events.isEmpty {
                         CodeExecutionView(events: runner.events, characterColor: character.color)
+                    }
+
+                    if !runner.fileDiffs.isEmpty {
+                        FileDiffView(diffs: runner.fileDiffs, accent: character.color)
                     }
 
                     if let coach = ExercisePetCoach.line(for: runner, challenge: challenge, petName: character.name) {
@@ -59,7 +65,93 @@ struct ExerciseWorkspaceView: View {
             }
         }
         .background(character.color.opacity(0.05))
+        .onAppear { hookInstaller.checkInstallation() }
         .onDisappear { runner.cancel() }
+    }
+
+    // MARK: - Reflection hooks notice (auto-completion depends on them)
+
+    /// This view's skill auto-completion relies on the reflection hooks: after the
+    /// run, NarrativeEnricher reads the captured session to mark the exercise done
+    /// (see `finishedFooter`). If the hooks aren't installed that never fires, so
+    /// surface the one-time setup here while it's missing. Hidden once installed.
+    @ViewBuilder
+    private var hooksNotice: some View {
+        switch hookInstaller.status {
+        case .installed:
+            EmptyView()
+
+        case .notInstalled:
+            hooksCard(icon: "link.badge.plus", title: "Set up auto-complete") {
+                Text("This exercise marks complete automatically once Codepet sees the skill in your coding session — but that needs the reflection hooks installed. One-time setup.")
+                    .font(.pixelSystem(size: 10))
+                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
+                    .fixedSize(horizontal: false, vertical: true)
+                hooksButton(icon: "doc.on.clipboard", title: "Copy setup command",
+                            fill: character.color) { hookInstaller.install() }
+            }
+
+        case .installing:
+            hooksCard(icon: "checkmark.circle.fill", title: "Command copied") {
+                Text("Open Terminal → paste (⌘V) → press Enter. Then tap “I've done it”.")
+                    .font(.pixelSystem(size: 10))
+                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                    hooksButton(icon: "checkmark", title: "I've done it",
+                                fill: Color(hex: "#3FA66A")) { hookInstaller.verifyInstallation() }
+                    Button("Copy again") { hookInstaller.install() }
+                        .font(.pixelSystem(size: 10, weight: .semibold))
+                        .foregroundColor(character.color)
+                        .buttonStyle(.plain)
+                }
+            }
+
+        case .failed(let error):
+            hooksCard(icon: "exclamationmark.triangle.fill", title: "Setup failed") {
+                Text(error)
+                    .font(.pixelSystem(size: 9, design: .monospaced))
+                    .foregroundColor(Color(hex: "#8A3324"))
+                    .fixedSize(horizontal: false, vertical: true)
+                hooksButton(icon: "arrow.clockwise", title: "Try again",
+                            fill: character.color) { hookInstaller.install() }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func hooksCard<Content: View>(icon: String, title: String,
+                                          @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 12))
+                .foregroundColor(character.color)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title)
+                    .font(.pixelSystem(size: 11, weight: .bold))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+                content()
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(character.color.opacity(0.08)))
+    }
+
+    private func hooksButton(icon: String, title: String, fill: Color,
+                             action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon).font(.system(size: 10))
+                Text(title).font(.pixelSystem(size: 10, weight: .bold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 12).padding(.vertical, 6)
+            .background(fill).cornerRadius(8)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Header
@@ -289,6 +381,112 @@ struct CodeExecutionView: View {
         case "Glob", "Grep": return "magnifyingglass"
         default: return "wrench.and.screwdriver"
         }
+    }
+}
+
+// =============================================================================
+// MARK: - FileDiffView — real before/after for each changed file
+// =============================================================================
+
+/// Shows the actual line-level changes Claude made to each file this run, built
+/// from a pre-run snapshot diffed against what's now on disk (see
+/// ClaudeCodeRunner.computeDiffs). One collapsible block per file.
+struct FileDiffView: View {
+    let diffs: [ClaudeCodeRunner.FileDiff]
+    let accent: Color
+
+    @State private var collapsed: Set<UUID> = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("BEFORE → AFTER")
+                .font(.pixelSystem(size: 8, weight: .bold, design: .monospaced))
+                .foregroundColor(Color(hex: "#2D2B26").opacity(0.45))
+            ForEach(diffs) { diff in
+                diffBlock(diff)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func diffBlock(_ diff: ClaudeCodeRunner.FileDiff) -> some View {
+        let isOpen = !collapsed.contains(diff.id)
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: {
+                withAnimation {
+                    if isOpen { collapsed.insert(diff.id) } else { collapsed.remove(diff.id) }
+                }
+            }) {
+                HStack(spacing: 6) {
+                    Image(systemName: isOpen ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 9))
+                    Image(systemName: diff.isNewFile ? "doc.badge.plus" : "pencil")
+                        .font(.system(size: 10))
+                        .foregroundColor(accent)
+                    Text(diff.fileName)
+                        .font(.pixelSystem(size: 10, design: .monospaced))
+                    if diff.isNewFile {
+                        Text("NEW")
+                            .font(.pixelSystem(size: 7, weight: .bold, design: .monospaced))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 4).padding(.vertical, 1)
+                            .background(RoundedRectangle(cornerRadius: 3).fill(Color(hex: "#3FA66A")))
+                    }
+                    Spacer()
+                    Text(changeSummary(diff))
+                        .font(.pixelSystem(size: 8, design: .monospaced))
+                        .foregroundColor(Color(hex: "#2D2B26").opacity(0.4))
+                }
+                .foregroundColor(Color(hex: "#2D2B26").opacity(0.75))
+                .padding(.vertical, 6).padding(.horizontal, 9)
+            }
+            .buttonStyle(.plain)
+
+            if isOpen {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(diff.lines) { line in
+                            diffLine(line)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+                }
+                .frame(maxHeight: 300)
+            }
+        }
+        .background(RoundedRectangle(cornerRadius: 10).fill(Color(hex: "#2D2B26").opacity(0.05)))
+    }
+
+    @ViewBuilder
+    private func diffLine(_ line: ClaudeCodeRunner.FileDiff.Line) -> some View {
+        let (bg, fg, gutter): (Color, Color, String) = {
+            switch line.kind {
+            case .added:   return (Color(hex: "#3FA66A").opacity(0.16), Color(hex: "#1E6B40"), "+")
+            case .removed: return (Color(hex: "#E06050").opacity(0.16), Color(hex: "#8A3324"), "−")
+            case .context: return (.clear, Color(hex: "#2D2B26").opacity(0.55), " ")
+            }
+        }()
+        HStack(alignment: .top, spacing: 6) {
+            Text(gutter)
+                .font(.pixelSystem(size: 10, design: .monospaced))
+                .foregroundColor(fg.opacity(0.7))
+                .frame(width: 9, alignment: .center)
+            Text(line.text.isEmpty ? " " : line.text)
+                .font(.pixelSystem(size: 10, design: .monospaced))
+                .foregroundColor(fg)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
+        }
+        .padding(.horizontal, 9).padding(.vertical, 1)
+        .background(bg)
+    }
+
+    private func changeSummary(_ diff: ClaudeCodeRunner.FileDiff) -> String {
+        let added = diff.lines.filter { $0.kind == .added }.count
+        let removed = diff.lines.filter { $0.kind == .removed }.count
+        return "+\(added) −\(removed)"
     }
 }
 

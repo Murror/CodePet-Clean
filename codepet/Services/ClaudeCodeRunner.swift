@@ -41,12 +41,34 @@ final class ClaudeCodeRunner: ObservableObject {
         static func == (l: StreamEvent, r: StreamEvent) -> Bool { l.id == r.id }
     }
 
+    /// One changed file's before/after, computed once the run finishes by diffing
+    /// a pre-run snapshot of the project against what's now on disk. (The stream
+    /// events only carry the file path, never the old/new content, so we snapshot
+    /// ourselves — see `snapshot(dir:)`.)
+    struct FileDiff: Identifiable, Equatable {
+        enum LineKind { case context, added, removed }
+        struct Line: Identifiable, Equatable {
+            let id = UUID()
+            let kind: LineKind
+            let text: String
+        }
+        let id = UUID()
+        let path: String                 // absolute path of the changed file
+        let isNewFile: Bool              // created this run (no pre-run content)
+        let lines: [Line]                // unified before/after view
+        var fileName: String { (path as NSString).lastPathComponent }
+
+        static func == (l: FileDiff, r: FileDiff) -> Bool { l.id == r.id }
+    }
+
     // MARK: - Published state
 
     @Published private(set) var state: RunState = .idle
     @Published private(set) var events: [StreamEvent] = []
     /// Distinct file paths Claude Code edited/created this run, in first-seen order.
     @Published private(set) var touchedFiles: [String] = []
+    /// Before/after diffs for files that actually changed, published on finish.
+    @Published private(set) var fileDiffs: [FileDiff] = []
 
     var isRunning: Bool { if case .running = state { return true }; return false }
 
@@ -55,6 +77,11 @@ final class ClaudeCodeRunner: ObservableObject {
     private var process: Process?
     private var stdoutBuffer = Data()
     private let queue = DispatchQueue(label: "app.murror.codepet.claude-runner")
+    /// Text-file contents captured just before the run, keyed by standardized
+    /// absolute path. Diffed against the post-run files to build `fileDiffs`.
+    private var preRunSnapshot: [String: String] = [:]
+    /// The resolved working directory, used to resolve any relative tool paths.
+    private var projectDirResolved = ""
 
     // Login shells to try, in order. `-l` loads the user's profile so `claude`
     // (commonly at ~/.claude/local, /opt/homebrew/bin, /usr/local/bin, or an
@@ -80,6 +107,8 @@ final class ClaudeCodeRunner: ObservableObject {
         stdoutBuffer.removeAll()
         events.removeAll()
         touchedFiles.removeAll()
+        fileDiffs.removeAll()
+        preRunSnapshot.removeAll()
         state = .running
 
         var dir = projectDir
@@ -90,6 +119,11 @@ final class ClaudeCodeRunner: ObservableObject {
             state = .failed(reason: "Project folder not found: \(dir)")
             return
         }
+        projectDirResolved = dir
+        // Snapshot the project's text files now, so we can show real before/after
+        // diffs once Claude finishes editing. Capped so a large real project
+        // can't make this slow — beyond the cap we simply skip diffs.
+        preRunSnapshot = Self.snapshot(dir: dir)
 
         let shell = Self.loginShells.first { FileManager.default.fileExists(atPath: $0) } ?? "/bin/zsh"
 
@@ -137,6 +171,9 @@ final class ClaudeCodeRunner: ObservableObject {
                         self?.state = .failed(reason: Self.friendlyError(err, exitCode: code))
                     } else {
                         self?.state = .finished(exitCode: code)
+                        // touchedFiles is fully populated by now (the serial parse
+                        // queue feeds it ahead of this block). Build diffs off-main.
+                        self?.computeDiffs()
                     }
                 }
             }
@@ -246,6 +283,98 @@ final class ClaudeCodeRunner: ObservableObject {
         DispatchQueue.main.async { [weak self] in
             self?.events.append(event)
         }
+    }
+
+    // MARK: - Diffs
+
+    /// How many text files we'll snapshot before giving up on diffs. The clone
+    /// runs against the user's real project, which can be large; beyond this we
+    /// skip diffs rather than stall the run.
+    private static let snapshotFileCap = 3000
+
+    /// Capture the text files under `dir` so we can diff against them later.
+    /// Skips hidden files, dependency/build dirs, and anything large or binary.
+    /// Returns an empty snapshot (→ no diffs) if the tree exceeds the file cap.
+    private static func snapshot(dir: String) -> [String: String] {
+        var snap: [String: String] = [:]
+        let fm = FileManager.default
+        let base = URL(fileURLWithPath: dir)
+        guard let walker = fm.enumerator(at: base,
+                                         includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
+                                         options: [.skipsHiddenFiles]) else { return snap }
+        var count = 0
+        for case let url as URL in walker {
+            let p = url.path
+            if p.contains("/node_modules/") || p.contains("/.git/") || p.contains("/.next/")
+                || p.contains("/build/") || p.contains("/DerivedData/") || p.contains("/Pods/") { continue }
+            let vals = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey])
+            guard vals?.isRegularFile == true else { continue }
+            if let size = vals?.fileSize, size > 256 * 1024 { continue }  // skip large/binary
+            count += 1
+            if count > snapshotFileCap { return [:] }  // too big — skip diffs entirely
+            if let content = try? String(contentsOf: url, encoding: .utf8) {
+                snap[url.standardizedFileURL.path] = content
+            }
+        }
+        return snap
+    }
+
+    /// Diff each touched file's pre-run snapshot against its current contents and
+    /// publish the result. Reads `touchedFiles` on main (it owns that array),
+    /// then does file IO + diffing off-main.
+    private func computeDiffs() {
+        let touched = touchedFiles
+        let snapshot = preRunSnapshot
+        let dir = projectDirResolved
+        guard !snapshot.isEmpty else { return }   // diffs were skipped (large tree)
+        queue.async { [weak self] in
+            var diffs: [FileDiff] = []
+            for raw in touched {
+                let abs = (raw as NSString).isAbsolutePath
+                    ? raw
+                    : (dir as NSString).appendingPathComponent(raw)
+                let key = URL(fileURLWithPath: abs).standardizedFileURL.path
+                let before = snapshot[key]
+                let after = (try? String(contentsOfFile: key, encoding: .utf8)) ?? ""
+                if before == after { continue }   // unchanged (e.g. only Read)
+                let lines = Self.unifiedDiff(before: before ?? "", after: after)
+                guard !lines.isEmpty else { continue }
+                diffs.append(FileDiff(path: key, isNewFile: before == nil, lines: lines))
+            }
+            DispatchQueue.main.async { self?.fileDiffs = diffs }
+        }
+    }
+
+    /// Build a line-level unified diff (context / added / removed) from two
+    /// strings using the stdlib's `CollectionDifference`.
+    static func unifiedDiff(before: String, after: String) -> [FileDiff.Line] {
+        let beforeLines = before.isEmpty ? [] : before.components(separatedBy: "\n")
+        let afterLines = after.isEmpty ? [] : after.components(separatedBy: "\n")
+        let diff = afterLines.difference(from: beforeLines)
+
+        var removedAt: [Int: String] = [:]   // offset into beforeLines
+        var insertedAt: [Int: String] = [:]  // offset into afterLines
+        for change in diff {
+            switch change {
+            case .remove(let offset, let element, _): removedAt[offset] = element
+            case .insert(let offset, let element, _): insertedAt[offset] = element
+            }
+        }
+
+        var out: [FileDiff.Line] = []
+        var bi = 0, ai = 0
+        while bi < beforeLines.count || ai < afterLines.count {
+            if bi < beforeLines.count, removedAt[bi] != nil {
+                out.append(.init(kind: .removed, text: beforeLines[bi])); bi += 1
+            } else if ai < afterLines.count, insertedAt[ai] != nil {
+                out.append(.init(kind: .added, text: afterLines[ai])); ai += 1
+            } else if bi < beforeLines.count {
+                out.append(.init(kind: .context, text: beforeLines[bi])); bi += 1; ai += 1
+            } else {
+                ai += 1
+            }
+        }
+        return out
     }
 
     // MARK: - Helpers

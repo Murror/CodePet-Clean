@@ -4,24 +4,10 @@ import AppKit
 /// The live Tips tab — replaces TipsMockupView.
 /// Reads real skill progress from TipsState, fetches daily AI guidance
 /// via GuidanceEnricher, and renders per-pet content from TipsContent.
-/// A setup item computed from real system state.
-private struct DynamicSetupItem {
-    let title: L10n
-    let status: L10n
-    let state: TipSetupState
-    let actionLabel: L10n?
-    let action: SetupAction?
-
-    enum SetupAction {
-        case navigateToReflection
-    }
-}
-
 struct TipsTabView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var tipsState: TipsState
     @EnvironmentObject var narrativeStore: NarrativeStore
-    @EnvironmentObject var hookInstaller: HookInstaller
     @EnvironmentObject var projectStore: ProjectStore
     @EnvironmentObject var learnProgress: LearnProgress
     @Environment(\.uiLanguage) private var uiLanguage
@@ -63,7 +49,6 @@ struct TipsTabView: View {
                         )
                     }
                 })
-                setupSection
                 learnFromExpertSection
                 projectFoldersSection
                 skillsSection
@@ -144,146 +129,6 @@ struct TipsTabView: View {
                     .font(ReflectionTheme.sans(11, weight: .semibold))
                     .foregroundColor(ReflectionTheme.primaryText)
             }
-        }
-    }
-
-    // MARK: - Setup section (dual-mode: app onboarding OR project health)
-
-    /// Whether the generic app-level setup is fully complete.
-    private var appSetupComplete: Bool {
-        hookInstaller.status == .installed
-            && !narrativeStore.narratives.isEmpty
-            && !projectStore.projects.isEmpty
-            && tipsState.currentGuidance?.isFresh == true
-    }
-
-    /// The setup section shows app-level onboarding until all 4 steps are green,
-    /// then auto-hides. Project health is now shown in the folder tabs below.
-    @ViewBuilder
-    private var setupSection: some View {
-        if !appSetupComplete {
-            appSetupSection
-        }
-    }
-
-    // ── App-level onboarding (auto-hides when complete) ──────────────
-
-    private var appSetupItems: [DynamicSetupItem] {
-        let hooksInstalled = hookInstaller.status == .installed
-        let hasNarratives = !narrativeStore.narratives.isEmpty
-        let hasProjects = !projectStore.projects.isEmpty
-        let hasGuidance = tipsState.currentGuidance?.isFresh == true
-
-        return [
-            DynamicSetupItem(
-                title: L10n(vi: "Hook phản chiếu", en: "Reflection hooks"),
-                status: hooksInstalled
-                    ? L10n(vi: "Đã kết nối — đang ghi nhận phiên code", en: "Connected — capturing coding sessions")
-                    : L10n(vi: "Chưa cài — CodePet cần hook để theo dõi", en: "Not installed — CodePet needs hooks to track"),
-                state: hooksInstalled ? .done : .missing,
-                actionLabel: hooksInstalled ? nil : L10n(vi: "Cài đặt", en: "Set up"),
-                action: hooksInstalled ? nil : .navigateToReflection
-            ),
-            DynamicSetupItem(
-                title: L10n(vi: "Phiên code đầu tiên", en: "First coding session"),
-                status: hasNarratives
-                    ? L10n(vi: "Đã ghi nhận \(narrativeStore.narratives.count) lượt", en: "Captured \(narrativeStore.narratives.count) turns")
-                    : L10n(vi: "Chưa có phiên nào — hãy code với Claude Code", en: "No sessions yet — code with Claude Code"),
-                state: hasNarratives ? .done : .missing,
-                actionLabel: hasNarratives ? nil : L10n(vi: "Mở Reflection", en: "Open Reflection"),
-                action: hasNarratives ? nil : .navigateToReflection
-            ),
-            DynamicSetupItem(
-                title: L10n(vi: "Phát hiện dự án", en: "Project detected"),
-                status: hasProjects
-                    ? L10n(vi: "\(projectStore.projects.count) dự án đã nhận diện", en: "\(projectStore.projects.count) project\(projectStore.projects.count == 1 ? "" : "s") detected")
-                    : L10n(vi: "Chưa nhận diện — code thêm để phát hiện", en: "Not yet — code more to detect"),
-                state: hasProjects ? .done : (hasNarratives ? .warning : .missing),
-                actionLabel: nil,
-                action: nil
-            ),
-            DynamicSetupItem(
-                title: L10n(vi: "Gợi ý hàng ngày", en: "Daily guidance"),
-                status: hasGuidance
-                    ? L10n(vi: "Đang hoạt động — gợi ý mới mỗi ngày", en: "Active — fresh tip every day")
-                    : L10n(vi: "Cần ít nhất 1 phiên để phân tích", en: "Needs at least 1 session to analyze"),
-                state: hasGuidance ? .done : (hasNarratives ? .warning : .missing),
-                actionLabel: nil,
-                action: nil
-            ),
-        ]
-    }
-
-    private var appSetupSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Eyebrow(text: uiLanguage == .vi ? "Bắt đầu" : "Getting started")
-                Spacer()
-                let doneCount = appSetupItems.filter { $0.state == .done }.count
-                Text(uiLanguage == .vi
-                     ? "\(doneCount) / \(appSetupItems.count) hoàn thành"
-                     : "\(doneCount) of \(appSetupItems.count) ready")
-                    .font(ReflectionTheme.sans(10))
-                    .foregroundColor(ReflectionTheme.mutedText)
-            }
-
-            VStack(spacing: 0) {
-                ForEach(Array(appSetupItems.enumerated()), id: \.offset) { index, item in
-                    dynamicSetupRow(item)
-                    if index < appSetupItems.count - 1 {
-                        Rectangle()
-                            .fill(ReflectionTheme.borderLight)
-                            .frame(height: 1)
-                            .padding(.horizontal, 18)
-                    }
-                }
-            }
-            .pixelBox(fill: ReflectionTheme.cardBackground)
-        }
-    }
-
-    private func dynamicSetupRow(_ item: DynamicSetupItem) -> some View {
-        HStack(alignment: .center, spacing: 14) {
-            Image(systemName: item.state.icon)
-                .font(.pixelSystem(size: 16, weight: .medium))
-                .foregroundColor(item.state.color)
-                .frame(width: 20)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(item.title(uiLanguage))
-                    .font(ReflectionTheme.sans(13, weight: .semibold))
-                    .foregroundColor(ReflectionTheme.primaryText)
-                Text(item.status(uiLanguage))
-                    .font(ReflectionTheme.sans(11))
-                    .foregroundColor(ReflectionTheme.mutedText)
-            }
-
-            Spacer()
-
-            if let label = item.actionLabel, item.action != nil {
-                Button(action: {
-                    handleSetupAction(item.action!)
-                }) {
-                    HStack(spacing: 4) {
-                        Text(label(uiLanguage))
-                            .font(ReflectionTheme.sans(11, weight: .semibold))
-                            .foregroundColor(ReflectionTheme.accent)
-                        Image(systemName: "arrow.right")
-                            .font(.pixelSystem(size: 9, weight: .semibold))
-                            .foregroundColor(ReflectionTheme.accent)
-                    }
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 18)
-        .padding(.vertical, 16)
-    }
-
-    private func handleSetupAction(_ action: DynamicSetupItem.SetupAction) {
-        switch action {
-        case .navigateToReflection:
-            appState.selectedTab = .reflection
         }
     }
 
