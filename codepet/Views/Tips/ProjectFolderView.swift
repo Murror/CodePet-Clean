@@ -925,6 +925,15 @@ struct ProjectFoldersView: View {
     let readingGroups: [ReadingMatcher.ProjectReadingGroup]
     let healthReports: [ProjectHealthReport]
     let uiLanguage: AppLanguage
+    /// Project paths in Reflection's order (most recent first, sessions-only).
+    /// When non-empty, the folder tabs follow this exact order so Project Health
+    /// stays in lockstep with the Reflection sidebar. Empty → fall back to local
+    /// recency (lastSeenAt).
+    var orderedProjectPaths: [String] = []
+    /// The project the user is currently focused on in Reflection. When set (and
+    /// known), Project Health follows it: that project becomes the active folder
+    /// tab in real time. nil leaves the local selection alone.
+    var syncedProjectPath: String? = nil
     let onFeedToClaude: (TipReadingItem, String?) -> Void
     let onOpenURL: (URL) -> Void
 
@@ -935,29 +944,44 @@ struct ProjectFoldersView: View {
     /// small count; beyond that the bar gets crowded and starts to scroll.
     private let maxVisibleTabs = 3
 
-    /// Sorted projects (most recent first)
+    /// Projects in display order. Mirrors Reflection's group order
+    /// (`orderedProjectPaths`) when available — most recent first, sessions-only
+    /// — with any remaining known projects appended by local recency. Falls back
+    /// to pure recency (lastSeenAt) before Reflection has published an order.
     private var sortedProjects: [(path: String, project: Project)] {
-        projects.map { (path: $0.key, project: $0.value) }
+        let byRecency = projects.map { (path: $0.key, project: $0.value) }
             .sorted { $0.project.lastSeenAt > $1.project.lastSeenAt }
+        guard !orderedProjectPaths.isEmpty else { return byRecency }
+
+        var seen = Set<String>()
+        var result: [(path: String, project: Project)] = []
+        for path in orderedProjectPaths {
+            guard let project = projects[path], !seen.contains(path) else { continue }
+            result.append((path: path, project: project))
+            seen.insert(path)
+        }
+        // Any projects Reflection didn't list (e.g. no sessions) trail behind,
+        // newest first, so nothing silently disappears.
+        for item in byRecency where !seen.contains(item.path) {
+            result.append(item)
+        }
+        return result
     }
 
-    /// The currently selected project path (defaults to first)
+    /// The currently selected project path. A local tab tap (selectedProjectPath)
+    /// wins; otherwise we mirror the project focused in Reflection
+    /// (syncedProjectPath); otherwise we fall back to the most recent.
     private var activeProjectPath: String {
-        selectedProjectPath ?? sortedProjects.first?.path ?? ""
+        if let local = selectedProjectPath, projects[local] != nil { return local }
+        if let synced = syncedProjectPath, projects[synced] != nil { return synced }
+        return sortedProjects.first?.path ?? ""
     }
 
-    /// Projects rendered as folder tabs: the most-recent `maxVisibleTabs`,
-    /// but always including the active one (so a project picked from the
-    /// overflow menu surfaces as a tab instead of vanishing).
+    /// Projects rendered as folder tabs: the `maxVisibleTabs` most recent,
+    /// newest → oldest. The project focused in Reflection is marked
+    /// most-recently-active upstream, so it naturally leads this list.
     private var visibleProjects: [(path: String, project: Project)] {
-        let top = Array(sortedProjects.prefix(maxVisibleTabs))
-        if activeProjectPath.isEmpty || top.contains(where: { $0.path == activeProjectPath }) {
-            return top
-        }
-        guard let active = sortedProjects.first(where: { $0.path == activeProjectPath }) else {
-            return top
-        }
-        return [active] + top.prefix(maxVisibleTabs - 1)
+        Array(sortedProjects.prefix(maxVisibleTabs))
     }
 
     /// Projects hidden behind the "+N more" menu.
@@ -1043,6 +1067,18 @@ struct ProjectFoldersView: View {
                         .clipShape(PixelStaircaseRectangle(blockSize: 4, steps: 2))
                 }
             }
+        }
+        .onAppear { followSyncedSelection() }
+        .onChange(of: syncedProjectPath) { _ in followSyncedSelection() }
+    }
+
+    /// Mirror Reflection's focused project: when `syncedProjectPath` names a
+    /// known project, make it the active folder tab. The user can still pick a
+    /// different tab afterwards; it holds until Reflection's focus changes again.
+    private func followSyncedSelection() {
+        guard let path = syncedProjectPath, projects[path] != nil else { return }
+        if selectedProjectPath != path {
+            selectedProjectPath = path
         }
     }
 

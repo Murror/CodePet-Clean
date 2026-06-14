@@ -193,6 +193,7 @@ struct ReflectionTab: View {
             // Initial data load — runs once on first render.
             recomputeSessionData()
             registerNewProjects()
+            publishActiveProject()
 
             // Tips tab deep-link: when arriving on Reflection with a pending
             // chat prompt, auto-select the most recent real session and open chat.
@@ -237,6 +238,9 @@ struct ReflectionTab: View {
                 }
             }
             autoSummarizeIfNeeded(sessions: cachedSessions, persona: persona)
+            // The default selection (most recent session) may have changed as
+            // data loaded — keep Project Health's focused project in sync.
+            publishActiveProject()
         }
         .onChange(of: endStore.endedSessionIds) { _ in
             // A session just ended — recompute then check auto-summarize.
@@ -246,6 +250,8 @@ struct ReflectionTab: View {
             autoSummarizeIfNeeded(sessions: cachedSessions, persona: persona)
         }
         .onChange(of: selectedSessionId) { newId in
+            // The focused session changed — sync Project Health's active project.
+            publishActiveProject()
             // Auto-expand the project group that contains the selected session.
             guard let sid = newId else { return }
             for group in cachedGroups {
@@ -255,6 +261,28 @@ struct ReflectionTab: View {
                 }
             }
         }
+    }
+
+    /// Mirror Reflection's project list into the shared ProjectStore so the Tips
+    /// tab's Project Health shows the same projects, in the same order, with the
+    /// same active project highlighted.
+    private func publishActiveProject() {
+        // Ordered project list — exactly what the sidebar groups show (most
+        // recent first, sessions-only). Project Health renders its tabs from it.
+        let ordered = cachedGroups.compactMap { $0.projectPath }
+        projectStore.setReflectionProjectOrder(ordered)
+
+        // The focused project — for the highlighted/active tab. Falls back to the
+        // most recent real session when the welcome card is the default selection.
+        let focused: Session? = (selectedSession?.isWelcome == false)
+            ? selectedSession
+            : cachedSessions.first(where: { !$0.isWelcome })
+        guard let session = focused else {
+            projectStore.setActiveProject(nil)
+            return
+        }
+        let resolved = projectStore.resolvedProjectPath(for: session.projectPath, sessionId: session.id)
+        projectStore.setActiveProject(resolved)
     }
 
     private func currentPetPersona() -> SummarizeTurnRequest.PetPersonaDTO? {
