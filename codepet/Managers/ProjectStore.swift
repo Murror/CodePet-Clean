@@ -13,6 +13,19 @@ final class ProjectStore: ObservableObject {
     /// All known projects, keyed by normalized project root path.
     @Published private(set) var projects: [String: Project] = [:]
 
+    /// The project the user is currently focused on in the Reflection tab
+    /// (resolved from the selected session). Project Health observes this to
+    /// surface the same project as its active folder tab in real time. Nil when
+    /// the focus isn't a detected project (e.g. the welcome session).
+    @Published var activeProjectPath: String? = nil
+
+    /// Set the Reflection-focused project. No-op if unchanged, so it never
+    /// publishes a redundant change (avoids needless re-renders).
+    func setActiveProject(_ path: String?) {
+        let normalized = (path?.isEmpty == true) ? nil : path
+        if activeProjectPath != normalized { activeProjectPath = normalized }
+    }
+
     /// Cache: session-specific key → resolved project root path.
     /// Key is "cwd" for single-project workspaces, or "sessionId" for sessions
     /// whose cwd was disambiguated using file paths.
