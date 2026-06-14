@@ -1428,6 +1428,10 @@ struct ProjectFoldersView: View {
     let readingGroups: [ReadingMatcher.ProjectReadingGroup]
     let healthReports: [ProjectHealthReport]
     let uiLanguage: AppLanguage
+    /// The project the user is currently focused on in Reflection. When set (and
+    /// known), Project Health follows it: that project becomes the active folder
+    /// tab in real time. nil leaves the local selection alone.
+    var syncedProjectPath: String? = nil
     let onFeedToClaude: (TipReadingItem, String?) -> Void
     let onOpenURL: (URL) -> Void
     /// (projectPath, stage) — nil stage reverts to engine inference.
@@ -1560,6 +1564,18 @@ struct ProjectFoldersView: View {
                         )
                 }
             }
+        }
+        .onAppear { followSyncedSelection() }
+        .onChange(of: syncedProjectPath) { _ in followSyncedSelection() }
+    }
+
+    /// Mirror Reflection's focused project: when `syncedProjectPath` names a
+    /// known project, make it the active folder tab. The user can still pick a
+    /// different tab afterwards; it holds until Reflection's focus changes again.
+    private func followSyncedSelection() {
+        guard let path = syncedProjectPath, projects[path] != nil else { return }
+        if selectedProjectPath != path {
+            selectedProjectPath = path
         }
     }
 
