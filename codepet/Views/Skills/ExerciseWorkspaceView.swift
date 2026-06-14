@@ -40,6 +40,7 @@ struct ExerciseWorkspaceView: View {
                     topBar
                     exerciseHeader
                     sandboxRow
+                    hooksNotice
                     filePreview
                     promptCard
                     if let g = grade { gradeBanner(g) }
@@ -159,6 +160,92 @@ struct ExerciseWorkspaceView: View {
                 .buttonStyle(.plain)
                 .disabled(runner.isRunning)
         }
+    }
+
+    // MARK: - Reflection hooks notice (auto-completion from real sessions)
+
+    /// Practice runs here never need hooks — they drive `claude` directly and the
+    /// user marks the result complete. But to ALSO auto-complete skills from the
+    /// user's real Claude Code sessions, the reflection hooks must be installed
+    /// (NarrativeEnricher reads the captured events). Surface that one-time setup
+    /// here while it's missing; the card disappears once `status == .installed`.
+    @ViewBuilder
+    private var hooksNotice: some View {
+        switch hookInstaller.status {
+        case .installed:
+            EmptyView()
+
+        case .notInstalled:
+            hooksCard(icon: "link.badge.plus", title: "Auto-complete from real coding") {
+                Text("Practice here works as-is. To also have your real Claude Code sessions complete skills automatically, install CodePet's reflection hooks — a one-time setup.")
+                    .font(.pixelSystem(size: 12))
+                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
+                    .fixedSize(horizontal: false, vertical: true)
+                hooksButton(icon: "doc.on.clipboard", title: "Copy setup command",
+                            fill: character.color) { hookInstaller.install() }
+            }
+
+        case .installing:
+            hooksCard(icon: "checkmark.circle.fill", title: "Command copied") {
+                Text("Open Terminal → paste (⌘V) → press Enter. Then tap “I've done it”.")
+                    .font(.pixelSystem(size: 12))
+                    .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 10) {
+                    hooksButton(icon: "checkmark", title: "I've done it",
+                                fill: Color(hex: "#3FA66A")) { hookInstaller.verifyInstallation() }
+                    Button("Copy again") { hookInstaller.install() }
+                        .font(.pixelSystem(size: 11, weight: .semibold))
+                        .foregroundColor(character.color)
+                        .buttonStyle(.plain)
+                }
+            }
+
+        case .failed(let error):
+            hooksCard(icon: "exclamationmark.triangle.fill", title: "Setup failed") {
+                Text(error)
+                    .font(.pixelSystem(size: 11, design: .monospaced))
+                    .foregroundColor(Color(hex: "#8A3324"))
+                    .fixedSize(horizontal: false, vertical: true)
+                hooksButton(icon: "arrow.clockwise", title: "Try again",
+                            fill: character.color) { hookInstaller.install() }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func hooksCard<Content: View>(icon: String, title: String,
+                                          @ViewBuilder content: () -> Content) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundColor(character.color)
+                .padding(.top, 1)
+            VStack(alignment: .leading, spacing: 7) {
+                Text(title)
+                    .font(.pixelSystem(size: 13, weight: .bold))
+                    .foregroundColor(Color(hex: "#2D2B26"))
+                content()
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(11)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 10).fill(character.color.opacity(0.08)))
+    }
+
+    private func hooksButton(icon: String, title: String, fill: Color,
+                             action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon).font(.system(size: 11))
+                Text(title).font(.pixelSystem(size: 12, weight: .bold))
+            }
+            .foregroundColor(.white)
+            .padding(.horizontal, 13).padding(.vertical, 6)
+            .background(fill).cornerRadius(8)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Sandbox file preview
