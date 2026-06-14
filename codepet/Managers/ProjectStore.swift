@@ -19,11 +19,20 @@ final class ProjectStore: ObservableObject {
     /// the focus isn't a detected project (e.g. the welcome session).
     @Published var activeProjectPath: String? = nil
 
-    /// Set the Reflection-focused project. No-op if unchanged, so it never
-    /// publishes a redundant change (avoids needless re-renders).
+    /// Set the Reflection-focused project. When the focus actually changes, the
+    /// newly-focused project is also marked most-recently-active (lastSeenAt is
+    /// only ever used for sorting), so it leads the plain newest→oldest ordering
+    /// that Project Health and the reading/dictionary matchers all share.
+    /// No-op if unchanged, so it never publishes a redundant change.
     func setActiveProject(_ path: String?) {
         let normalized = (path?.isEmpty == true) ? nil : path
-        if activeProjectPath != normalized { activeProjectPath = normalized }
+        guard activeProjectPath != normalized else { return }
+        activeProjectPath = normalized
+        if let root = normalized, var project = projects[root] {
+            project.lastSeenAt = Date()
+            projects[root] = project
+            persist()
+        }
     }
 
     /// Cache: session-specific key → resolved project root path.

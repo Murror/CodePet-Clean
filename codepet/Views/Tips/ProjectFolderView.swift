@@ -954,16 +954,11 @@ struct ProjectFoldersView: View {
         return sortedProjects.first?.path ?? ""
     }
 
-    /// Projects rendered as folder tabs: the active project first (so the project
-    /// focused in Reflection leads the strip), then the most-recent others, up to
-    /// `maxVisibleTabs`.
+    /// Projects rendered as folder tabs: the `maxVisibleTabs` most recent,
+    /// newest → oldest. The project focused in Reflection is marked
+    /// most-recently-active upstream, so it naturally leads this list.
     private var visibleProjects: [(path: String, project: Project)] {
-        guard !activeProjectPath.isEmpty,
-              let active = sortedProjects.first(where: { $0.path == activeProjectPath }) else {
-            return Array(sortedProjects.prefix(maxVisibleTabs))
-        }
-        let rest = sortedProjects.filter { $0.path != activeProjectPath }
-        return Array(([active] + rest).prefix(maxVisibleTabs))
+        Array(sortedProjects.prefix(maxVisibleTabs))
     }
 
     /// Projects hidden behind the "+N more" menu.
