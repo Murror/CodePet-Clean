@@ -95,6 +95,8 @@ final class DemoScriptController: ObservableObject {
                 isVi ? "test trong 3/5 session" : "tests in 3/5 sessions",
                 isVi ? "edge case chưa cover" : "uncovered edge cases"
             ],
+            expertQuote: "I cut 39 features to ship 8. The app shipped because of what I removed, not what I added.",
+            expertName: "Astro Tran",
             generatedAt: Date()
         )
     }

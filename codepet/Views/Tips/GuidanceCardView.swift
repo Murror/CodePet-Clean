@@ -216,7 +216,6 @@ struct GuidanceCardView: View {
                             Spacer()
                             Button(action: {
                                 appState.pendingChatPrompt = guidance.headline
-                                appState.selectedTab = .reflection
                             }) {
                                 HStack(spacing: 8) {
                                     Text(actionLabel)

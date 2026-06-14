@@ -69,8 +69,8 @@ struct CodePetApp: App {
                     if challengeProgress.activeChallenges.isEmpty,
                        let topProject = projectStore.projects.values.sorted(by: { $0.lastSeenAt > $1.lastSeenAt }).first {
                         let challenges = ChallengeGenerator.generateAll(
-                            projectName: topProject.name,
-                            projectPath: topProject.path
+                            projectName: topProject.displayName,
+                            projectPath: topProject.id
                         )
                         challengeProgress.activeChallenges = challenges
                         challengeProgress.save()

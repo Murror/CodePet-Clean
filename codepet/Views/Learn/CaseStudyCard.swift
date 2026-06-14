@@ -4,9 +4,6 @@ import SwiftUI
 // MARK: - CaseStudyCard
 // =============================================================================
 
-/// A pixel-art card for a single case study. Colored banner at top with an SF
-/// Symbol icon, white body below with title, tags, progress bar. Uses
-/// PixelStaircaseRectangle for the chunky border.
 struct CaseStudyCard: View {
     let caseStudy: CaseStudy
     let progress: Double
@@ -17,6 +14,8 @@ struct CaseStudyCard: View {
     private var isComingSoon: Bool { totalChapters == 0 }
     private var isInProgress: Bool { completedCount > 0 && completedCount < totalChapters }
     private var isComplete: Bool { totalChapters > 0 && completedCount == totalChapters }
+    private var cardColor: Color { Color(hex: caseStudy.color) }
+    private let dark = Color(hex: "#2D2B26")
 
     private var tagLine: String {
         let chapterLabel = "\(totalChapters) chapter\(totalChapters == 1 ? "" : "s")"
@@ -24,135 +23,137 @@ struct CaseStudyCard: View {
         return "\(chapterLabel) \u{00B7} \(tagStr)"
     }
 
-    private let borderColor = Color(hex: "#2D2B26")
-
     var body: some View {
-        Button(action: onTap) {
+        Button(action: { if !isComingSoon { onTap() } }) {
             VStack(spacing: 0) {
-                // ─────────────────────────────────────────────────────────────
-                // Banner (colored area with icon)
-                // ─────────────────────────────────────────────────────────────
+                // ── Banner ──
                 ZStack {
-                    Color(hex: caseStudy.color)
+                    cardColor
 
+                    // Decorative circles for texture
+                    Circle()
+                        .fill(Color.white.opacity(0.06))
+                        .frame(width: 80, height: 80)
+                        .offset(x: -50, y: -30)
+                    Circle()
+                        .fill(Color.white.opacity(0.04))
+                        .frame(width: 60, height: 60)
+                        .offset(x: 60, y: 20)
+
+                    // Icon — centered, always visible
                     Image(systemName: caseStudy.icon)
-                        .font(.system(size: 28, weight: .bold))
+                        .font(.system(size: 32, weight: .bold))
                         .foregroundColor(.white.opacity(0.9))
-                }
-                .frame(height: 90)
 
-                // ─────────────────────────────────────────────────────────────
-                // Body (white area with text)
-                // ─────────────────────────────────────────────────────────────
-                VStack(alignment: .leading, spacing: 8) {
-                    // Title
+                    // Status badge (top-right)
+                    if isInProgress {
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Text("In progress")
+                                    .font(.pixelSystem(size: 9, weight: .bold))
+                                    .foregroundColor(Color(hex: "#2D2B26"))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 3)
+                                    .background(
+                                        PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                                            .fill(Color(hex: "#FCBE1D"))
+                                    )
+                                    .overlay(
+                                        PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                                            .stroke(dark, lineWidth: 2)
+                                    )
+                                    .padding(8)
+                            }
+                            Spacer()
+                        }
+                    } else if isComplete {
+                        VStack {
+                            HStack {
+                                Spacer()
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 10, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 22, height: 22)
+                                    .background(
+                                        PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                                            .fill(Color(hex: "#029902"))
+                                    )
+                                    .overlay(
+                                        PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                                            .stroke(dark, lineWidth: 2)
+                                    )
+                                    .padding(8)
+                            }
+                            Spacer()
+                        }
+                    }
+                }
+                .frame(height: 100)
+                .clipped()
+
+                // ── Body ──
+                VStack(alignment: .leading, spacing: 6) {
                     Text(caseStudy.title)
-                        .font(CodepetTheme.display(14))
-                        .foregroundColor(Color(hex: "#2D2B26"))
+                        .font(.pixelSystem(size: 14, weight: .bold))
+                        .foregroundColor(dark)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
-
-                    // Tags
-                    if !isComingSoon {
-                        Text(tagLine)
-                            .font(CodepetTheme.body(10, weight: .medium))
-                            .foregroundColor(CodepetTheme.mutedText)
-                            .lineLimit(1)
-                    }
+                        .fixedSize(horizontal: false, vertical: true)
 
                     if isComingSoon {
-                        // Coming soon badge
-                        comingSoonBadge
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock.fill")
+                                .font(.system(size: 9))
+                            Text("Coming soon")
+                                .font(.pixelSystem(size: 10, weight: .medium))
+                        }
+                        .foregroundColor(CodepetTheme.mutedText)
+                        .padding(.top, 2)
                     } else {
+                        Text(tagLine)
+                            .font(.pixelSystem(size: 10))
+                            .foregroundColor(CodepetTheme.mutedText)
+                            .lineLimit(1)
+
                         // Progress bar
-                        progressSection
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(dark.opacity(0.1))
+                                    .frame(height: 6)
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(isComplete ? Color(hex: "#029902") : cardColor)
+                                    .frame(width: max(geo.size.width * progress, progress > 0 ? 6 : 0), height: 6)
+                            }
+                        }
+                        .frame(height: 6)
+
+                        Text("\(completedCount)/\(totalChapters) chapters")
+                            .font(.pixelSystem(size: 10))
+                            .foregroundColor(CodepetTheme.mutedText)
                     }
                 }
-                .padding(12)
+                .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(hex: "#FDFCFF"))
             }
         }
         .buttonStyle(.plain)
+        .opacity(isComingSoon ? 0.7 : 1)
         .background(
-            ZStack {
-                // Shadow layer
-                PixelStaircaseRectangle(blockSize: 3, steps: 2)
-                    .fill(borderColor)
-                    .offset(x: 3, y: 3)
-                // White base
-                PixelStaircaseRectangle(blockSize: 3, steps: 2)
-                    .fill(Color.white)
-            }
+            PixelStaircaseRectangle(blockSize: 3, steps: 2)
+                .fill(dark)
+                .offset(x: 3, y: 3)
+        )
+        .background(
+            PixelStaircaseRectangle(blockSize: 3, steps: 2)
+                .fill(Color.white)
         )
         .clipShape(PixelStaircaseRectangle(blockSize: 3, steps: 2))
         .overlay(
             PixelStaircaseRectangle(blockSize: 3, steps: 2)
-                .stroke(borderColor, lineWidth: 3)
+                .stroke(dark, lineWidth: 3)
         )
-    }
-
-    // MARK: - Progress Section
-
-    private var progressSection: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            // Progress bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    PixelStaircaseRectangle(blockSize: 2, steps: 1)
-                        .fill(Color(hex: "#2D2B26").opacity(0.1))
-                        .frame(height: 8)
-
-                    PixelStaircaseRectangle(blockSize: 2, steps: 1)
-                        .fill(isComplete ? Color(hex: "#029902") : Color(hex: "#7C3AED"))
-                        .frame(width: max(geo.size.width * progress, 0), height: 8)
-                }
-            }
-            .frame(height: 8)
-
-            // Progress label + badge
-            HStack(spacing: 6) {
-                Text("\(completedCount)/\(totalChapters) chapters")
-                    .font(CodepetTheme.body(10, weight: .medium))
-                    .foregroundColor(CodepetTheme.mutedText)
-
-                Spacer()
-
-                if isInProgress {
-                    Text("In progress")
-                        .font(CodepetTheme.body(9, weight: .semibold))
-                        .foregroundColor(Color(hex: "#7C3AED"))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(Color(hex: "#7C3AED").opacity(0.12))
-                        )
-                } else if isComplete {
-                    Text("Complete")
-                        .font(CodepetTheme.body(9, weight: .semibold))
-                        .foregroundColor(Color(hex: "#029902"))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(
-                            Capsule()
-                                .fill(Color(hex: "#029902").opacity(0.12))
-                        )
-                }
-            }
-        }
-    }
-
-    // MARK: - Coming Soon Badge
-
-    private var comingSoonBadge: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "clock.fill")
-                .font(.system(size: 10))
-            Text("Coming soon")
-                .font(CodepetTheme.body(11, weight: .semibold))
-        }
-        .foregroundColor(CodepetTheme.mutedText)
-        .padding(.top, 4)
     }
 }

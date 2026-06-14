@@ -4,23 +4,19 @@ import SwiftUI
 // MARK: - LearnTabView
 // =============================================================================
 
-/// Main tab view for the Learn section. Displays the expert hero, a 2-column
-/// grid of case study cards, and a list of mentor Q&A entries.
 struct LearnTabView: View {
     @EnvironmentObject var learnProgress: LearnProgress
 
-    // Navigation state
     @State private var selectedCaseStudy: CaseStudy? = nil
     @State private var selectedQA: MentorQA? = nil
 
-    // Data
     private let expert = ExpertContent.experts.first!
     private let caseStudies = ExpertContent.caseStudies
     private let mentorQAs = ExpertContent.mentorQAs
 
     private let columns = [
-        GridItem(.flexible(), spacing: 16),
-        GridItem(.flexible(), spacing: 16)
+        GridItem(.flexible(minimum: 100), spacing: 16),
+        GridItem(.flexible(minimum: 100), spacing: 16)
     ]
 
     var body: some View {
@@ -29,19 +25,12 @@ struct LearnTabView: View {
                 .ignoresSafeArea()
 
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 28) {
-
-                    // ─────────────────────────────────────────────────────────
-                    // Expert Hero
-                    // ─────────────────────────────────────────────────────────
+                VStack(alignment: .leading, spacing: 24) {
                     expertHeroSection
 
-                    // ─────────────────────────────────────────────────────────
-                    // Case Studies
-                    // ─────────────────────────────────────────────────────────
                     sectionEyebrow(icon: "hammer.fill", label: "BUILD-ALONG CASE STUDIES")
 
-                    LazyVGrid(columns: columns, spacing: 20) {
+                    LazyVGrid(columns: columns, spacing: 16) {
                         ForEach(caseStudies) { cs in
                             CaseStudyCard(
                                 caseStudy: cs,
@@ -53,12 +42,9 @@ struct LearnTabView: View {
                         }
                     }
 
-                    // ─────────────────────────────────────────────────────────
-                    // Mentor Q&A
-                    // ─────────────────────────────────────────────────────────
                     sectionEyebrow(icon: "bubble.left.and.bubble.right.fill", label: "ASK ASTRO")
 
-                    VStack(spacing: 14) {
+                    VStack(spacing: 12) {
                         ForEach(mentorQAs) { qa in
                             MentorQACard(qa: qa, isRead: learnProgress.readQAIds.contains(qa.id)) {
                                 selectedQA = qa
@@ -85,46 +71,43 @@ struct LearnTabView: View {
     // MARK: - Expert Hero Section
 
     private var expertHeroSection: some View {
-        HStack(spacing: 16) {
-            // Avatar — colored square with initials, pixel-art border
-            ZStack {
-                PixelStaircaseRectangle(blockSize: 3, steps: 2)
-                    .fill(Color(hex: expert.avatarColor))
-                    .frame(width: 64, height: 64)
+        PixelCard(fill: Color(hex: expert.avatarColor), borderWidth: 3) {
+            HStack(spacing: 16) {
+                // Avatar — white square with colored initials
+                ZStack {
+                    PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                        .fill(Color.white)
+                    Text(expert.initials)
+                        .font(CodepetTheme.pixel(24))
+                        .foregroundColor(Color(hex: expert.avatarColor))
+                }
+                .frame(width: 56, height: 56)
+                .overlay(
+                    PixelStaircaseRectangle(blockSize: 2, steps: 1)
+                        .stroke(Color(hex: "#2D2B26"), lineWidth: 2)
+                )
 
-                Text(expert.initials)
-                    .font(CodepetTheme.pixel(22))
-                    .foregroundColor(.white)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(expert.name)
+                        .font(CodepetTheme.display(20))
+                        .foregroundColor(.white)
+
+                    Text(expert.role)
+                        .font(.pixelSystem(size: 11, weight: .medium))
+                        .foregroundColor(Color.white.opacity(0.75))
+
+                    Text(expert.bio)
+                        .font(.pixelSystem(size: 12))
+                        .foregroundColor(Color.white.opacity(0.85))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 2)
+                }
+
+                Spacer(minLength: 0)
             }
-            .overlay(
-                PixelStaircaseRectangle(blockSize: 3, steps: 2)
-                    .stroke(Color(hex: "#2D2B26"), lineWidth: 3)
-            )
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(expert.name)
-                    .font(CodepetTheme.display(20))
-                    .foregroundColor(Color(hex: "#2D2B26"))
-
-                Text(expert.role)
-                    .font(CodepetTheme.body(12, weight: .medium))
-                    .foregroundColor(CodepetTheme.mutedText)
-
-                Text(expert.bio)
-                    .font(CodepetTheme.body(13))
-                    .foregroundColor(CodepetTheme.bodyText)
-                    .lineLimit(2)
-            }
+            .padding(18)
         }
-        .padding(16)
-        .pixelBox(
-            fill: .white,
-            borderColor: Color(hex: "#2D2B26"),
-            shadowOffset: 3,
-            blockSize: 3,
-            steps: 2,
-            borderWidth: 3
-        )
     }
 
     // MARK: - Section Eyebrow
@@ -134,7 +117,6 @@ struct LearnTabView: View {
             Image(systemName: icon)
                 .font(.system(size: 10, weight: .bold))
                 .foregroundColor(CodepetTheme.mutedText)
-
             Text(label)
                 .font(CodepetTheme.body(10, weight: .semibold))
                 .tracking(1.4)

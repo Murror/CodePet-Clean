@@ -930,6 +930,11 @@ struct ProjectFoldersView: View {
 
     @State private var selectedProjectPath: String?
 
+    /// How many projects show as folder tabs before the rest collapse into
+    /// the "+N more" overflow menu. The folder-tab metaphor reads cleanly at a
+    /// small count; beyond that the bar gets crowded and starts to scroll.
+    private let maxVisibleTabs = 3
+
     /// Sorted projects (most recent first)
     private var sortedProjects: [(path: String, project: Project)] {
         projects.map { (path: $0.key, project: $0.value) }
@@ -939,6 +944,45 @@ struct ProjectFoldersView: View {
     /// The currently selected project path (defaults to first)
     private var activeProjectPath: String {
         selectedProjectPath ?? sortedProjects.first?.path ?? ""
+    }
+
+    /// Projects rendered as folder tabs: the most-recent `maxVisibleTabs`,
+    /// but always including the active one (so a project picked from the
+    /// overflow menu surfaces as a tab instead of vanishing).
+    private var visibleProjects: [(path: String, project: Project)] {
+        let top = Array(sortedProjects.prefix(maxVisibleTabs))
+        if activeProjectPath.isEmpty || top.contains(where: { $0.path == activeProjectPath }) {
+            return top
+        }
+        guard let active = sortedProjects.first(where: { $0.path == activeProjectPath }) else {
+            return top
+        }
+        return [active] + top.prefix(maxVisibleTabs - 1)
+    }
+
+    /// Projects hidden behind the "+N more" menu.
+    private var overflowProjects: [(path: String, project: Project)] {
+        let visiblePaths = Set(visibleProjects.map { $0.path })
+        return sortedProjects.filter { !visiblePaths.contains($0.path) }
+    }
+
+    /// Stable palette index keyed to a project's position in the full sorted
+    /// list, so its color stays the same whether it's a tab or in the menu.
+    private func paletteIndex(for path: String) -> Int {
+        sortedProjects.firstIndex(where: { $0.path == path }) ?? 0
+    }
+
+    /// Display name, disambiguated with its parent directory when another
+    /// project shares the same name (e.g. two `yoga-site` folders).
+    private func label(for item: (path: String, project: Project)) -> String {
+        let name = item.project.displayName
+        let collides = sortedProjects.contains {
+            $0.path != item.path && $0.project.displayName == name
+        }
+        guard collides else { return name }
+        let parent = (item.path as NSString).deletingLastPathComponent
+        let parentName = (parent as NSString).lastPathComponent
+        return parentName.isEmpty ? name : "\(name) · \(parentName)"
     }
 
     var body: some View {
@@ -956,14 +1000,14 @@ struct ProjectFoldersView: View {
                     // ── Tabs row ──
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(alignment: .bottom, spacing: 0) {
-                            ForEach(Array(sortedProjects.enumerated()), id: \.element.path) { index, item in
+                            ForEach(visibleProjects, id: \.path) { item in
                                 let report = healthReports.first { $0.projectPath == item.path }
                                 let tags = report.map { projectTagLabels($0.inferredTags) } ?? []
-                                let pal = ProjectPalette.forIndex(index)
+                                let pal = ProjectPalette.forIndex(paletteIndex(for: item.path))
                                 let isActive = item.path == activeProjectPath
 
                                 ProjectTabButton(
-                                    name: item.project.displayName,
+                                    name: label(for: item),
                                     tags: Array(tags.prefix(2)),
                                     palette: pal,
                                     isActive: isActive,
@@ -974,13 +1018,18 @@ struct ProjectFoldersView: View {
                                     }
                                 )
                             }
+
+                            // ── Overflow menu: "+N more" ──
+                            if !overflowProjects.isEmpty {
+                                overflowMenu
+                                    .padding(.leading, 8)
+                            }
                         }
                         .padding(.leading, 8)
                     }
 
                     // ── Folder body ──
-                    let activeIndex = sortedProjects.firstIndex(where: { $0.path == activeProjectPath }) ?? 0
-                    let pal = ProjectPalette.forIndex(activeIndex)
+                    let pal = ProjectPalette.forIndex(paletteIndex(for: activeProjectPath))
 
                     folderBody(for: activeProjectPath, palette: pal)
                         .background(
@@ -995,6 +1044,39 @@ struct ProjectFoldersView: View {
                 }
             }
         }
+    }
+
+    /// "+N more" tab that drops down the overflow projects. Selecting one
+    /// promotes it to the active folder (and into the visible tab strip).
+    private var overflowMenu: some View {
+        Menu {
+            ForEach(overflowProjects, id: \.path) { item in
+                Button(label(for: item)) {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        selectedProjectPath = item.path
+                    }
+                }
+            }
+        } label: {
+            Text(uiLanguage == .vi
+                 ? "+\(overflowProjects.count) nữa ▾"
+                 : "+\(overflowProjects.count) more ▾")
+                .font(.pixelSystem(size: 12, weight: .bold))
+                .foregroundColor(Color(hex: "#2D2B26").opacity(0.6))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(
+                    PixelFolderTabShape(blockSize: 4, steps: 2)
+                        .fill(Color(hex: "#F0F0F0"))
+                )
+                .overlay(
+                    PixelFolderTabShape(blockSize: 4, steps: 2)
+                        .stroke(Color(hex: "#2D2B26").opacity(0.18), lineWidth: 2)
+                )
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
     }
 
     @ViewBuilder

@@ -172,7 +172,12 @@ struct CompanionPanelView: View {
     @State private var messages: [CompanionChatMessage] = []
     @State private var isTyping = false
     @State private var activeChallenge: SkillChallenge? = nil
+    @State private var panelMode: PanelMode = .chat
     var onClose: () -> Void = {}
+
+    /// The three companion-panel modes. `.exercise` swaps the canned chat for the
+    /// live in-app coding workspace (ExerciseWorkspaceView).
+    enum PanelMode { case chat, exercise }
 
     private var character: PetCharacter {
         PetCharacter.all[appState.activeChar] ?? PetCharacter.all["byte"]!
@@ -203,6 +208,23 @@ struct CompanionPanelView: View {
                     }
 
                     Spacer()
+
+                    if activeChallenge != nil {
+                        Button(panelMode == .exercise ? "Chat" : "Practice") {
+                            panelMode = (panelMode == .exercise) ? .chat : .exercise
+                        }
+                        .buttonStyle(PixelButtonStyle(
+                            fill: character.color.opacity(0.18),
+                            foreground: Color(hex: "#2D2B26"),
+                            paddingH: 10,
+                            paddingV: 5,
+                            blockSize: 2,
+                            steps: 2,
+                            borderWidth: 2,
+                            shadowOffset: 2,
+                            font: .pixelSystem(size: 10, weight: .medium)
+                        ))
+                    }
 
                     Button("Switch") { showSwitchSheet = true }
                         .buttonStyle(PixelButtonStyle(
@@ -250,6 +272,11 @@ struct CompanionPanelView: View {
 
             Divider()
 
+            if let challenge = activeChallenge, panelMode == .exercise {
+                // Exercise mode — live in-app coding workspace
+                ExerciseWorkspaceView(challenge: challenge, character: character)
+                    .frame(maxHeight: .infinity)
+            } else {
             // Chat content
             ScrollViewReader { proxy in
                 ScrollView {
@@ -361,18 +388,21 @@ struct CompanionPanelView: View {
             }
             .padding(12)
             .background(character.color.opacity(0.08))
+            } // end .chat mode branch
         }
         .background(character.color.opacity(0.05))
         .onAppear {
             // Consume exercise context if present
             if let challenge = appState.pendingChallengeContext {
                 activeChallenge = challenge
+                panelMode = .exercise
                 appState.pendingChallengeContext = nil
             }
         }
         .onChange(of: appState.pendingChallengeContext) { newChallenge in
             if let challenge = newChallenge {
                 activeChallenge = challenge
+                panelMode = .exercise
                 messages = [] // reset for new exercise
                 appState.pendingChallengeContext = nil
             }
