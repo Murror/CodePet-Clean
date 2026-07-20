@@ -10,6 +10,7 @@ import { handleSynthesizeBrief } from "./synthesizeBrief";
 import { handleRevenueCatWebhook } from "./revenueCatWebhook";
 import { handleExtractKnowledge } from "./extractKnowledge";
 import { handleEnrichBrief } from "./enrichBrief";
+import { handleScaffoldRoadmap } from "./scaffoldRoadmap";
 
 admin.initializeApp();
 setGlobalOptions({ region: "us-central1", maxInstances: 10 });
@@ -42,6 +43,14 @@ export const chatSession = onRequest(
     secrets: ["ANTHROPIC_API_KEY"]
   },
   handleChatSession
+);
+
+export const scaffoldRoadmap = onRequest(
+  {
+    cors: false,
+    secrets: ["ANTHROPIC_API_KEY"]
+  },
+  handleScaffoldRoadmap
 );
 
 export const enrichBrief = onRequest(
