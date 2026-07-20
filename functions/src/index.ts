@@ -9,6 +9,7 @@ import { handleGeneratePlan } from "./generatePlan";
 import { handleSynthesizeBrief } from "./synthesizeBrief";
 import { handleRevenueCatWebhook } from "./revenueCatWebhook";
 import { handleExtractKnowledge } from "./extractKnowledge";
+import { handleEnrichBrief } from "./enrichBrief";
 
 admin.initializeApp();
 setGlobalOptions({ region: "us-central1", maxInstances: 10 });
@@ -41,6 +42,14 @@ export const chatSession = onRequest(
     secrets: ["ANTHROPIC_API_KEY"]
   },
   handleChatSession
+);
+
+export const enrichBrief = onRequest(
+  {
+    cors: false,
+    secrets: ["ANTHROPIC_API_KEY"]
+  },
+  handleEnrichBrief
 );
 
 export const generateGuidance = onRequest(
