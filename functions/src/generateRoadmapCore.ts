@@ -99,14 +99,20 @@ export function coerceRoadmap(raw: unknown, _opts?: { language?: string }): { ta
 
   const phaseCounts: Partial<Record<Phase, number>> = {};
   const kept: KeptTask[] = [];
+  // Titles must be unique across the whole roadmap: deps are resolved by title, so a
+  // duplicate would make title->id ambiguous (and let a same-titled task's self-reference
+  // resolve to the *other* task, fabricating an edge). Drop later duplicates. Mirrors the
+  // web roadmap schema's "unique title" requirement.
+  const seenTitles = new Set<string>();
 
   for (const t of inTasks) {
     if (!t || !isPhase(t.phase)) continue;
     const title = clip(t.title, 120);
-    if (!title) continue;
+    if (!title || seenTitles.has(title)) continue;
     const count = phaseCounts[t.phase] ?? 0;
     if (count >= 4) continue;
     phaseCounts[t.phase] = count + 1;
+    seenTitles.add(title);
 
     const who = typeof t.who === "string" && WHO.has(t.who) ? t.who : "draft";
     const detail = clip(t.detail, 400);

@@ -68,6 +68,21 @@ describe("coerceRoadmap", () => {
     expect(register.dependsOn).toEqual([validate.id]); // unknown + self dep dropped
   });
 
+  it("drops later duplicate-title tasks so dep resolution stays unambiguous", () => {
+    // Two tasks titled "Ship it"; the second self-references by title. Without the
+    // unique-title guard, that self-ref would resolve to the FIRST task's id and
+    // fabricate a dependency edge. The later duplicate must be dropped entirely.
+    const out = coerceRoadmap({
+      tasks: [
+        { phase: "build", title: "Ship it", detail: "d", who: "does", deps: [] },
+        { phase: "launch", title: "Ship it", detail: "d", who: "draft", deps: ["Ship it"] },
+      ],
+    });
+    expect(out.tasks).toHaveLength(1);
+    expect(out.tasks[0].phase).toBe("build");
+    expect(out.tasks[0].dependsOn).toEqual([]); // no fabricated edge
+  });
+
   it("defaults who, detail, done, and drafted", () => {
     const out = coerceRoadmap({
       tasks: [{ phase: "ship", title: "Ship it" }],
