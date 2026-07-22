@@ -67,7 +67,8 @@ export function buildRoadmapPrompt(args: { language: string; brief: RoadmapBrief
     "You are planning a solo founder's whole company roadmap, grounded ONLY in what the founder told you below — do not invent a different product, and do not invent facts they did not give you.\n\n" +
     lines.join("\n") +
     "\n\nGenerate 2-4 concrete tasks for EACH of the five phases — find, foundation, build, ship, launch — covering the founder's whole early journey from validating the idea through their first launch. " +
-    "For each task give: a short imperative title, a 1-2 sentence detail, a `phase` (exactly one of find, foundation, build, ship, launch), a `who` of exactly 'you' (needs the founder's own judgment, identity, or decisions), 'does' (the companion can produce it autonomously), or 'draft' (the companion drafts it and the founder finalizes), a `dept` — the single owning department, exactly one of eng, design, mkt, sales, support, fin, ops, legal — and `deps`: the exact TITLES of any prerequisite tasks from this same list (an empty array if it's an entry point with no prerequisite)." +
+    "For each task give: a short imperative title, a 1-2 sentence detail, a `phase` (exactly one of find, foundation, build, ship, launch), a `who` of exactly 'you' (needs the founder's own judgment, identity, or decisions), 'does' (the companion can produce it autonomously), or 'draft' (the companion drafts it and the founder finalizes), a `dept` — the single owning department, exactly one of eng, design, mkt, sales, support, fin, ops, legal — and `deps`: the exact TITLES of any prerequisite tasks from this same list (an empty array if it's an entry point with no prerequisite). " +
+    "CHAIN THE PHASES: only 'find'-phase tasks may have empty deps (they are the entry points). EVERY task in foundation, build, ship, or launch MUST list at least one prerequisite from an EARLIER phase in its deps, so the roadmap is one connected chain and nothing in a later phase is workable before its earlier phases are done." +
     vi
   );
 }
@@ -150,6 +151,22 @@ export function coerceRoadmap(raw: unknown, _opts?: { language?: string }): { ta
       dept: k.dept,
     };
   });
+
+  // Backstop phase-gating: any task OUTSIDE the first phase that ended up with no
+  // dependencies (the model failed to chain it) is linked to the whole preceding
+  // non-empty phase, so it reads as "needs earlier steps" until that phase is done
+  // — instead of fail-opening to "actionable" before its prerequisites exist.
+  const idsByPhase = new Map<Phase, string[]>();
+  for (const t of tasks) idsByPhase.set(t.phase, [...(idsByPhase.get(t.phase) ?? []), t.id]);
+  for (const t of tasks) {
+    if (t.dependsOn.length > 0) continue;
+    const pi = ROADMAP_PHASES.indexOf(t.phase);
+    if (pi <= 0) continue; // first-phase entry tasks are legitimately depless
+    for (let j = pi - 1; j >= 0; j--) {
+      const prev = idsByPhase.get(ROADMAP_PHASES[j]);
+      if (prev && prev.length) { t.dependsOn = prev.filter((id) => id !== t.id); break; }
+    }
+  }
 
   return { tasks };
 }

@@ -68,6 +68,17 @@ describe("coerceRoadmap", () => {
     expect(register.dependsOn).toEqual([validate.id]); // unknown + self dep dropped
   });
 
+  it("backstops a later-phase orphan task to the previous phase (phase-gating)", () => {
+    const out = coerceRoadmap({ tasks: [
+      { phase: "find", title: "Validate", who: "you", deps: [] },
+      { phase: "foundation", title: "Register", who: "does", deps: [] },  // orphan
+    ]}, { language: "en" });
+    const validate = out.tasks.find((t) => t.title === "Validate")!;
+    const register = out.tasks.find((t) => t.title === "Register")!;
+    expect(validate.dependsOn).toEqual([]);              // find entry stays depless
+    expect(register.dependsOn).toEqual([validate.id]);   // foundation orphan chained back
+  });
+
   it("keeps a valid dept and defaults an invalid/missing one to ops", () => {
     const out = coerceRoadmap({ tasks: [
       { phase: "build", title: "A", who: "does", deps: [], dept: "eng" },
