@@ -78,7 +78,10 @@ export function buildSystemPrompt(args: { companionId: string; language: string 
 // places the cache_control breakpoint on the static block above, and this block after it.
 export function buildContextBlock(context: string): string {
   const c = clip(context, 4000) || "The founder hasn't filled in much of a brief yet — keep guidance general and invite them to tell you more.";
-  return `The founder's company:\n${c}`;
+  // Leading blank line: the model sees the system blocks concatenated with no inserted
+  // separator, so this keeps the static block's final sentence from running straight
+  // into this heading (".The founder's company:").
+  return `\n\nThe founder's company:\n${c}`;
 }
 
 export interface ChatTurn {

@@ -42,6 +42,9 @@ describe("buildContextBlock", () => {
   it("falls back to a general note when context is empty", () => {
     expect(buildContextBlock("")).toMatch(/brief yet/i);
   });
+  it("starts with a blank-line separator (system blocks concatenate with no gap)", () => {
+    expect(buildContextBlock("x").startsWith("\n\n")).toBe(true);
+  });
 });
 
 describe("buildMessages", () => {
