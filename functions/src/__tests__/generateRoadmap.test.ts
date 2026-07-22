@@ -1,0 +1,88 @@
+import { buildRoadmapPrompt, coerceRoadmap, slug, ROADMAP_PHASES } from "../generateRoadmapCore";
+
+describe("buildRoadmapPrompt", () => {
+  const brief = { projectName: "Codepet", oneLiner: "a recap tool", stage: "idea" };
+
+  it("mentions the project and all five phases", () => {
+    const p = buildRoadmapPrompt({ language: "en", brief });
+    expect(p).toContain("Codepet");
+    for (const phase of ROADMAP_PHASES) {
+      expect(p).toContain(phase);
+    }
+  });
+
+  it("adds a Vietnamese instruction only for vi", () => {
+    expect(buildRoadmapPrompt({ language: "vi", brief })).toMatch(/Vietnamese/i);
+    expect(buildRoadmapPrompt({ language: "en", brief })).not.toMatch(/Vietnamese/i);
+  });
+
+  it("does not invent facts — instructs grounding", () => {
+    expect(buildRoadmapPrompt({ language: "en", brief })).toMatch(/do not invent/i);
+  });
+});
+
+describe("slug", () => {
+  it("lowercases, replaces non-alphanumerics, and trims dashes", () => {
+    expect(slug("Ship Auth!!")).toBe("ship-auth");
+    expect(slug("  Validate the idea  ")).toBe("validate-the-idea");
+  });
+});
+
+describe("coerceRoadmap", () => {
+  it("assigns unique ids and keeps only valid phases", () => {
+    const out = coerceRoadmap({
+      tasks: [
+        { phase: "find", title: "Talk to 5 users", detail: "d", who: "you", deps: [] },
+        { phase: "bogus-phase", title: "Should be dropped", detail: "d", who: "does", deps: [] },
+        { phase: "build", title: "", detail: "d", who: "does", deps: [] }, // empty title dropped
+      ],
+    });
+    expect(out.tasks).toHaveLength(1);
+    expect(out.tasks[0].phase).toBe("find");
+    expect(out.tasks[0].id).toBe("talk-to-5-users-0");
+  });
+
+  it("caps tasks at 4 per phase", () => {
+    const tasks = Array.from({ length: 6 }, (_, i) => ({
+      phase: "build", title: `Task ${i}`, detail: "d", who: "does", deps: [],
+    }));
+    const out = coerceRoadmap({ tasks });
+    expect(out.tasks).toHaveLength(4);
+  });
+
+  it("resolves deps titles to ids and drops unknown/self references", () => {
+    const out = coerceRoadmap({
+      tasks: [
+        { phase: "find", title: "Validate the idea", detail: "d", who: "you", deps: [] },
+        {
+          phase: "foundation",
+          title: "Register the company",
+          detail: "d",
+          who: "does",
+          deps: ["Validate the idea", "Some task that does not exist", "Register the company"],
+        },
+      ],
+    });
+    const validate = out.tasks.find((t) => t.title === "Validate the idea")!;
+    const register = out.tasks.find((t) => t.title === "Register the company")!;
+    expect(register.dependsOn).toEqual([validate.id]); // unknown + self dep dropped
+  });
+
+  it("defaults who, detail, done, and drafted", () => {
+    const out = coerceRoadmap({
+      tasks: [{ phase: "ship", title: "Ship it" }],
+    });
+    expect(out.tasks[0].who).toBe("draft");
+    expect(out.tasks[0].detail).toBe("");
+    expect(out.tasks[0].done).toBe(false);
+    expect(out.tasks[0].drafted).toBe(false);
+  });
+
+  it("returns {tasks: []} on junk input", () => {
+    expect(coerceRoadmap(null).tasks).toEqual([]);
+    expect(coerceRoadmap(undefined).tasks).toEqual([]);
+    expect(coerceRoadmap({}).tasks).toEqual([]);
+    expect(coerceRoadmap({ tasks: "nope" }).tasks).toEqual([]);
+    expect(coerceRoadmap("garbage").tasks).toEqual([]);
+  });
+});

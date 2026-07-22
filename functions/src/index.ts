@@ -12,6 +12,8 @@ import { handleExtractKnowledge } from "./extractKnowledge";
 import { handleEnrichBrief } from "./enrichBrief";
 import { handleScaffoldRoadmap } from "./scaffoldRoadmap";
 import { handleCompanyChat } from "./companyChat";
+import { handleGenerateRoadmap } from "./generateRoadmap";
+import { handleRunTask } from "./runTask";
 
 admin.initializeApp();
 setGlobalOptions({ region: "us-central1", maxInstances: 10 });
@@ -68,6 +70,22 @@ export const companyChat = onRequest(
     secrets: ["ANTHROPIC_API_KEY"]
   },
   handleCompanyChat
+);
+
+export const runTask = onRequest(
+  {
+    cors: false,
+    secrets: ["ANTHROPIC_API_KEY"]
+  },
+  handleRunTask
+);
+
+export const generateRoadmap = onRequest(
+  {
+    cors: false,
+    secrets: ["ANTHROPIC_API_KEY"]
+  },
+  handleGenerateRoadmap
 );
 
 export const generateGuidance = onRequest(
