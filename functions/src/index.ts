@@ -11,6 +11,7 @@ import { handleRevenueCatWebhook } from "./revenueCatWebhook";
 import { handleExtractKnowledge } from "./extractKnowledge";
 import { handleEnrichBrief } from "./enrichBrief";
 import { handleScaffoldRoadmap } from "./scaffoldRoadmap";
+import { handleCompanyChat } from "./companyChat";
 
 admin.initializeApp();
 setGlobalOptions({ region: "us-central1", maxInstances: 10 });
@@ -59,6 +60,14 @@ export const enrichBrief = onRequest(
     secrets: ["ANTHROPIC_API_KEY"]
   },
   handleEnrichBrief
+);
+
+export const companyChat = onRequest(
+  {
+    cors: false,
+    secrets: ["ANTHROPIC_API_KEY"]
+  },
+  handleCompanyChat
 );
 
 export const generateGuidance = onRequest(
