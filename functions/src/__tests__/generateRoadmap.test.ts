@@ -68,6 +68,17 @@ describe("coerceRoadmap", () => {
     expect(register.dependsOn).toEqual([validate.id]); // unknown + self dep dropped
   });
 
+  it("keeps a valid dept and defaults an invalid/missing one to ops", () => {
+    const out = coerceRoadmap({ tasks: [
+      { phase: "build", title: "A", who: "does", deps: [], dept: "eng" },
+      { phase: "find",  title: "B", who: "you",  deps: [], dept: "zzz" },
+      { phase: "ship",  title: "C", who: "draft", deps: [] },
+    ]}, { language: "en" });
+    expect(out.tasks.find((t) => t.title === "A")!.dept).toBe("eng");
+    expect(out.tasks.find((t) => t.title === "B")!.dept).toBe("ops"); // invalid → ops
+    expect(out.tasks.find((t) => t.title === "C")!.dept).toBe("ops"); // missing → ops
+  });
+
   it("drops later duplicate-title tasks so dep resolution stays unambiguous", () => {
     // Two tasks titled "Ship it"; the second self-references by title. Without the
     // unique-title guard, that self-ref would resolve to the FIRST task's id and

@@ -24,13 +24,17 @@ const RECORD_TOOL = {
             title: { type: "string" },
             detail: { type: "string" },
             who: { type: "string", description: "'you' | 'does' | 'draft'" },
+            dept: {
+              type: "string",
+              description: "The single owning department: one of eng, design, mkt, sales, support, fin, ops, legal.",
+            },
             deps: {
               type: "array",
               items: { type: "string" },
               description: "Exact titles of prerequisite tasks from this same list, empty if none.",
             },
           },
-          required: ["phase", "title", "who", "detail"],
+          required: ["phase", "title", "who", "detail", "dept"],
         },
       },
     },
