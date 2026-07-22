@@ -54,24 +54,31 @@ export function companionFor(id: string): Companion {
 
 const clip = (v: unknown, n: number) => (typeof v === "string" ? v.trim().slice(0, n) : "");
 
-// Reply-only companion system prompt. Adapted from the web BYTE_SYSTEM, trimmed to a
-// pure conversational surface (no run_task / navigate / setup tools this cut) and made
-// companion-agnostic. Kept static except for the companion identity + language so the
-// prompt-cache prefix stays stable across turns; the per-request company context is
-// appended AFTER this block by the handler (outside the cached prefix).
-export function buildSystemPrompt(args: { companionId: string; context: string; language: string }): string {
+// Reply-only companion system prompt — the STATIC, cacheable block. Adapted from the web
+// BYTE_SYSTEM, trimmed to a pure conversational surface (no run_task / navigate / setup
+// tools this cut) and made companion-agnostic. Varies only by companion identity +
+// language, so it stays stable across a conversation's turns and can be prompt-cached.
+// The volatile per-request company context is a SEPARATE (uncached) block — see
+// buildContextBlock — assembled by the handler AFTER this one, outside the cached prefix.
+export function buildSystemPrompt(args: { companionId: string; language: string }): string {
   const c = companionFor(args.companionId);
   const vi = args.language === "vi"
     ? "\n\nReply in natural, fluent Vietnamese."
     : "";
-  const context = clip(args.context, 4000) || "The founder hasn't filled in much of a brief yet — keep guidance general and invite them to tell you more.";
   return (
     `You are ${c.name}, the AI building companion inside Codepet — a senior operator who helps a solo founder build and understand their whole company, department by department.\n\n` +
     `Voice: ${c.voice}\n\n` +
     `You are in a chat with the founder. Be warm, plain-spoken, specific, and brief — usually 2-4 sentences, occasionally a short list when it genuinely helps. No hype, no filler, no emoji. Write plain text only — no markdown, asterisks, backticks, or arrows; the chat shows your words as-is. When they ask what to do next, ground your answer in their actual company and where they are.` +
-    vi +
-    `\n\nThe founder's company:\n${context}`
+    vi
   );
+}
+
+// The per-request company grounding, returned as a SEPARATE system block. Kept out of
+// buildSystemPrompt so the volatile context never enters the cached prefix — the handler
+// places the cache_control breakpoint on the static block above, and this block after it.
+export function buildContextBlock(context: string): string {
+  const c = clip(context, 4000) || "The founder hasn't filled in much of a brief yet — keep guidance general and invite them to tell you more.";
+  return `The founder's company:\n${c}`;
 }
 
 export interface ChatTurn {

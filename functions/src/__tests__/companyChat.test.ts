@@ -1,4 +1,4 @@
-import { companionFor, buildSystemPrompt, buildMessages } from "../companyChatCore";
+import { companionFor, buildSystemPrompt, buildContextBlock, buildMessages } from "../companyChatCore";
 
 describe("companionFor", () => {
   it("returns the named companion for a known id", () => {
@@ -16,12 +16,9 @@ describe("companionFor", () => {
 });
 
 describe("buildSystemPrompt", () => {
-  const base = { companionId: "luna", context: "Project: Acme. Next step: pricing page.", language: "en" };
-  it("names the chosen companion and injects the context", () => {
-    const s = buildSystemPrompt(base);
-    expect(s).toContain("Luna");
-    expect(s).toContain("Acme");
-    expect(s).toContain("pricing page");
+  const base = { companionId: "luna", language: "en" };
+  it("names the chosen companion", () => {
+    expect(buildSystemPrompt(base)).toContain("Luna");
   });
   it("adds a Vietnamese instruction only for vi", () => {
     expect(buildSystemPrompt({ ...base, language: "vi" })).toMatch(/Vietnamese/i);
@@ -29,6 +26,21 @@ describe("buildSystemPrompt", () => {
   });
   it("falls back to byte for an unknown companion", () => {
     expect(buildSystemPrompt({ ...base, companionId: "zzz" })).toContain("Byte");
+  });
+  it("keeps the per-request context OUT of the cacheable block", () => {
+    // The founder's company grounding must live in a separate (uncached) block.
+    expect(buildSystemPrompt(base)).not.toMatch(/The founder's company:/);
+  });
+});
+
+describe("buildContextBlock", () => {
+  it("includes the provided context", () => {
+    const b = buildContextBlock("Project: Acme. Next step: pricing page.");
+    expect(b).toContain("Acme");
+    expect(b).toContain("pricing page");
+  });
+  it("falls back to a general note when context is empty", () => {
+    expect(buildContextBlock("")).toMatch(/brief yet/i);
   });
 });
 

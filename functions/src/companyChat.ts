@@ -4,7 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import * as logger from "firebase-functions/logger";
 import { verifyAuth } from "./auth";
 import { checkAndIncrement } from "./rateLimit";
-import { buildSystemPrompt, buildMessages, ChatTurn } from "./companyChatCore";
+import { buildSystemPrompt, buildContextBlock, buildMessages, ChatTurn } from "./companyChatCore";
 
 const CHAT_MODEL = "claude-sonnet-5";
 
@@ -41,19 +41,24 @@ export async function handleCompanyChat(req: Request, res: Response): Promise<vo
     return;
   }
 
-  const system = buildSystemPrompt({
+  const staticSystem = buildSystemPrompt({
     companionId: typeof body.companion_id === "string" ? body.companion_id : "byte",
-    context: typeof body.context === "string" ? body.context : "",
     language: body.language === "vi" ? "vi" : "en",
   });
+  const contextBlock = buildContextBlock(typeof body.context === "string" ? body.context : "");
   const messages = buildMessages(Array.isArray(body.history) ? body.history : [], userMessage);
 
   try {
     const response = await client().messages.create({
       model: CHAT_MODEL,
       max_tokens: 1024,
-      // Prompt-cache the static system block (the pricing spec's cheap-chat lever).
-      system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] as any,
+      // Two system blocks: the static companion prompt carries the cache_control
+      // breakpoint (the pricing spec's cheap-chat lever); the volatile per-request
+      // company context is a SEPARATE block AFTER it, so it never enters the cached prefix.
+      system: [
+        { type: "text", text: staticSystem, cache_control: { type: "ephemeral" } },
+        { type: "text", text: contextBlock },
+      ] as any,
       messages: messages as any,
     });
     const reply = response.content
