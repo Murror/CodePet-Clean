@@ -19,6 +19,18 @@ describe("buildRoadmapPrompt", () => {
   it("does not invent facts — instructs grounding", () => {
     expect(buildRoadmapPrompt({ language: "en", brief })).toMatch(/do not invent/i);
   });
+
+  it("injects department grounding with the stage focus", () => {
+    const p = buildRoadmapPrompt({ language: "en", brief: { projectName: "Codepet", stage: "Prototype" } });
+    expect(p).toContain("Engineering");                 // department name label
+    expect(p).toContain("Mandate:");                    // grounding block present
+    expect(p).toContain('Focus at the "Prototype" stage'); // stage-specific focus line
+  });
+  it("still builds (no throw) when stage is unknown/missing", () => {
+    const p = buildRoadmapPrompt({ language: "en", brief: { projectName: "Codepet" } });
+    expect(p).toContain("Mandate:");                    // grounding still present
+    expect(p).not.toContain("Focus at the");            // no stage focus without a stage
+  });
 });
 
 describe("slug", () => {

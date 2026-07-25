@@ -6,6 +6,8 @@
 // shape scaffoldRoadmap.ts produces — that CF is left intact for the 8-department
 // CompanyView; this one feeds the Overview board + onboarding reveal).
 
+import { departmentBlock, DEPARTMENT_NAMES } from "./departments";
+
 export const ROADMAP_PHASES = ["find", "foundation", "build", "ship", "launch", "grow"] as const;
 export type Phase = (typeof ROADMAP_PHASES)[number];
 
@@ -49,15 +51,20 @@ export function slug(s: string): string {
 
 export function buildRoadmapPrompt(args: { language: string; brief: RoadmapBrief }): string {
   const { language, brief } = args;
+  const stage = clip(brief?.stage, 40);
   const lines = [
     `Product: ${clip(brief?.projectName, 120) || "(unnamed)"}${brief?.oneLiner ? " — " + clip(brief.oneLiner, 300) : ""}`,
     brief?.summary ? `Summary: ${clip(brief.summary, 400)}` : null,
     brief?.audience ? `Audience: ${clip(brief.audience, 200)}` : null,
-    brief?.stage ? `Stage: ${clip(brief.stage, 40)}` : null,
+    stage ? `Stage: ${stage}` : null,
     Array.isArray(brief?.categories) && brief.categories.length
       ? `Categories: ${brief.categories.slice(0, 10).map((c) => clip(c, 40)).join(", ")}`
       : null,
   ].filter(Boolean);
+
+  const grounding = Array.from(DEPT_KEYS)
+    .map((k) => `- ${k} (${DEPARTMENT_NAMES[k] ?? k}):\n${departmentBlock(k, stage)}`)
+    .join("\n\n");
 
   const vi = language === "vi"
     ? "\n\nWrite every task title and detail in natural, fluent Vietnamese."
@@ -66,8 +73,10 @@ export function buildRoadmapPrompt(args: { language: string; brief: RoadmapBrief
   return (
     "You are planning a solo founder's whole company roadmap, grounded ONLY in what the founder told you below — do not invent a different product, and do not invent facts they did not give you.\n\n" +
     lines.join("\n") +
+    "\n\nDepartments (grounded for the founder's current stage — use these to choose each task's owning department and to keep every task stage-appropriate):\n\n" +
+    grounding +
     "\n\nGenerate 2-4 concrete tasks for EACH of the six phases — find, foundation, build, ship, launch, grow — covering the founder's whole journey from validating the idea through launch and into running & growing the company. The 'grow' phase (shown to the founder as 'Run & Grow') is post-launch: retention, referrals, growth metrics, user-retention playbooks, content/distribution channels. " +
-    "For each task give: a short imperative title, a 1-2 sentence detail, a `phase` (exactly one of find, foundation, build, ship, launch, grow), a `who` of exactly 'you' (needs the founder's own judgment, identity, or decisions), 'does' (the companion can produce it autonomously), or 'draft' (the companion drafts it and the founder finalizes), a `dept` — the single owning department, exactly one of eng, design, mkt, sales, support, fin, ops, legal — and `deps`: the exact TITLES of any prerequisite tasks from this same list (an empty array if it's an entry point with no prerequisite). " +
+    "For each task give: a short imperative title, a 1-2 sentence detail, a `phase` (exactly one of find, foundation, build, ship, launch, grow), a `who` of exactly 'you' (needs the founder's own judgment, identity, or decisions), 'does' (the companion can produce it autonomously), or 'draft' (the companion drafts it and the founder finalizes), a `dept` — the single owning department, chosen using the department grounding above, exactly one of eng, design, mkt, sales, support, fin, ops, legal — and `deps`: the exact TITLES of any prerequisite tasks from this same list (an empty array if it's an entry point with no prerequisite). " +
     "CHAIN THE PHASES: only 'find'-phase tasks may have empty deps (they are the entry points). EVERY task in foundation, build, ship, launch, or grow MUST list at least one prerequisite from an EARLIER phase in its deps, so the roadmap is one connected chain and nothing in a later phase is workable before its earlier phases are done." +
     vi
   );
