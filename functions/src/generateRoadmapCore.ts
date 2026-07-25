@@ -134,7 +134,7 @@ export function coerceRoadmap(raw: unknown, _opts?: { language?: string }): { ta
       ? (t.deps as unknown[]).filter((d): d is string => typeof d === "string")
       : [];
 
-    const dept = typeof t.dept === "string" && DEPT_KEYS.has(t.dept) ? t.dept : "ops";
+    const dept = typeof t.dept === "string" && DEPT_KEYS.has(t.dept) ? t.dept : "";
     kept.push({ id: `${slug(title)}-${kept.length}`, title, detail, phase: t.phase, who, deps, dept });
   }
 
