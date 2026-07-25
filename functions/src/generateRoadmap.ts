@@ -20,7 +20,7 @@ const RECORD_TOOL = {
         items: {
           type: "object",
           properties: {
-            phase: { type: "string", description: "One of: find, foundation, build, ship, launch." },
+            phase: { type: "string", description: "One of: find, foundation, build, ship, launch, grow." },
             title: { type: "string" },
             detail: { type: "string" },
             who: { type: "string", description: "'you' | 'does' | 'draft'" },
