@@ -14,6 +14,7 @@ import { handleScaffoldRoadmap } from "./scaffoldRoadmap";
 import { handleCompanyChat } from "./companyChat";
 import { handleGenerateRoadmap } from "./generateRoadmap";
 import { handleRunTask } from "./runTask";
+import { handleExtractDecisions } from "./extractDecisions";
 
 admin.initializeApp();
 setGlobalOptions({ region: "us-central1", maxInstances: 10 });
@@ -86,6 +87,14 @@ export const generateRoadmap = onRequest(
     secrets: ["ANTHROPIC_API_KEY"]
   },
   handleGenerateRoadmap
+);
+
+export const extractDecisions = onRequest(
+  {
+    cors: false,
+    secrets: ["ANTHROPIC_API_KEY"]
+  },
+  handleExtractDecisions
 );
 
 export const generateGuidance = onRequest(
