@@ -126,7 +126,7 @@ export async function handleRunTask(req: Request, res: Response): Promise<void> 
     context: typeof body.context === "string" ? body.context : "",
     taskTitle,
     taskDetail: typeof body.task_detail === "string" ? body.task_detail : "",
-    reviseNote: typeof body.reviseNote === "string" ? body.reviseNote : undefined,
+    reviseNote: typeof body.revise_note === "string" ? body.revise_note : undefined,
     current: typeof body.current === "string" ? body.current : undefined,
   });
 
