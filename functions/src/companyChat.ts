@@ -9,11 +9,23 @@ import {
   buildContextBlock,
   buildMessages,
   buildRunnableBlock,
+  buildSetupBlock,
   validateRunTaskToolUse,
+  validateNavigateToolUse,
+  validateSetupToolUse,
+  coerceRememberFacts,
   RUN_TASK_TOOL,
+  NAVIGATE_TOOL,
+  SETUP_TOOL,
+  REMEMBER_TOOL,
   ChatTurn,
   ClaudeMessage,
   RunnableTaskRef,
+  EnvSetupItem,
+  SetupCategory,
+  NavAction,
+  SetupAction,
+  RememberedFact,
 } from "./companyChatCore";
 
 const CHAT_MODEL = "claude-sonnet-5";
@@ -38,9 +50,15 @@ interface ChatRequestBody {
   // Backward-compatible: omitted entirely by older clients → treated as [] → no tool
   // offered → behavior is byte-for-byte identical to before this field existed.
   runnable?: RunnableTaskRef[];
+  // Currently-OFF toolkit items (skills/connectors/agents) byte may offer to turn on
+  // via the setup_capability tool (see companyChatCore). Backward-compatible: omitted
+  // entirely by older clients → treated as [] → no tool offered.
+  env_setup?: EnvSetupItem[];
 }
 
 const MAX_RUNNABLE_TASKS = 60;
+const MAX_ENV_SETUP_ITEMS = 40;
+const SETUP_CATEGORIES: readonly SetupCategory[] = ["skills", "connectors", "agents"];
 
 function parseRunnable(raw: unknown): RunnableTaskRef[] {
   if (!Array.isArray(raw)) return [];
@@ -53,6 +71,22 @@ function parseRunnable(raw: unknown): RunnableTaskRef[] {
     })
     .filter((r): r is RunnableTaskRef => r !== null)
     .slice(0, MAX_RUNNABLE_TASKS);
+}
+
+function parseEnvSetup(raw: unknown): EnvSetupItem[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((r): EnvSetupItem | null => {
+      const o = (r ?? {}) as Record<string, unknown>;
+      const category = typeof o.category === "string" ? o.category : "";
+      const name = typeof o.name === "string" ? o.name.trim() : "";
+      if (!(SETUP_CATEGORIES as readonly string[]).includes(category) || !name) return null;
+      const item: EnvSetupItem = { category: category as SetupCategory, name };
+      if (typeof o.why === "string") item.why = o.why;
+      return item;
+    })
+    .filter((r): r is EnvSetupItem => r !== null)
+    .slice(0, MAX_ENV_SETUP_ITEMS);
 }
 
 // ─── SSE streaming (opt-in via `Accept: text/event-stream`) ────────────────
@@ -132,6 +166,46 @@ function writeFrame(res: Response, event: string, payload: unknown): void {
   res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
 }
 
+// Resolves the completed tool_use blocks from a turn (regardless of whether
+// they came from the non-streaming response.content array, or were
+// accumulated from stream events) into the turn's action fields. run_task,
+// navigate, and setup_capability are mutually exclusive — the first of that
+// trio that produced a VALID action wins (same priority order as the web app's
+// route.ts: run_task, then navigate, then setup_capability); a tool that fired
+// but didn't validate (hallucinated task, unknown destination, unmatched
+// toolkit item) falls through to the next candidate rather than winning by
+// default. remember_fact is orthogonal — it's resolved independently and can
+// co-occur with any of the other three in the same turn.
+interface ResolvedActions {
+  runTaskId: string | null;
+  nav: NavAction | null;
+  setup: SetupAction | null;
+  remember: RememberedFact[];
+}
+
+function resolveActions(
+  toolUses: Array<{ name: string; input: unknown }>,
+  runnable: RunnableTaskRef[],
+  envSetup: EnvSetupItem[]
+): ResolvedActions {
+  const runTaskUse = toolUses.find((t) => t.name === "run_task");
+  const navUse = toolUses.find((t) => t.name === "navigate");
+  const setupUse = toolUses.find((t) => t.name === "setup_capability");
+  const rememberUse = toolUses.find((t) => t.name === "remember_fact");
+
+  let runTaskId: string | null = null;
+  let nav: NavAction | null = null;
+  let setup: SetupAction | null = null;
+
+  if (runTaskUse) runTaskId = validateRunTaskToolUse(runTaskUse.input, runnable);
+  if (!runTaskId && navUse) nav = validateNavigateToolUse(navUse.input);
+  if (!runTaskId && !nav && setupUse) setup = validateSetupToolUse(setupUse.input, envSetup);
+
+  const remember = rememberUse ? coerceRememberFacts(rememberUse.input) : [];
+
+  return { runTaskId, nav, setup, remember };
+}
+
 export async function handleCompanyChat(req: Request, res: Response): Promise<void> {
   if (req.method !== "POST") { res.status(405).json({ error: "method_not_allowed" }); return; }
   const auth = await verifyAuth(req.headers.authorization);
@@ -148,15 +222,19 @@ export async function handleCompanyChat(req: Request, res: Response): Promise<vo
   }
 
   const runnable = parseRunnable(body.runnable);
+  const envSetup = parseEnvSetup(body.env_setup);
 
   const staticSystem = buildSystemPrompt({
     companionId: typeof body.companion_id === "string" ? body.companion_id : "byte",
     language: body.language === "vi" ? "vi" : "en",
   });
-  // Runnable-task grounding is appended to the volatile context block (not the
-  // cached static one) since it's per-request, just like the context itself.
+  // Runnable-task + setup-toolkit grounding are appended to the volatile context
+  // block (not the cached static one) since they're per-request, just like the
+  // context itself.
   const contextBlock =
-    buildContextBlock(typeof body.context === "string" ? body.context : "") + buildRunnableBlock(runnable);
+    buildContextBlock(typeof body.context === "string" ? body.context : "") +
+    buildRunnableBlock(runnable) +
+    buildSetupBlock(envSetup);
   const messages = buildMessages(Array.isArray(body.history) ? body.history : [], userMessage);
 
   // Two system blocks in both paths: the static companion prompt carries the
@@ -168,12 +246,18 @@ export async function handleCompanyChat(req: Request, res: Response): Promise<vo
     { type: "text", text: contextBlock },
   ];
 
-  // The run_task tool is only offered when there's something real to run — an
-  // empty runnable list means an empty tools array, i.e. old behavior (older
-  // clients that never send `runnable` get no tool at all). NOT forced via
-  // tool_choice: byte stays free to reply in plain text, or ask a clarifying
-  // question, instead of calling it.
-  const tools = runnable.length ? [RUN_TASK_TOOL] : undefined;
+  // Tool assembly: run_task and setup_capability are only offered when there's
+  // something real to run/turn on (older clients that never send `runnable` /
+  // `env_setup` get neither). navigate and remember_fact don't depend on any
+  // per-request list, so they're always offered. NOT forced via tool_choice —
+  // byte stays free to reply in plain text, or ask a clarifying question,
+  // instead of calling any of them.
+  const tools: unknown[] = [
+    ...(runnable.length ? [RUN_TASK_TOOL] : []),
+    NAVIGATE_TOOL,
+    ...(envSetup.length ? [SETUP_TOOL] : []),
+    REMEMBER_TOOL,
+  ];
 
   const wantsStream = typeof req.headers.accept === "string" && req.headers.accept.includes("text/event-stream");
 
@@ -194,11 +278,20 @@ export async function handleCompanyChat(req: Request, res: Response): Promise<vo
         .map((b) => (b as { text: string }).text)
         .join("")
         .trim();
-      const toolUse = response.content.find(
-        (b) => b.type === "tool_use" && (b as any).name === "run_task"
-      ) as any;
-      const runTaskId = toolUse ? validateRunTaskToolUse(toolUse.input, runnable) : null;
-      res.status(200).json({ reply, run_task_id: runTaskId });
+      const toolUses = response.content
+        .filter((b) => b.type === "tool_use")
+        .map((b) => ({ name: (b as any).name as string, input: (b as any).input }));
+      const { runTaskId, nav, setup, remember } = resolveActions(toolUses, runnable, envSetup);
+
+      // Additive, backward-compatible response shape: run_task_id is always
+      // present (existing behavior); nav/setup/remember are only included when
+      // the turn actually produced one — old clients that only look for
+      // {reply, run_task_id} are unaffected, and unknown fields are ignored.
+      const responseBody: Record<string, unknown> = { reply, run_task_id: runTaskId };
+      if (nav) responseBody.nav = nav;
+      if (setup) responseBody.setup = setup;
+      if (remember.length) responseBody.remember = remember;
+      res.status(200).json(responseBody);
     } catch (err) {
       logger.error("companyChat failed", { uid: auth.uid, err: String(err) });
       res.status(502).json({ error: "generation_failed" });
@@ -218,12 +311,15 @@ export async function handleCompanyChat(req: Request, res: Response): Promise<vo
 
   const factory: StreamFactory = _streamFactory ?? defaultStreamFactory;
 
-  // Accumulator for a run_task tool_use block, if byte calls one mid-stream.
-  // Only the content-block index currently identified as the run_task call is
-  // tracked; any other tool_use / text block indices are ignored here.
-  let runTaskIndex: number | null = null;
-  let runTaskJson = "";
-  let runTaskId: string | null = null;
+  // Generalized N-tool accumulator: any tool_use block (run_task, navigate,
+  // setup_capability, remember_fact, or an unrecognized future tool) is
+  // tracked by its content-block index while its JSON input streams in
+  // (content_block_start → input_json_delta* → content_block_stop), then moved
+  // into `completedToolUses` once its block closes. This replaces the old
+  // single-purpose run_task-only accumulator — the same shape now serves every
+  // tool this turn might call, including several in the same response.
+  const openToolUses = new Map<number, { name: string; json: string }>();
+  const completedToolUses: Array<{ name: string; input: unknown }> = [];
 
   try {
     for await (const event of factory({
@@ -235,33 +331,39 @@ export async function handleCompanyChat(req: Request, res: Response): Promise<vo
       if (event.type === "text") {
         writeFrame(res, "delta", { text: event.text });
       } else if (event.type === "tool_use_start") {
-        if (event.name === "run_task") {
-          runTaskIndex = event.index;
-          runTaskJson = "";
-        }
+        openToolUses.set(event.index, { name: event.name, json: "" });
       } else if (event.type === "tool_use_delta") {
-        if (runTaskIndex !== null && event.index === runTaskIndex) {
-          runTaskJson += event.partial_json;
-        }
+        const acc = openToolUses.get(event.index);
+        if (acc) acc.json += event.partial_json;
       } else if (event.type === "tool_use_stop") {
-        if (runTaskIndex !== null && event.index === runTaskIndex) {
+        const acc = openToolUses.get(event.index);
+        if (acc) {
+          let input: unknown = {};
           try {
-            const parsed = runTaskJson ? JSON.parse(runTaskJson) : {};
-            runTaskId = validateRunTaskToolUse(parsed, runnable);
+            input = acc.json ? JSON.parse(acc.json) : {};
           } catch (parseErr) {
-            logger.error("companyChat run_task tool_use JSON parse failed", {
+            logger.error("companyChat tool_use JSON parse failed", {
               uid: auth.uid,
+              name: acc.name,
               err: String(parseErr)
             });
-            runTaskId = null;
+            input = {};
           }
-          runTaskIndex = null;
+          completedToolUses.push({ name: acc.name, input });
+          openToolUses.delete(event.index);
         }
       } else if (event.type === "done") {
         const cacheHit = (event.usage?.cache_read_input_tokens ?? 0) > 0;
-        // run_task_id is additive on the existing done frame — old clients that
-        // don't look for the field are unaffected.
-        writeFrame(res, "done", { model: CHAT_MODEL, cache_hit: cacheHit, run_task_id: runTaskId });
+        const { runTaskId, nav, setup, remember } = resolveActions(completedToolUses, runnable, envSetup);
+        // run_task_id/nav/setup/remember are additive on the existing done
+        // frame — old clients that only look for {model, cache_hit,
+        // run_task_id} are unaffected; nav/setup/remember are only included
+        // when the turn actually produced one.
+        const doneFrame: Record<string, unknown> = { model: CHAT_MODEL, cache_hit: cacheHit, run_task_id: runTaskId };
+        if (nav) doneFrame.nav = nav;
+        if (setup) doneFrame.setup = setup;
+        if (remember.length) doneFrame.remember = remember;
+        writeFrame(res, "done", doneFrame);
       }
     }
   } catch (err) {
