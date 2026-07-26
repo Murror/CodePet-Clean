@@ -1,4 +1,11 @@
-import { companionFor, buildSystemPrompt, buildContextBlock, buildMessages } from "../companyChatCore";
+import {
+  companionFor,
+  buildSystemPrompt,
+  buildContextBlock,
+  buildMessages,
+  buildRunnableBlock,
+  validateRunTaskToolUse,
+} from "../companyChatCore";
 
 describe("companionFor", () => {
   it("returns the named companion for a known id", () => {
@@ -85,6 +92,57 @@ describe("buildMessages", () => {
   });
 });
 
+describe("buildRunnableBlock", () => {
+  it("renders id + title for each runnable task", () => {
+    const b = buildRunnableBlock([
+      { id: "t1", title: "Draft pricing page" },
+      { id: "t2", title: "Send investor update" },
+    ]);
+    expect(b).toContain("RUNNABLE TASKS");
+    expect(b).toContain('id:"t1"');
+    expect(b).toContain('title:"Draft pricing page"');
+    expect(b).toContain('id:"t2"');
+    expect(b).toContain('title:"Send investor update"');
+  });
+  it("returns '' when there are no runnable tasks", () => {
+    expect(buildRunnableBlock([])).toBe("");
+  });
+  it("caps at 60 tasks", () => {
+    const many = Array.from({ length: 90 }, (_, i) => ({ id: `t${i}`, title: `Task ${i}` }));
+    const b = buildRunnableBlock(many);
+    expect(b).toContain('id:"t59"');
+    expect(b).not.toContain('id:"t60"');
+  });
+});
+
+describe("validateRunTaskToolUse", () => {
+  const runnable = [
+    { id: "t1", title: "Draft pricing page" },
+    { id: "t2", title: "Send investor update" },
+  ];
+  it("matches by task_id", () => {
+    expect(validateRunTaskToolUse({ task_id: "t2" }, runnable)).toBe("t2");
+  });
+  it("falls back to an exact task_title match when task_id doesn't match", () => {
+    expect(validateRunTaskToolUse({ task_id: "nope", task_title: "Send investor update" }, runnable)).toBe("t2");
+  });
+  it("matches by task_title alone", () => {
+    expect(validateRunTaskToolUse({ task_title: "Draft pricing page" }, runnable)).toBe("t1");
+  });
+  it("returns null when nothing matches (hallucinated task)", () => {
+    expect(validateRunTaskToolUse({ task_id: "made-up", task_title: "Invented task" }, runnable)).toBeNull();
+  });
+  it("returns null for junk/empty input", () => {
+    expect(validateRunTaskToolUse(null, runnable)).toBeNull();
+    expect(validateRunTaskToolUse({}, runnable)).toBeNull();
+    expect(validateRunTaskToolUse({ task_id: 42 }, runnable)).toBeNull();
+    expect(validateRunTaskToolUse("garbage", runnable)).toBeNull();
+  });
+  it("returns null when the runnable list is empty", () => {
+    expect(validateRunTaskToolUse({ task_id: "t1" }, [])).toBeNull();
+  });
+});
+
 // ─── handleCompanyChat handler ──────────────────────────────────────────────
 // Mirrors chat.test.ts's harness: mocked auth/rateLimit modules, a fake Express
 // `res`, and (for the streaming path) an injected fake stream factory standing
@@ -107,7 +165,7 @@ jest.mock("../rateLimit", () => ({
   }))
 }));
 
-const mockMessagesCreate = jest.fn(async () => ({
+const mockMessagesCreate = jest.fn(async (_args?: any): Promise<any> => ({
   content: [{ type: "text", text: "Hello founder." }],
   usage: { input_tokens: 10, output_tokens: 5 }
 }));
@@ -231,6 +289,63 @@ describe("handleCompanyChat", () => {
       await handleCompanyChat(req as any, res as any);
       expect((res as any).statusCode).toBe(502);
     });
+
+    // ── run_task tool (non-stream) ──────────────────────────────────────────
+
+    test("run_task_id is the matched task id when the model calls run_task with a valid task_id", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "text", text: "On it — running that now." },
+          { type: "tool_use", id: "toolu_1", name: "run_task", input: { task_id: "t1", task_title: "Draft pricing page" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({
+        body: {
+          ...makeReq().body,
+          runnable: [{ id: "t1", title: "Draft pricing page" }, { id: "t2", title: "Send investor update" }]
+        }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      expect((res as any).statusCode).toBe(200);
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.reply).toBe("On it — running that now.");
+      expect(body.run_task_id).toBe("t1");
+
+      // tools were actually offered to the model this turn.
+      const call = mockMessagesCreate.mock.calls[0][0] as any;
+      expect(call.tools).toEqual([expect.objectContaining({ name: "run_task" })]);
+    });
+
+    test("run_task_id stays null when the model's tool_use references a task not in runnable", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "run_task", input: { task_id: "made-up" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({
+        body: { ...makeReq().body, runnable: [{ id: "t1", title: "Draft pricing page" }] }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.run_task_id).toBeNull();
+    });
+
+    test("no tools are offered and run_task_id is null when runnable is omitted (backward compat)", async () => {
+      const req = makeReq(); // no `runnable` on the body at all
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.run_task_id).toBeNull();
+      const call = mockMessagesCreate.mock.calls[0][0] as any;
+      expect(call.tools).toBeUndefined();
+    });
   });
 
   // ── Streaming path (Accept: text/event-stream) — new, opt-in ──────────────
@@ -311,6 +426,74 @@ describe("handleCompanyChat", () => {
       expect((res as any).headers["Content-Type"]).toBeUndefined();
       const body = JSON.parse((res as any).writes[0]);
       expect(body.error).toBe("daily_limit_reached");
+    });
+
+    // ── run_task tool (streaming) ───────────────────────────────────────────
+
+    test("accumulates a streamed run_task tool_use block and carries the validated id on the done frame", async () => {
+      __setStreamFactoryForTests(async function* () {
+        yield { type: "text", text: "On it — " };
+        yield { type: "text", text: "running that now." };
+        // A run_task tool_use block streamed in fragments, mirroring how Anthropic
+        // streams tool input: content_block_start (name), input_json_delta
+        // fragments, then content_block_stop.
+        yield { type: "tool_use_start", index: 1, name: "run_task" };
+        yield { type: "tool_use_delta", index: 1, partial_json: '{"task_id":"t1",' };
+        yield { type: "tool_use_delta", index: 1, partial_json: '"task_title":"Draft pricing page"}' };
+        yield { type: "tool_use_stop", index: 1 };
+        yield {
+          type: "done",
+          usage: { cache_read_input_tokens: 0, input_tokens: 5, output_tokens: 5 }
+        };
+      });
+
+      const req = makeStreamingReq({
+        body: {
+          ...makeReq().body,
+          runnable: [{ id: "t1", title: "Draft pricing page" }, { id: "t2", title: "Send investor update" }]
+        }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = (res as any).writes.join("");
+      expect(body).toContain('event: delta\ndata: {"text":"On it — "}');
+      expect(body).toContain('event: delta\ndata: {"text":"running that now."}');
+      expect(body).toContain('event: done');
+      expect(body).toContain('"run_task_id":"t1"');
+      expect((res as any).ended()).toBe(true);
+    });
+
+    test("streamed run_task tool_use with a hallucinated task_id yields run_task_id: null on the done frame", async () => {
+      __setStreamFactoryForTests(async function* () {
+        yield { type: "tool_use_start", index: 0, name: "run_task" };
+        yield { type: "tool_use_delta", index: 0, partial_json: '{"task_id":"made-up"}' };
+        yield { type: "tool_use_stop", index: 0 };
+        yield { type: "done", usage: { cache_read_input_tokens: 0, input_tokens: 5, output_tokens: 5 } };
+      });
+
+      const req = makeStreamingReq({
+        body: { ...makeReq().body, runnable: [{ id: "t1", title: "Draft pricing page" }] }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = (res as any).writes.join("");
+      expect(body).toContain('"run_task_id":null');
+    });
+
+    test("no run_task tool_use in the stream still yields run_task_id: null on the done frame (backward compat)", async () => {
+      __setStreamFactoryForTests(async function* () {
+        yield { type: "text", text: "Just a plain reply." };
+        yield { type: "done", usage: { cache_read_input_tokens: 0, input_tokens: 5, output_tokens: 5 } };
+      });
+
+      const req = makeStreamingReq();
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = (res as any).writes.join("");
+      expect(body).toContain('"run_task_id":null');
     });
   });
 });
