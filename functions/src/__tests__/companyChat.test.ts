@@ -4,7 +4,11 @@ import {
   buildContextBlock,
   buildMessages,
   buildRunnableBlock,
+  buildSetupBlock,
   validateRunTaskToolUse,
+  validateNavigateToolUse,
+  validateSetupToolUse,
+  coerceRememberFacts,
 } from "../companyChatCore";
 
 describe("companionFor", () => {
@@ -140,6 +144,142 @@ describe("validateRunTaskToolUse", () => {
   });
   it("returns null when the runnable list is empty", () => {
     expect(validateRunTaskToolUse({ task_id: "t1" }, [])).toBeNull();
+  });
+});
+
+describe("validateNavigateToolUse", () => {
+  it("returns the action for a valid destination with no target", () => {
+    expect(validateNavigateToolUse({ destination: "roadmap" })).toEqual({ destination: "roadmap" });
+  });
+  it("returns the action including target for destination department", () => {
+    expect(validateNavigateToolUse({ destination: "department", target: "Marketing" })).toEqual({
+      destination: "department",
+      target: "Marketing",
+    });
+  });
+  it("omits target when destination isn't department, even if target is present", () => {
+    // target is passed through whenever present, regardless of destination —
+    // the CF doesn't second-guess which destinations "use" target.
+    expect(validateNavigateToolUse({ destination: "roadmap", target: "ignored" })).toEqual({
+      destination: "roadmap",
+      target: "ignored",
+    });
+  });
+  it("drops (returns null) an unknown destination", () => {
+    expect(validateNavigateToolUse({ destination: "not-a-real-place" })).toBeNull();
+  });
+  it("returns null for junk/empty input", () => {
+    expect(validateNavigateToolUse(null)).toBeNull();
+    expect(validateNavigateToolUse({})).toBeNull();
+    expect(validateNavigateToolUse({ destination: 42 })).toBeNull();
+    expect(validateNavigateToolUse("garbage")).toBeNull();
+  });
+});
+
+describe("buildSetupBlock", () => {
+  it("renders category + name + why for each item", () => {
+    const b = buildSetupBlock([
+      { category: "skills", name: "Code Review", why: "catches bugs early" },
+      { category: "connectors", name: "Slack", why: "post updates" },
+    ]);
+    expect(b).toContain("SETUP TOOLKIT");
+    expect(b).toContain('category:"skills"');
+    expect(b).toContain('name:"Code Review"');
+    expect(b).toContain("catches bugs early");
+    expect(b).toContain('category:"connectors"');
+    expect(b).toContain('name:"Slack"');
+  });
+  it("falls back to 'no note' when why is missing", () => {
+    expect(buildSetupBlock([{ category: "agents", name: "Researcher" }])).toContain("no note");
+  });
+  it("returns '' when there are no setup items", () => {
+    expect(buildSetupBlock([])).toBe("");
+  });
+  it("caps at 40 items", () => {
+    const many = Array.from({ length: 60 }, (_, i) => ({
+      category: "skills" as const,
+      name: `Skill ${i}`,
+    }));
+    const b = buildSetupBlock(many);
+    expect(b).toContain('name:"Skill 39"');
+    expect(b).not.toContain('name:"Skill 40"');
+  });
+});
+
+describe("validateSetupToolUse", () => {
+  const envSetup = [
+    { category: "skills" as const, name: "Code Review", why: "catches bugs" },
+    { category: "connectors" as const, name: "Slack" },
+  ];
+  it("matches by category + name", () => {
+    expect(validateSetupToolUse({ category: "skills", name: "Code Review" }, envSetup)).toEqual({
+      category: "skills",
+      name: "Code Review",
+    });
+  });
+  it("matches case-insensitively on name", () => {
+    expect(validateSetupToolUse({ category: "connectors", name: "slack" }, envSetup)).toEqual({
+      category: "connectors",
+      name: "Slack",
+    });
+  });
+  it("drops when the category doesn't match the name's actual category", () => {
+    expect(validateSetupToolUse({ category: "agents", name: "Code Review" }, envSetup)).toBeNull();
+  });
+  it("drops an invented/hallucinated item", () => {
+    expect(validateSetupToolUse({ category: "skills", name: "Invented Skill" }, envSetup)).toBeNull();
+  });
+  it("returns null for junk/empty input", () => {
+    expect(validateSetupToolUse(null, envSetup)).toBeNull();
+    expect(validateSetupToolUse({}, envSetup)).toBeNull();
+    expect(validateSetupToolUse({ category: "skills" }, envSetup)).toBeNull();
+    expect(validateSetupToolUse("garbage", envSetup)).toBeNull();
+  });
+  it("returns null when the env_setup list is empty", () => {
+    expect(validateSetupToolUse({ category: "skills", name: "Code Review" }, [])).toBeNull();
+  });
+});
+
+describe("coerceRememberFacts", () => {
+  it("coerces a valid facts array, lowercasing topic", () => {
+    expect(
+      coerceRememberFacts({ facts: [{ topic: "Traction", statement: "~300 on the waitlist" }] })
+    ).toEqual([{ topic: "traction", statement: "~300 on the waitlist" }]);
+  });
+  it("handles multiple facts", () => {
+    expect(
+      coerceRememberFacts({
+        facts: [
+          { topic: "goal", statement: "Ship by Friday." },
+          { topic: "pricing", statement: "$10/mo plan." },
+        ],
+      })
+    ).toEqual([
+      { topic: "goal", statement: "Ship by Friday." },
+      { topic: "pricing", statement: "$10/mo plan." },
+    ]);
+  });
+  it("clips topic to 40 chars and lowercases it", () => {
+    const longTopic = "A".repeat(60);
+    const out = coerceRememberFacts({ facts: [{ topic: longTopic, statement: "x" }] });
+    expect(out[0].topic).toBe("a".repeat(40));
+  });
+  it("clips statement to 600 chars", () => {
+    const longStatement = "b".repeat(700);
+    const out = coerceRememberFacts({ facts: [{ topic: "t", statement: longStatement }] });
+    expect(out[0].statement).toBe("b".repeat(600));
+  });
+  it("drops items missing topic or statement", () => {
+    expect(coerceRememberFacts({ facts: [{ topic: "t" }] })).toEqual([]);
+    expect(coerceRememberFacts({ facts: [{ statement: "s" }] })).toEqual([]);
+    expect(coerceRememberFacts({ facts: [{}] })).toEqual([]);
+  });
+  it("returns [] when facts is absent, not an array, empty, or input is junk", () => {
+    expect(coerceRememberFacts({})).toEqual([]);
+    expect(coerceRememberFacts({ facts: [] })).toEqual([]);
+    expect(coerceRememberFacts({ facts: "not-an-array" })).toEqual([]);
+    expect(coerceRememberFacts(null)).toEqual([]);
+    expect(coerceRememberFacts("garbage")).toEqual([]);
   });
 });
 
@@ -314,9 +454,14 @@ describe("handleCompanyChat", () => {
       expect(body.reply).toBe("On it — running that now.");
       expect(body.run_task_id).toBe("t1");
 
-      // tools were actually offered to the model this turn.
+      // tools were actually offered to the model this turn — run_task because
+      // runnable was non-empty, plus the always-on navigate + remember_fact.
       const call = mockMessagesCreate.mock.calls[0][0] as any;
-      expect(call.tools).toEqual([expect.objectContaining({ name: "run_task" })]);
+      expect((call.tools as any[]).map((t) => t.name)).toEqual([
+        "run_task",
+        "navigate",
+        "remember_fact",
+      ]);
     });
 
     test("run_task_id stays null when the model's tool_use references a task not in runnable", async () => {
@@ -336,15 +481,241 @@ describe("handleCompanyChat", () => {
       expect(body.run_task_id).toBeNull();
     });
 
-    test("no tools are offered and run_task_id is null when runnable is omitted (backward compat)", async () => {
-      const req = makeReq(); // no `runnable` on the body at all
+    test("only the always-on navigate + remember_fact tools are offered, and run_task_id is null, when runnable/env_setup are omitted (backward compat)", async () => {
+      const req = makeReq(); // no `runnable`, no `env_setup` on the body at all
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      // Exact shape match — old clients that only look for {reply, run_task_id}
+      // must see nothing new when nav/setup/remember never fired.
+      expect(body).toEqual({ reply: "Hello founder.", run_task_id: null });
+      const call = mockMessagesCreate.mock.calls[0][0] as any;
+      expect((call.tools as any[]).map((t) => t.name)).toEqual(["navigate", "remember_fact"]);
+    });
+
+    // ── navigate tool (non-stream) ──────────────────────────────────────────
+
+    test("response nav is set when the model calls navigate with a valid destination", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "text", text: "Here's your roadmap." },
+          { type: "tool_use", id: "toolu_1", name: "navigate", input: { destination: "roadmap" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq();
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.nav).toEqual({ destination: "roadmap" });
+    });
+
+    test("response nav includes target for destination department", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "navigate", input: { destination: "department", target: "Marketing" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq();
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.nav).toEqual({ destination: "department", target: "Marketing" });
+    });
+
+    test("nav is dropped (absent) when navigate is called with an invalid destination", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "navigate", input: { destination: "not-a-real-place" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq();
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.nav).toBeUndefined();
+    });
+
+    // ── setup_capability tool (non-stream) ──────────────────────────────────
+
+    test("response setup is set when setup_capability matches an env_setup item", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "text", text: "Want me to turn that on?" },
+          { type: "tool_use", id: "toolu_1", name: "setup_capability", input: { category: "skills", name: "Code Review" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({
+        body: {
+          ...makeReq().body,
+          env_setup: [{ category: "skills", name: "Code Review", why: "catches bugs early" }]
+        }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.setup).toEqual({ category: "skills", name: "Code Review" });
+
+      // the setup tool was actually offered because env_setup was non-empty.
+      const call = mockMessagesCreate.mock.calls[0][0] as any;
+      expect((call.tools as any[]).map((t) => t.name)).toContain("setup_capability");
+    });
+
+    test("setup is dropped (absent) when setup_capability doesn't match any env_setup item", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "setup_capability", input: { category: "skills", name: "Invented Skill" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({
+        body: { ...makeReq().body, env_setup: [{ category: "skills", name: "Code Review" }] }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.setup).toBeUndefined();
+    });
+
+    test("setup_capability tool is not offered when env_setup is empty", async () => {
+      const req = makeReq(); // no env_setup at all
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const call = mockMessagesCreate.mock.calls[0][0] as any;
+      expect((call.tools as any[]).map((t) => t.name)).not.toContain("setup_capability");
+    });
+
+    // ── remember_fact tool (non-stream) ─────────────────────────────────────
+
+    test("response remember is set with coerced facts when the model calls remember_fact", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "text", text: "Got it." },
+          {
+            type: "tool_use",
+            id: "toolu_1",
+            name: "remember_fact",
+            input: { facts: [{ topic: "Traction", statement: "~300 people on the waitlist" }] }
+          }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq();
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.remember).toEqual([{ topic: "traction", statement: "~300 people on the waitlist" }]);
+    });
+
+    test("remember is absent when remember_fact fires with an empty facts array", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "remember_fact", input: { facts: [] } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq();
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.remember).toBeUndefined();
+    });
+
+    test("remember_fact is orthogonal — it co-occurs with run_task in the same turn", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "run_task", input: { task_id: "t1" } },
+          {
+            type: "tool_use",
+            id: "toolu_2",
+            name: "remember_fact",
+            input: { facts: [{ topic: "goal", statement: "Ship the pricing page this week." }] }
+          }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({
+        body: { ...makeReq().body, runnable: [{ id: "t1", title: "Draft pricing page" }] }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.run_task_id).toBe("t1");
+      expect(body.remember).toEqual([{ topic: "goal", statement: "Ship the pricing page this week." }]);
+    });
+
+    test("mutual exclusion: run_task wins over navigate when both are somehow present", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "run_task", input: { task_id: "t1" } },
+          { type: "tool_use", id: "toolu_2", name: "navigate", input: { destination: "roadmap" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({
+        body: { ...makeReq().body, runnable: [{ id: "t1", title: "Draft pricing page" }] }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.run_task_id).toBe("t1");
+      expect(body.nav).toBeUndefined();
+    });
+
+    test("mutual exclusion: navigate wins over setup_capability when run_task didn't fire", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "navigate", input: { destination: "library" } },
+          { type: "tool_use", id: "toolu_2", name: "setup_capability", input: { category: "skills", name: "Code Review" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({
+        body: { ...makeReq().body, env_setup: [{ category: "skills", name: "Code Review" }] }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.nav).toEqual({ destination: "library" });
+      expect(body.setup).toBeUndefined();
+    });
+
+    test("falls through to setup_capability when run_task fired but was hallucinated (invalid)", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "run_task", input: { task_id: "made-up" } },
+          { type: "tool_use", id: "toolu_2", name: "setup_capability", input: { category: "skills", name: "Code Review" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({
+        body: {
+          ...makeReq().body,
+          runnable: [{ id: "t1", title: "Draft pricing page" }],
+          env_setup: [{ category: "skills", name: "Code Review" }]
+        }
+      });
       const res = makeRes();
       await handleCompanyChat(req as any, res as any);
 
       const body = JSON.parse((res as any).writes[0]);
       expect(body.run_task_id).toBeNull();
-      const call = mockMessagesCreate.mock.calls[0][0] as any;
-      expect(call.tools).toBeUndefined();
+      expect(body.setup).toEqual({ category: "skills", name: "Code Review" });
     });
   });
 
@@ -494,6 +865,121 @@ describe("handleCompanyChat", () => {
 
       const body = (res as any).writes.join("");
       expect(body).toContain('"run_task_id":null');
+      // navigate/setup/remember fields are absent — old clients unaffected.
+      expect(body).not.toContain('"nav"');
+      expect(body).not.toContain('"setup"');
+      expect(body).not.toContain('"remember"');
+    });
+
+    // ── navigate tool (streaming) ────────────────────────────────────────────
+
+    test("a stream emitting text + a navigate tool_use → done frame carries nav", async () => {
+      __setStreamFactoryForTests(async function* () {
+        yield { type: "text", text: "Here's your library." };
+        yield { type: "tool_use_start", index: 0, name: "navigate" };
+        yield { type: "tool_use_delta", index: 0, partial_json: '{"destination":"library"}' };
+        yield { type: "tool_use_stop", index: 0 };
+        yield { type: "done", usage: { cache_read_input_tokens: 0, input_tokens: 5, output_tokens: 5 } };
+      });
+
+      const req = makeStreamingReq();
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = (res as any).writes.join("");
+      expect(body).toContain('event: done');
+      expect(body).toContain('"nav":{"destination":"library"}');
+    });
+
+    test("a streamed navigate tool_use with an invalid destination yields no nav field on the done frame", async () => {
+      __setStreamFactoryForTests(async function* () {
+        yield { type: "tool_use_start", index: 0, name: "navigate" };
+        yield { type: "tool_use_delta", index: 0, partial_json: '{"destination":"not-a-real-place"}' };
+        yield { type: "tool_use_stop", index: 0 };
+        yield { type: "done", usage: { cache_read_input_tokens: 0, input_tokens: 5, output_tokens: 5 } };
+      });
+
+      const req = makeStreamingReq();
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = (res as any).writes.join("");
+      expect(body).not.toContain('"nav"');
+    });
+
+    // ── setup_capability tool (streaming) ───────────────────────────────────
+
+    test("a streamed setup_capability tool_use matching an env_setup item → done frame carries setup", async () => {
+      __setStreamFactoryForTests(async function* () {
+        yield { type: "tool_use_start", index: 0, name: "setup_capability" };
+        yield { type: "tool_use_delta", index: 0, partial_json: '{"category":"skills",' };
+        yield { type: "tool_use_delta", index: 0, partial_json: '"name":"Code Review"}' };
+        yield { type: "tool_use_stop", index: 0 };
+        yield { type: "done", usage: { cache_read_input_tokens: 0, input_tokens: 5, output_tokens: 5 } };
+      });
+
+      const req = makeStreamingReq({
+        body: { ...makeReq().body, env_setup: [{ category: "skills", name: "Code Review" }] }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = (res as any).writes.join("");
+      expect(body).toContain('"setup":{"category":"skills","name":"Code Review"}');
+    });
+
+    // ── remember_fact tool (streaming) — orthogonal ─────────────────────────
+
+    test("a stream with remember_fact + run_task together → both remember and run_task_id on the done frame", async () => {
+      __setStreamFactoryForTests(async function* () {
+        yield { type: "text", text: "On it — " };
+        yield { type: "tool_use_start", index: 0, name: "run_task" };
+        yield { type: "tool_use_delta", index: 0, partial_json: '{"task_id":"t1"}' };
+        yield { type: "tool_use_stop", index: 0 };
+        yield { type: "tool_use_start", index: 1, name: "remember_fact" };
+        yield {
+          type: "tool_use_delta",
+          index: 1,
+          partial_json: '{"facts":[{"topic":"Goal","statement":"Ship the pricing page this week."}]}'
+        };
+        yield { type: "tool_use_stop", index: 1 };
+        yield { type: "done", usage: { cache_read_input_tokens: 0, input_tokens: 5, output_tokens: 5 } };
+      });
+
+      const req = makeStreamingReq({
+        body: { ...makeReq().body, runnable: [{ id: "t1", title: "Draft pricing page" }] }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = (res as any).writes.join("");
+      expect(body).toContain('"run_task_id":"t1"');
+      expect(body).toContain('"remember":[{"topic":"goal","statement":"Ship the pricing page this week."}]');
+    });
+
+    test("interleaved tool_use blocks by index are accumulated independently", async () => {
+      // Two tool_use blocks streamed with interleaved deltas (out-of-order
+      // fragment delivery relative to each other) — the accumulator keys by
+      // index, so this must not cross-contaminate the two JSON buffers.
+      __setStreamFactoryForTests(async function* () {
+        yield { type: "tool_use_start", index: 0, name: "navigate" };
+        yield { type: "tool_use_start", index: 1, name: "remember_fact" };
+        yield { type: "tool_use_delta", index: 0, partial_json: '{"destination"' };
+        yield { type: "tool_use_delta", index: 1, partial_json: '{"facts":[{"topic":"pricing",' };
+        yield { type: "tool_use_delta", index: 0, partial_json: ':"tasks"}' };
+        yield { type: "tool_use_delta", index: 1, partial_json: '"statement":"$10/mo plan decided."}]}' };
+        yield { type: "tool_use_stop", index: 0 };
+        yield { type: "tool_use_stop", index: 1 };
+        yield { type: "done", usage: { cache_read_input_tokens: 0, input_tokens: 5, output_tokens: 5 } };
+      });
+
+      const req = makeStreamingReq();
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = (res as any).writes.join("");
+      expect(body).toContain('"nav":{"destination":"tasks"}');
+      expect(body).toContain('"remember":[{"topic":"pricing","statement":"$10/mo plan decided."}]');
     });
   });
 });

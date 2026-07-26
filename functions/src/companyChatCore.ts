@@ -156,6 +156,215 @@ export function validateRunTaskToolUse(rawInput: unknown, runnable: RunnableTask
   return null;
 }
 
+// ─── navigate tool (optional, always offered, tool_choice auto) ───────────
+// Mirrors the web app's NAVIGATE_TOOL (app/api/chat/route.ts + lib/ai/navChip.ts):
+// byte may call this when the founder clearly asks where something is, or to
+// see/open/go to a part of the app — never for a plain question or a request
+// to do work. Unlike run_task/setup_capability, navigate doesn't depend on any
+// per-request list from the client, so it's always offered. destination is
+// validated against the fixed NAV_DESTINATIONS list; target is free text the
+// CF passes through untouched (only meaningful for "department" — the CF has
+// no department list to resolve it against, unlike the web app's resolveNavChip).
+export type NavDestination =
+  | "roadmap"
+  | "tasks"
+  | "library"
+  | "company"
+  | "environment"
+  | "department";
+
+export const NAV_DESTINATIONS: readonly NavDestination[] = [
+  "roadmap",
+  "tasks",
+  "library",
+  "company",
+  "environment",
+  "department",
+];
+
+export const NAVIGATE_TOOL = {
+  name: "navigate",
+  description:
+    "Take the founder to a part of the Codepet app when they clearly ask where something is, or ask to see/open/go to a function — e.g. \"where's my roadmap?\", \"show me my library\", \"open Marketing\". Only call this for a real navigational ask; for questions, advice, status, or running work, do NOT call it. Always also give a one-line spoken answer alongside the call.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      destination: {
+        type: "string",
+        enum: [...NAV_DESTINATIONS],
+        description:
+          "roadmap = the product stage timeline; tasks = the task board; library = delivered work; company = the departments overview; environment = tools/stack; department = a specific department (set target to its name).",
+      },
+      target: {
+        type: "string",
+        description:
+          'Only for destination "department": the department name or key (e.g. "Marketing"). Omit for the others.',
+      },
+    },
+    required: ["destination"],
+  },
+} as const;
+
+export interface NavAction {
+  destination: NavDestination;
+  target?: string;
+}
+
+// Validates a raw navigate tool_use input: destination must be one of the
+// fixed NAV_DESTINATIONS (dropped/null otherwise); target is free text, passed
+// through trimmed when present. Never throws.
+export function validateNavigateToolUse(rawInput: unknown): NavAction | null {
+  const r = (rawInput ?? {}) as Record<string, unknown>;
+  const destination = typeof r.destination === "string" ? r.destination : "";
+  if (!(NAV_DESTINATIONS as readonly string[]).includes(destination)) return null;
+  const target = clip(r.target, 200);
+  const action: NavAction = { destination: destination as NavDestination };
+  if (target) action.target = target;
+  return action;
+}
+
+// ─── setup_capability tool (optional, offered only when env_setup is non-empty) ──
+// Mirrors the web app's SETUP_TOOL + envSetup.ts: byte may offer to turn on a
+// currently-OFF toolkit item (skill/connector/agent) the founder's client sent
+// as `env_setup`. Validated against that same list (case-insensitive name
+// match) before acting, so an already-on or invented item is dropped.
+export type SetupCategory = "skills" | "connectors" | "agents";
+const SETUP_CATEGORIES: readonly SetupCategory[] = ["skills", "connectors", "agents"];
+
+export interface EnvSetupItem {
+  category: SetupCategory;
+  name: string;
+  why?: string;
+}
+
+export const SETUP_TOOL = {
+  name: "setup_capability",
+  description:
+    "Turn on a currently-off toolkit item (skill, connector, or agent) for the founder when it would clearly help the work at hand. Use the exact category and name from the SETUP TOOLKIT list below. Only call this for an item actually in that list; for questions, advice, or status, do NOT call it. Always also give a one-line spoken lead-in.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      category: {
+        type: "string",
+        enum: [...SETUP_CATEGORIES],
+        description: "The item's category, copied exactly from SETUP TOOLKIT.",
+      },
+      name: {
+        type: "string",
+        description: "The exact item name, copied exactly from SETUP TOOLKIT.",
+      },
+    },
+    required: ["category", "name"],
+  },
+} as const;
+
+const MAX_SETUP_ITEMS = 40;
+
+// Renders the currently-off toolkit items as a system section, mirroring
+// buildRunnableBlock. Empty input → '' (system prompt unchanged when there's
+// nothing to offer — same backward-compatible shape as buildRunnableBlock).
+export function buildSetupBlock(envSetup: EnvSetupItem[]): string {
+  const capped = (Array.isArray(envSetup) ? envSetup : []).slice(0, MAX_SETUP_ITEMS);
+  if (!capped.length) return "";
+  const lines = capped
+    .map(
+      (s) =>
+        `- category:"${clip(s.category, 40)}" name:"${clip(s.name, 200)}" — ${
+          clip(s.why, 300) || "no note"
+        }`
+    )
+    .join("\n");
+  return `\n\nSETUP TOOLKIT (call setup_capability with the exact category + name to turn one on):\n${lines}`;
+}
+
+export interface SetupAction {
+  category: SetupCategory;
+  name: string;
+}
+
+// Validates a raw setup_capability tool_use input against the env_setup list
+// the founder's client actually sent — case-insensitive name match, exact
+// category match. A hallucinated / stale / already-on item (no match) is
+// dropped silently, same as validateRunTaskToolUse. Never throws.
+export function validateSetupToolUse(rawInput: unknown, envSetup: EnvSetupItem[]): SetupAction | null {
+  const r = (rawInput ?? {}) as Record<string, unknown>;
+  const category = typeof r.category === "string" ? r.category : "";
+  const name = clip(r.name, 200);
+  if (!category || !name) return null;
+  const list = Array.isArray(envSetup) ? envSetup : [];
+  const nameLower = name.toLowerCase();
+  const match = list.find(
+    (i) => i.category === category && i.name.trim().toLowerCase() === nameLower
+  );
+  return match ? { category: match.category, name: match.name } : null;
+}
+
+// ─── remember_fact tool (optional, always offered, orthogonal) ────────────
+// Mirrors the web app's REMEMBER_FACT_TOOL + chatMemory.ts: byte may record a
+// durable decision/fact the founder just stated, riding along on the same
+// generation (no extra model call). Unlike run_task/navigate/setup_capability,
+// remember is NOT mutually exclusive with them — it can co-occur with any of
+// them in the same turn. The CF does not persist anything: it only coerces and
+// returns the captured facts; the native client merges + persists them, same
+// division of responsibility as run_task_id.
+export const REMEMBER_TOOL = {
+  name: "remember_fact",
+  description:
+    "Record a durable decision or material fact the founder just stated about their company — traction (e.g. waitlist/user/revenue numbers), goals, milestones, pricing, positioning, naming, audience, tech, scope, or timeline — so it grounds your future work. Call this IN ADDITION to your normal reply, only when the message states something lasting and specific. Capture their real words/numbers exactly; never invent. For questions, requests to you, opinions, or small talk, do NOT call it.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      facts: {
+        type: "array",
+        description:
+          "The durable decisions or material facts the founder just stated about their company. Empty if the message states none.",
+        items: {
+          type: "object",
+          additionalProperties: false,
+          properties: {
+            topic: {
+              type: "string",
+              description:
+                "A short lowercase key for the area, e.g. traction, goal, milestone, pricing, positioning, naming, audience, tech, scope, timeline. Reuse an existing topic when this UPDATES it.",
+            },
+            statement: {
+              type: "string",
+              description:
+                "One concrete sentence in the founder's terms with their real numbers exact. Never invent or embellish.",
+            },
+          },
+          required: ["topic", "statement"],
+        },
+      },
+    },
+    required: ["facts"],
+  },
+} as const;
+
+export interface RememberedFact {
+  topic: string;
+  statement: string;
+}
+
+// Coerces the (untrusted) remember_fact tool input into clean fact entries —
+// no enum validation, just clip + drop incomplete items. Mirrors chatMemory.ts's
+// coerceMemory exactly (topic clipped to 40 chars + lowercased, statement
+// clipped to 600). Never throws.
+export function coerceRememberFacts(rawInput: unknown): RememberedFact[] {
+  const facts = (rawInput as { facts?: unknown } | null | undefined)?.facts;
+  if (!Array.isArray(facts)) return [];
+  const out: RememberedFact[] = [];
+  for (const f of facts) {
+    const topic = clip((f as { topic?: unknown } | null | undefined)?.topic, 40).toLowerCase();
+    const statement = clip((f as { statement?: unknown } | null | undefined)?.statement, 600);
+    if (topic && statement) out.push({ topic, statement });
+  }
+  return out;
+}
+
 export interface ChatTurn {
   role: string;
   text: string;
