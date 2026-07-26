@@ -101,7 +101,7 @@ interface RunTaskRequestBody {
   task_id?: string;
   task_title?: string;
   task_detail?: string;
-  reviseNote?: string;
+  revise_note?: string;
   current?: string;
 }
 
