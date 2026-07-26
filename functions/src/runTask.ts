@@ -101,6 +101,8 @@ interface RunTaskRequestBody {
   task_id?: string;
   task_title?: string;
   task_detail?: string;
+  revise_note?: string;
+  current?: string;
 }
 
 export async function handleRunTask(req: Request, res: Response): Promise<void> {
@@ -124,6 +126,8 @@ export async function handleRunTask(req: Request, res: Response): Promise<void> 
     context: typeof body.context === "string" ? body.context : "",
     taskTitle,
     taskDetail: typeof body.task_detail === "string" ? body.task_detail : "",
+    reviseNote: typeof body.revise_note === "string" ? body.revise_note : undefined,
+    current: typeof body.current === "string" ? body.current : undefined,
   });
 
   try {
