@@ -32,6 +32,27 @@ describe("buildRunTaskPrompt", () => {
   it("falls back to a general note when context is empty", () => {
     expect(buildRunTaskPrompt({ ...base, context: "" })).toMatch(/hasn't filled in much/i);
   });
+
+  it("appends a revise instruction with the current draft and the note when both are present", () => {
+    const p = buildRunTaskPrompt({ ...base, reviseNote: "Make it punchier", current: "Draft body here." });
+    expect(p).toMatch(/REVISING an existing deliverable/i);
+    expect(p).toContain("Draft body here.");
+    expect(p).toContain("Make it punchier");
+    expect(p).toMatch(/full revised deliverable/i);
+  });
+
+  it("does not append a revise instruction when reviseNote or current is missing", () => {
+    const withoutCurrent = buildRunTaskPrompt({ ...base, reviseNote: "Make it punchier" });
+    expect(withoutCurrent).not.toMatch(/REVISING an existing deliverable/i);
+
+    const withoutNote = buildRunTaskPrompt({ ...base, current: "Draft body here." });
+    expect(withoutNote).not.toMatch(/REVISING an existing deliverable/i);
+  });
+
+  it("is identical to the non-revise prompt when reviseNote/current are absent (backward-compat)", () => {
+    expect(buildRunTaskPrompt(base)).toBe(buildRunTaskPrompt({ ...base, reviseNote: undefined, current: undefined }));
+    expect(buildRunTaskPrompt(base)).not.toMatch(/REVISING/i);
+  });
 });
 
 describe("coerceDeliverable", () => {
