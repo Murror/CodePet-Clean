@@ -93,6 +93,86 @@ describe("coercePayload", () => {
     const p: any = coercePayload("dms", { messages: [{ name: "A", note: "n", msg: "m" }, { name: "", note: "", msg: "" }] });
     expect(p.messages).toHaveLength(1);
   });
+
+  describe("calendar", () => {
+    const validWeek = { label: "Week 1", items: [{ day: "Mon", kind: "Thread", body: "Post about X" }] };
+    it("accepts a valid 2-week payload", () => {
+      const p: any = coercePayload("calendar", { weeks: [validWeek, { label: "Week 2", items: [{ day: "Thu", kind: "Clip", body: "Demo" }] }] });
+      expect(p.weeks).toHaveLength(2);
+      expect(p.weeks[0]).toEqual({ label: "Week 1", items: [{ day: "Mon", kind: "Thread", body: "Post about X" }] });
+    });
+    it("drops malformed items and returns null when nothing valid remains", () => {
+      expect(coercePayload("calendar", { weeks: [{ label: "Week 1", items: [{ day: "", kind: "x", body: "" }] }] })).toBeNull();
+      expect(coercePayload("calendar", { weeks: [] })).toBeNull();
+      expect(coercePayload("calendar", null)).toBeNull();
+    });
+    it("clips over-count to 2 weeks", () => {
+      const p: any = coercePayload("calendar", { weeks: [validWeek, validWeek, validWeek] });
+      expect(p.weeks).toHaveLength(2);
+    });
+  });
+
+  describe("sheet", () => {
+    const okInput = { val: 12, min: 6, max: 20, step: 1 };
+    it("accepts a valid 4-input payload", () => {
+      const p = coercePayload("sheet", { price: okInput, waitlist: okInput, conversion: okInput, churn: okInput, summary: "It shows healthy growth." });
+      expect(p).toEqual({ price: okInput, waitlist: okInput, conversion: okInput, churn: okInput, summary: "It shows healthy growth." });
+    });
+    it("returns null when an input is missing or non-numeric", () => {
+      expect(coercePayload("sheet", { price: okInput, waitlist: okInput, conversion: okInput, churn: { val: "x", min: 1, max: 2, step: 1 }, summary: "s" })).toBeNull();
+      expect(coercePayload("sheet", { price: okInput, waitlist: okInput, conversion: okInput, summary: "s" })).toBeNull();
+    });
+    it("returns null when summary is missing", () => {
+      expect(coercePayload("sheet", { price: okInput, waitlist: okInput, conversion: okInput, churn: okInput })).toBeNull();
+    });
+  });
+
+  describe("site", () => {
+    const base = {
+      title: "Acme", brand: "Acme", kicker: "", headline: "Ship faster", headlineHi: "",
+      sub: "The tool for builders.", ctaPrimary: "Get started", ctaSecondary: "",
+      howEyebrow: "How it works", howTitle: "Three steps",
+      steps: [{ h: "Connect", p: "Link your repo." }, { h: "Build", p: "Write code." }, { h: "Ship", p: "Deploy it." }],
+      featEyebrow: "Why Acme", featTitle: "Built for speed",
+      features: [{ h: "Fast", p: "Blazing." }, { h: "Simple", p: "No setup." }, { h: "Safe", p: "Tested." }],
+      quote: "", quoteBy: "", finalTitle: "Start today", finalSub: "", finalCta: "Sign up",
+      accent: "#6E8E68", footNote: "© 2026 Acme",
+    };
+    it("accepts a valid full payload", () => {
+      const p = coercePayload("site", base);
+      expect(p).toEqual(base);
+    });
+    it("clips steps/features over-count to 3", () => {
+      const p: any = coercePayload("site", { ...base, steps: [...base.steps, { h: "Extra", p: "Extra." }] });
+      expect(p.steps).toHaveLength(3);
+    });
+    it("returns null when a required field is missing", () => {
+      expect(coercePayload("site", { ...base, headline: "" })).toBeNull();
+      expect(coercePayload("site", { ...base, steps: [] })).toBeNull();
+      expect(coercePayload("site", {})).toBeNull();
+    });
+  });
+
+  describe("screens", () => {
+    const validScreen = { name: "Connect", time: "0:15", kick: "Step 1 of 3", title: "Link your account", sub: "", art: "connect", cta: "Continue", note: "" };
+    it("accepts a valid 3-screen payload", () => {
+      const p: any = coercePayload("screens", { screens: [validScreen, { ...validScreen, name: "Session", art: "session" }, { ...validScreen, name: "Recap", art: "recap" }] });
+      expect(p.screens).toHaveLength(3);
+      expect(p.screens[0]).toEqual(validScreen);
+    });
+    it("falls back to a valid enum value when art is invalid", () => {
+      const p: any = coercePayload("screens", { screens: [{ ...validScreen, art: "not-a-real-art" }] });
+      expect(p.screens[0].art).toBe("connect");
+    });
+    it("drops screens missing name/title and returns null when none remain", () => {
+      expect(coercePayload("screens", { screens: [{ ...validScreen, name: "", title: "" }] })).toBeNull();
+      expect(coercePayload("screens", { screens: [] })).toBeNull();
+    });
+    it("clips over-count to 3 screens", () => {
+      const p: any = coercePayload("screens", { screens: [validScreen, validScreen, validScreen, validScreen] });
+      expect(p.screens).toHaveLength(3);
+    });
+  });
 });
 
 describe("buildRunTaskPrompt structured guide", () => {
@@ -101,5 +181,9 @@ describe("buildRunTaskPrompt structured guide", () => {
     expect(p).toContain("ALSO fill `payload`");
     expect(p).toMatch(/checklist:.*items/);
     expect(p).toMatch(/dms:.*messages/);
+    expect(p).toMatch(/calendar:.*weeks/);
+    expect(p).toMatch(/sheet:.*price.*waitlist.*conversion.*churn/);
+    expect(p).toMatch(/site:.*steps/);
+    expect(p).toMatch(/screens:.*connect.*session.*recap/);
   });
 });
