@@ -15,6 +15,8 @@ import {
   validateSetupToolUse,
   coerceRememberFacts,
   RUN_TASK_TOOL,
+  WALKTHROUGH_TOOL,
+  RE_PLAN_TOOL,
   NAVIGATE_TOOL,
   SETUP_TOOL,
   REMEMBER_TOOL,
@@ -181,6 +183,14 @@ interface ResolvedActions {
   nav: NavAction | null;
   setup: SetupAction | null;
   remember: RememberedFact[];
+  // `walkthrough` joins the mutually-exclusive primary group (run_task/navigate/
+  // setup): it's the opposite handling of a task from run_task, so a turn does at
+  // most one. `rePlan` is ORTHOGONAL (like remember) — it may co-occur with any
+  // primary action (e.g. re-plan AND walk the founder through a task from the
+  // fresh plan; the client applies re_plan first, then resolves the walkthrough
+  // against the new task set).
+  rePlan: boolean;
+  walkthrough: string | null;
 }
 
 function resolveActions(
@@ -191,19 +201,27 @@ function resolveActions(
   const runTaskUse = toolUses.find((t) => t.name === "run_task");
   const navUse = toolUses.find((t) => t.name === "navigate");
   const setupUse = toolUses.find((t) => t.name === "setup_capability");
+  const walkthroughUse = toolUses.find((t) => t.name === "walkthrough");
   const rememberUse = toolUses.find((t) => t.name === "remember_fact");
+  const rePlanUse = toolUses.find((t) => t.name === "re_plan");
 
   let runTaskId: string | null = null;
   let nav: NavAction | null = null;
   let setup: SetupAction | null = null;
+  let walkthrough: string | null = null;
 
   if (runTaskUse) runTaskId = validateRunTaskToolUse(runTaskUse.input, runnable);
   if (!runTaskId && navUse) nav = validateNavigateToolUse(navUse.input);
   if (!runTaskId && !nav && setupUse) setup = validateSetupToolUse(setupUse.input, envSetup);
+  // walkthrough validates its task_id exactly like run_task (same runnable list).
+  if (!runTaskId && !nav && !setup && walkthroughUse) {
+    walkthrough = validateRunTaskToolUse(walkthroughUse.input, runnable);
+  }
 
   const remember = rememberUse ? coerceRememberFacts(rememberUse.input) : [];
+  const rePlan = !!rePlanUse;
 
-  return { runTaskId, nav, setup, remember };
+  return { runTaskId, nav, setup, remember, rePlan, walkthrough };
 }
 
 export async function handleCompanyChat(req: Request, res: Response): Promise<void> {
@@ -253,8 +271,9 @@ export async function handleCompanyChat(req: Request, res: Response): Promise<vo
   // byte stays free to reply in plain text, or ask a clarifying question,
   // instead of calling any of them.
   const tools: unknown[] = [
-    ...(runnable.length ? [RUN_TASK_TOOL] : []),
+    ...(runnable.length ? [RUN_TASK_TOOL, WALKTHROUGH_TOOL] : []),
     NAVIGATE_TOOL,
+    RE_PLAN_TOOL,
     ...(envSetup.length ? [SETUP_TOOL] : []),
     REMEMBER_TOOL,
   ];
@@ -281,16 +300,18 @@ export async function handleCompanyChat(req: Request, res: Response): Promise<vo
       const toolUses = response.content
         .filter((b) => b.type === "tool_use")
         .map((b) => ({ name: (b as any).name as string, input: (b as any).input }));
-      const { runTaskId, nav, setup, remember } = resolveActions(toolUses, runnable, envSetup);
+      const { runTaskId, nav, setup, remember, rePlan, walkthrough } = resolveActions(toolUses, runnable, envSetup);
 
       // Additive, backward-compatible response shape: run_task_id is always
-      // present (existing behavior); nav/setup/remember are only included when
-      // the turn actually produced one — old clients that only look for
-      // {reply, run_task_id} are unaffected, and unknown fields are ignored.
+      // present (existing behavior); nav/setup/remember/re_plan/walkthrough are
+      // only included when the turn actually produced one — old clients that only
+      // look for {reply, run_task_id} are unaffected, and unknown fields ignored.
       const responseBody: Record<string, unknown> = { reply, run_task_id: runTaskId };
       if (nav) responseBody.nav = nav;
       if (setup) responseBody.setup = setup;
       if (remember.length) responseBody.remember = remember;
+      if (rePlan) responseBody.re_plan = true;
+      if (walkthrough) responseBody.walkthrough = { task_id: walkthrough };
       res.status(200).json(responseBody);
     } catch (err) {
       logger.error("companyChat failed", { uid: auth.uid, err: String(err) });
@@ -354,15 +375,17 @@ export async function handleCompanyChat(req: Request, res: Response): Promise<vo
         }
       } else if (event.type === "done") {
         const cacheHit = (event.usage?.cache_read_input_tokens ?? 0) > 0;
-        const { runTaskId, nav, setup, remember } = resolveActions(completedToolUses, runnable, envSetup);
-        // run_task_id/nav/setup/remember are additive on the existing done
-        // frame — old clients that only look for {model, cache_hit,
-        // run_task_id} are unaffected; nav/setup/remember are only included
-        // when the turn actually produced one.
+        const { runTaskId, nav, setup, remember, rePlan, walkthrough } = resolveActions(completedToolUses, runnable, envSetup);
+        // run_task_id/nav/setup/remember/re_plan/walkthrough are additive on the
+        // existing done frame — old clients that only look for {model, cache_hit,
+        // run_task_id} are unaffected; the rest are only included when the turn
+        // actually produced one.
         const doneFrame: Record<string, unknown> = { model: CHAT_MODEL, cache_hit: cacheHit, run_task_id: runTaskId };
         if (nav) doneFrame.nav = nav;
         if (setup) doneFrame.setup = setup;
         if (remember.length) doneFrame.remember = remember;
+        if (rePlan) doneFrame.re_plan = true;
+        if (walkthrough) doneFrame.walkthrough = { task_id: walkthrough };
         writeFrame(res, "done", doneFrame);
       }
     }

@@ -156,6 +156,52 @@ export function validateRunTaskToolUse(rawInput: unknown, runnable: RunnableTask
   return null;
 }
 
+// ─── walkthrough tool (optional, offered when runnable is non-empty) ───────
+// The mirror-image of run_task: instead of byte PRODUCING a task's deliverable,
+// byte offers to GUIDE the founder through doing it themselves. It reuses the
+// same task_id from RUNNABLE TASKS, validated the same way (validateRunTaskToolUse),
+// so it's offered only when there are runnable tasks. The handler treats it as
+// mutually exclusive with run_task/navigate/setup (opposite handlings of a task).
+export const WALKTHROUGH_TOOL = {
+  name: "walkthrough",
+  description:
+    "Guide the founder through doing a specific roadmap task THEMSELVES, step by step, instead of producing it for them. Call this only when the founder clearly wants to do a task themselves with your help — e.g. \"walk me through it\", \"how do I do this myself\", \"guide me through X\" — about a task from RUNNABLE TASKS. Use the exact task_id from RUNNABLE TASKS (task_title optional, a fallback match). If they instead want you to just DO/produce the task, call run_task, not this. For questions or advice, just reply.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {
+      task_id: {
+        type: "string",
+        description: "The exact id of the task, copied from RUNNABLE TASKS.",
+      },
+      task_title: {
+        type: "string",
+        description: "The task's title, copied from RUNNABLE TASKS (optional; used as a fallback match if task_id doesn't match).",
+      },
+    },
+    required: ["task_id"],
+  },
+} as const;
+
+// ─── re_plan tool (optional, always offered, tool_choice auto) ─────────────
+// byte may call this when the founder clearly wants their whole roadmap/plan
+// regenerated for their current stage. No input: the native client regenerates
+// the roadmap for the current brief/stage. Always offered (no per-request list
+// dependency, like navigate). ORTHOGONAL to the run_task/navigate/setup/
+// walkthrough group — a reply may re-plan AND walk the founder through a task
+// from the fresh plan (the client applies re_plan first, then resolves the
+// walkthrough against the new tasks).
+export const RE_PLAN_TOOL = {
+  name: "re_plan",
+  description:
+    "Regenerate the founder's entire roadmap for their current stage — a fresh plan of tasks. Call this only when the founder clearly asks to re-plan, redo, or regenerate their roadmap/plan (e.g. \"re-plan\", \"my plan feels stale, redo it\", \"regenerate my roadmap\"). Do NOT call it to run a single task, or for questions/advice. Always also give a one-line spoken lead-in.",
+  input_schema: {
+    type: "object",
+    additionalProperties: false,
+    properties: {},
+  },
+} as const;
+
 // ─── navigate tool (optional, always offered, tool_choice auto) ───────────
 // Mirrors the web app's NAVIGATE_TOOL (app/api/chat/route.ts + lib/ai/navChip.ts):
 // byte may call this when the founder clearly asks where something is, or to

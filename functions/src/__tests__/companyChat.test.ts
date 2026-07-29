@@ -454,12 +454,15 @@ describe("handleCompanyChat", () => {
       expect(body.reply).toBe("On it — running that now.");
       expect(body.run_task_id).toBe("t1");
 
-      // tools were actually offered to the model this turn — run_task because
-      // runnable was non-empty, plus the always-on navigate + remember_fact.
+      // tools were actually offered to the model this turn — run_task +
+      // walkthrough because runnable was non-empty, plus the always-on navigate +
+      // re_plan + remember_fact.
       const call = mockMessagesCreate.mock.calls[0][0] as any;
       expect((call.tools as any[]).map((t) => t.name)).toEqual([
         "run_task",
+        "walkthrough",
         "navigate",
+        "re_plan",
         "remember_fact",
       ]);
     });
@@ -481,17 +484,101 @@ describe("handleCompanyChat", () => {
       expect(body.run_task_id).toBeNull();
     });
 
-    test("only the always-on navigate + remember_fact tools are offered, and run_task_id is null, when runnable/env_setup are omitted (backward compat)", async () => {
+    test("only the always-on navigate + re_plan + remember_fact tools are offered, and run_task_id is null, when runnable/env_setup are omitted (backward compat)", async () => {
       const req = makeReq(); // no `runnable`, no `env_setup` on the body at all
       const res = makeRes();
       await handleCompanyChat(req as any, res as any);
 
       const body = JSON.parse((res as any).writes[0]);
       // Exact shape match — old clients that only look for {reply, run_task_id}
-      // must see nothing new when nav/setup/remember never fired.
+      // must see nothing new when nav/setup/remember/re_plan/walkthrough never fired.
       expect(body).toEqual({ reply: "Hello founder.", run_task_id: null });
       const call = mockMessagesCreate.mock.calls[0][0] as any;
-      expect((call.tools as any[]).map((t) => t.name)).toEqual(["navigate", "remember_fact"]);
+      expect((call.tools as any[]).map((t) => t.name)).toEqual(["navigate", "re_plan", "remember_fact"]);
+    });
+
+    // ── walkthrough + re_plan tools (non-stream) ─────────────────────────────
+
+    test("walkthrough is set (and run_task_id null) when the model calls walkthrough with a valid task_id", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "text", text: "Let's do it together." },
+          { type: "tool_use", id: "toolu_1", name: "walkthrough", input: { task_id: "t2", task_title: "Send investor update" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({
+        body: { ...makeReq().body, runnable: [{ id: "t1", title: "Draft pricing page" }, { id: "t2", title: "Send investor update" }] }
+      });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.walkthrough).toEqual({ task_id: "t2" });
+      expect(body.run_task_id).toBeNull();
+    });
+
+    test("walkthrough is absent when the model references a task not in runnable", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [{ type: "tool_use", id: "toolu_1", name: "walkthrough", input: { task_id: "made-up" } }],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({ body: { ...makeReq().body, runnable: [{ id: "t1", title: "Draft pricing page" }] } });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.walkthrough).toBeUndefined();
+    });
+
+    test("run_task wins over walkthrough when the model calls both (mutually exclusive)", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "run_task", input: { task_id: "t1" } },
+          { type: "tool_use", id: "toolu_2", name: "walkthrough", input: { task_id: "t1" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({ body: { ...makeReq().body, runnable: [{ id: "t1", title: "Draft pricing page" }] } });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.run_task_id).toBe("t1");
+      expect(body.walkthrough).toBeUndefined();
+    });
+
+    test("re_plan is set when the model calls re_plan", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "text", text: "Regenerating your roadmap." },
+          { type: "tool_use", id: "toolu_1", name: "re_plan", input: {} }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq();
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.re_plan).toBe(true);
+    });
+
+    test("re_plan and walkthrough co-occur (re_plan is orthogonal to the primary group)", async () => {
+      mockMessagesCreate.mockImplementationOnce(async () => ({
+        content: [
+          { type: "tool_use", id: "toolu_1", name: "re_plan", input: {} },
+          { type: "tool_use", id: "toolu_2", name: "walkthrough", input: { task_id: "t1" } }
+        ],
+        usage: { input_tokens: 10, output_tokens: 5 }
+      }));
+      const req = makeReq({ body: { ...makeReq().body, runnable: [{ id: "t1", title: "Draft pricing page" }] } });
+      const res = makeRes();
+      await handleCompanyChat(req as any, res as any);
+
+      const body = JSON.parse((res as any).writes[0]);
+      expect(body.re_plan).toBe(true);
+      expect(body.walkthrough).toEqual({ task_id: "t1" });
     });
 
     // ── navigate tool (non-stream) ──────────────────────────────────────────
